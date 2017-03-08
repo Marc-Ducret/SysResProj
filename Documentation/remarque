@@ -1,0 +1,4 @@
+https://cs.au.dk/~sortie/dopsys/osdev/
+
+
+Welcome to kernel mode! We now have sufficient code for the bootloader to load and run our operating system. It doesn't do anything interesting yet, so we would like to call printf("Hello, World\n");. You should now realize one of the profound truths about kernel mode: In kernel mode nobody can hear you scream, you are very much alone. There is no printf function. There is no <stdio.h> header. If you want a function, you will have to code it yourself. And that is one of the best things about kernel development: you get to make the entire system yourself. You have absolute and complete power over the machine, there are no security restrictions, no safe guards, no debugging mechanisms, there is nothing but what you build.
