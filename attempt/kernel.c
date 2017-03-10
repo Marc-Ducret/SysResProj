@@ -42,10 +42,10 @@ size_t strlen(const char* str)
 static const size_t VGA_WIDTH = 80;
 static const size_t VGA_HEIGHT = 24;
 
-size_t terminal_row;
-size_t terminal_column;
-uint8_t terminal_color;
-uint16_t* terminal_buffer;
+size_t terminal_row=1;
+size_t terminal_column=1;
+uint8_t terminal_color=1;
+uint16_t* terminal_buffer=1;
 
 void terminal_initialize()
 {
@@ -68,7 +68,6 @@ void terminal_setcolor(uint8_t color)
 
 void terminal_putentryat(char c, uint8_t color, size_t x, size_t y)
 {
-	terminal_buffer = (uint16_t*) 0xB8000;
 	const size_t index = y * VGA_WIDTH + x;
 	terminal_buffer[index] = make_vgaentry(c, color);
 }
@@ -84,7 +83,6 @@ void terminal_putchar(char c)
 			terminal_row = 0;
 		}
 	}
-	terminal_column = 2;
 }
 
 void terminal_writestring(const char* data)
@@ -94,15 +92,8 @@ void terminal_writestring(const char* data)
 		terminal_putchar(data[i]);
 }
 
-void test() {
-	terminal_color = make_color(COLOR_LIGHT_BLUE, COLOR_BLACK);
-}
-
 void kmain()
 {
 	terminal_initialize();
-	test();
-	terminal_putchar('0' + terminal_color);
-	terminal_putentryat('$', make_color(COLOR_RED, COLOR_GREEN), 5, 5);
-	terminal_writestring("###");
+	terminal_writestring("ezPZ tu l'avais pas devine l'offset de 0x1500 ;)");
 }

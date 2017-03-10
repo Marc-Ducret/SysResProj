@@ -6,11 +6,13 @@
 .set CHECKSUM, -(MAGIC + FLAGS) # checksum of above, to prove we are multiboot
 
 # Declare a header as in the Multiboot Standard.
-.section .multiboot
+.section .ninja
 .align 4
 .long MAGIC
 .long FLAGS
 .long CHECKSUM
+
+.code32 
 
 # Allocate room for a small temporary stack as a global variable called stack.
 .section .bootstrap_stack
@@ -32,9 +34,6 @@ _start:
 	# First, we'll set the stack pointer to the top of our stack declared above.
 	movl $stack_top, %esp
 	
-	movw $0x0440, (0xB8000)
-	#movw $0x4400, (0xB8001)
-
 	# Now that we have a stack, we can provide the minimal environment needed to
 	# run C code. Note that floating point instructions and other CPU features
 	# currently are disabled. Enable them here once you add support.
