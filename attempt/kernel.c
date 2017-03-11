@@ -72,7 +72,7 @@ void terminal_putentryat(char c, uint8_t color, size_t x, size_t y)
 	terminal_buffer[index] = make_vgaentry(c, color);
 }
 
-void terminal_putchar(char c)
+void putchar(char c)
 {
 	terminal_putentryat(c, make_color(COLOR_RED, COLOR_GREEN), terminal_column, terminal_row);
 	if ( ++terminal_column == VGA_WIDTH )
@@ -85,15 +85,44 @@ void terminal_putchar(char c)
 	}
 }
 
-void terminal_writestring(const char* data)
-{
-	size_t datalen = strlen(data);
-	for ( size_t i = 0; i < datalen; i++ )
-		terminal_putchar(data[i]);
+void putint(int i) {
+	if(i >= 10) putint(i / 10);
+	putchar('0' + (i % 10)); 
 }
 
-void kmain()
-{
-	terminal_initialize();
-	terminal_writestring("ezPZ tu l'avais pas devine l'offset de 0x1500 ;)");
+void terminal_writestring(const char* data) {
+	size_t datalen = strlen(data);
+	for ( size_t i = 0; i < datalen; i++ )
+		putchar(data[i]);
 }
+
+unsigned char inportb (unsigned short _port) {
+	unsigned char rv;
+	__asm__ __volatile__ ("inb %1, %0" : "=a" (rv) : "dN" (_port));
+	return rv;
+}
+void outportb (unsigned short _port, unsigned char _data) {
+	__asm__ __volatile__ ("outb %1, %0" : : "dN" (_port), "a" (_data));
+}
+
+void kmain() {
+	terminal_initialize();
+	putint(1526);
+	unsigned char key;
+	while(true) {
+		unsigned char cur = inportb(0x60);
+		if(cur != key) {
+			key = cur;
+			if(key >= 128) {
+				putchar('R');
+				putint(key - 128);
+			} else {
+				putchar('P');
+				putint(key);
+			}
+			putchar(' ');
+		}
+	}
+}
+
+
