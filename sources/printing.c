@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include "args.h"
 
 static const uint8_t COLOR_BLACK = 0;
 static const uint8_t COLOR_BLUE = 1;
@@ -117,7 +118,49 @@ void terminal_writestring(const char* data) {
 		putchar(data[i]);
 }
 
-void kprintf(const char* data) {
+void print_string(char *s)
+{
+    terminal_writestring(s);
+}
+
+void kprintf(const char* data, ...) {
+    va_list args;
+    va_start(args, data);
+    
+    char c = *data;
+    while (c != 0)
+    {
+        if (c == '%')
+        {
+            data ++;
+            c = *data;
+            int nb;
+            char *s;
+            
+            switch (c)
+            {
+                case 'd':
+                    nb = va_arg(args, int);
+                    putint(nb);
+                    break;
+                
+                case 's':
+                    s = va_arg(args, char*);
+                    print_string(s);
+                default:
+                    break;
+            }
+        }
+        else
+        {
+            putchar(c);
+        }
+        
+        data ++;
+        c = *data;
+    }
     terminal_writestring(data);
+    
+    va_end(args);
 }
 

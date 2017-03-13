@@ -808,25 +808,10 @@ char* channel_to_str(channel_state c)
 
 void log_state(state* s)
 {
-    kprintf("Current process is ");
-    putint(s->curr_pid);
-    kprintf(" (priority ");
-    putint(s->curr_priority);
-    kprintf(", ");
-    putint(s->processes[s->curr_pid].slices_left);
-    kprintf(" slices left)\n");
-    
-    kprintf("Registers are: r0=");
-    putint(s->registers[0]);
-    kprintf(", r1=");
-    putint(s->registers[1]);
-    kprintf(", r2=");
-    putint(s->registers[2]);
-    kprintf(", r3=");
-    putint(s->registers[3]);
-    kprintf(", r4=");
-    putint(s->registers[4]);
-    kprintf("\n");
+    kprintf("Current process is %d (priority %d, %d slices left)\n",
+        s->curr_pid, s->curr_priority, s->processes[s->curr_pid].slices_left);
+    kprintf("Registers are: r0=%d, r1=%d, r2=%d, r3=%d, r4=%d\n",
+        s->registers[0], s->registers[1], s->registers[2], s->registers[3], s->registers[4]);
 
     kprintf("\nRunqueues:\n");
     for (priority prio = MAX_PRIORITY; prio >= 0; prio--)
@@ -834,20 +819,11 @@ void log_state(state* s)
         list* q = s->runqueues[prio];
         if (q != NULL)
         {
-            kprintf("Priority ");
-            putint(prio);
-            kprintf("\n");
-            putint(q->hd);
-            kprintf("(");
-            putint(s->processes[q->hd].state.state);
-            kprintf(")\n");
-            
+            kprintf("Priority %d:\n", prio);
+            kprintf("%d(%d)\n", q->hd, s->processes[q->hd].state.state);
             for (list *curr = q->tl; curr != NULL; curr = curr->tl)
             {
-                putint(q->hd);
-                kprintf("(");
-                putint(s->processes[q->hd].state.state);
-                kprintf(")\n");
+                kprintf("%d(%d)\n", curr->hd, s->processes[curr->hd].state.state);
             }
         }
     }
@@ -857,10 +833,7 @@ void log_state(state* s)
     {
         if (s->channels[c].state != UNUSED)
         {
-            putint(c);
-            kprintf(": ");
-            putint(s->channels[c].state);
-            kprintf("\n");
+            kprintf("%d: %d\n", c, s->channels[c].state);
         }
     }
     kprintf("\n\n");
