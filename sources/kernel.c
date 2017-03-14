@@ -125,12 +125,10 @@ list* malloc_list() {
     return 0;
 }
 
-void free_list(list* l)
-{
+void free_list(list* l) {
     int i;
     for (i=0; i < MAX_SIZE_LIST; i++){
-        if (&(list_memory[i].elt) == l)
-        {
+        if (&(list_memory[i].elt) == l) {
             list_memory[i].free = 0;
             return;
         }
@@ -138,14 +136,12 @@ void free_list(list* l)
     kprintf("Invalid argument : no such list element to free.");
 }
 
-c_list* malloc_c_list()
-{
+c_list* malloc_c_list() {
     static int base = 0;
     int i;
     
     for (i=base; i < MAX_SIZE_C_LIST; i++){
-        if (c_list_memory[i].free == 0)
-        {
+        if (c_list_memory[i].free == 0) {
             base = i + 1;
             if (base == MAX_SIZE_C_LIST)
                 base = 0;
@@ -161,12 +157,10 @@ c_list* malloc_c_list()
     return 0;
 }
 
-void free_c_list(c_list* l)
-{
+void free_c_list(c_list* l) {
     int i;
     for (i=0; i < MAX_SIZE_C_LIST; i++){
-        if (&(c_list_memory[i].elt) == l)
-        {
+        if (&(c_list_memory[i].elt) == l) {
             c_list_memory[i].free = 0;
             return;
         }
@@ -174,8 +168,7 @@ void free_c_list(c_list* l)
     kprintf("Invalid argument : no such c_list element to free.");
 }
 
-list* add(int hd, list* tl)
-{
+list* add(int hd, list* tl) {
     list *res = malloc_list();
     res->hd = hd;
     res->tl = tl;
@@ -183,18 +176,15 @@ list* add(int hd, list* tl)
     return res;
 }
 
-list *filter(list *l, int elt)
-{
+list *filter(list *l, int elt) {
     //On ne le fait pas en place !
-    if (l == NULL)
-    {
+    if (l == NULL) {
         return NULL;
     }
 
     list *temp = filter(l->tl, elt);
 
-    if (l->hd == elt)
-    {
+    if (l->hd == elt) {
         free_list(l); // Ni de f
         return temp;
     }
@@ -204,10 +194,8 @@ list *filter(list *l, int elt)
 }
 
 
-list *append(list *l, int elt)
-{
-    if (l == NULL)
-    {
+list *append(list *l, int elt) {
+    if (l == NULL) {
         list *res = malloc_list(sizeof(list));
         res->hd = elt;
         res->tl = NULL;
@@ -219,25 +207,21 @@ list *append(list *l, int elt)
     return l;
 }
 
-c_list* get_recv(state *s, chanid i)
-{
+c_list* get_recv(state *s, chanid i) {
     c_list* res = s->channels[i].recvs;
     s->channels[i].recvs = res->tl;
     return res;
 }
 
-c_list* remove_recv(pid r, c_list* l)
-{
+c_list* remove_recv(pid r, c_list* l) {
     //On ne le fait pas en place !
-    if (l == NULL)
-    {
+    if (l == NULL) {
         return NULL;
     }
 
     c_list *temp = remove_recv(r, l->tl);
 
-    if (l->pid == r)
-    {
+    if (l->pid == r) {
         free_c_list(l);
         return temp;
     }
@@ -246,13 +230,10 @@ c_list* remove_recv(pid r, c_list* l)
     return l;
 }
 
-void release_recv(state *s, pid r, list *ch_list)
-{
-    while (ch_list != NULL)
-    {
+void release_recv(state *s, pid r, list *ch_list) {
+    while (ch_list != NULL) {
         s->channels[ch_list->hd].recvs = remove_recv(r, s->channels[ch_list->hd].recvs);
-        if (s->channels[ch_list->hd].recvs == NULL)
-        {
+        if (s->channels[ch_list->hd].recvs == NULL) {
             s->channels[ch_list->hd].state = UNUSED;
         }
         ch_list = ch_list->tl;
@@ -260,10 +241,8 @@ void release_recv(state *s, pid r, list *ch_list)
 }
 
 
-c_list *add_recv(pid i, priority p, c_list* l)
-{
-    if (l == NULL || p > l->priority)
-    {
+c_list *add_recv(pid i, priority p, c_list* l) {
+    if (l == NULL || p > l->priority) {
         c_list *res = malloc_c_list();
         res->pid = i;
         res->priority = p;
@@ -277,16 +256,14 @@ c_list *add_recv(pid i, priority p, c_list* l)
 }
 
 
-registers get_registers(int source[NUM_REGISTERS])
-{
+registers get_registers(int source[NUM_REGISTERS]) {
     registers res = { source[0], source[1],
                       source[2], source[3],
                       source[4] };
     return res;
 }
 
-void set_registers(int dest[NUM_REGISTERS], registers regs)
-{
+void set_registers(int dest[NUM_REGISTERS], registers regs) {
     dest[0] = regs.r0;
     dest[1] = regs.r1;
     dest[2] = regs.r2;
@@ -295,8 +272,7 @@ void set_registers(int dest[NUM_REGISTERS], registers regs)
 }
 
 
-void set_registers_bis(int dest[NUM_REGISTERS], registers *regs)
-{
+void set_registers_bis(int dest[NUM_REGISTERS], registers *regs) {
     dest[0] = regs->r0;
     dest[1] = regs->r1;
     dest[2] = regs->r2;
@@ -306,8 +282,7 @@ void set_registers_bis(int dest[NUM_REGISTERS], registers *regs)
 
 
 
-pid get_current(state *s)
-{
+pid get_current(state *s) {
     return s->curr_pid;
 }
 
@@ -329,12 +304,10 @@ struct syscall {
     value v4;
 };
 
-syscall decode(state *s)
-{
+syscall decode(state *s) {
     syscall res;
 
-    switch (s->registers[0])
-    {
+    switch (s->registers[0]) {
     case 0:
         res.t = NEWCHANNEL;
         break;
@@ -377,10 +350,8 @@ syscall decode(state *s)
     return res;
 }
 
-void picofork(state *s, priority nprio, value v2, value v3, value v4)
-{
-    if (s->curr_priority < nprio)
-    {
+void picofork(state *s, priority nprio, value v2, value v3, value v4) {
+    if (s->curr_priority < nprio) {
         s->registers[0] = 0;
         return;
     }
@@ -388,10 +359,8 @@ void picofork(state *s, priority nprio, value v2, value v3, value v4)
     //Good priority
     //Finds the new process
     int i;
-    for (i = 0; i < NUM_PROCESSES; i++)
-    {
-        if (s->processes[i].state.state == FREE)
-        {
+    for (i = 0; i < NUM_PROCESSES; i++) {
+        if (s->processes[i].state.state == FREE) {
             //Found a free process
             s->registers[0] = 1;
             s->registers[1] = i;
@@ -419,25 +388,21 @@ void picofork(state *s, priority nprio, value v2, value v3, value v4)
     return;
 }
 
-void picoexit(state *s)
-{
+void picoexit(state *s) {
     int i = s->curr_pid;
     s->processes[i].state.state = ZOMBIE;
     int pere = s->processes[i].parent_id;
 
     //On trouve les processus fils de celui ci.
     int j;
-    for (j = 0; j < NUM_PROCESSES; j++)
-    {
-        if (s->processes[j].parent_id == i)
-        {
+    for (j = 0; j < NUM_PROCESSES; j++) {
+        if (s->processes[j].parent_id == i) {
             s->processes[j].parent_id = 1;
         }
     }
 
     //On cherche aussi le processus parent de celui-ci, s'il est en wait.
-    if (s->processes[pere].state.state == WAITING)
-    {
+    if (s->processes[pere].state.state == WAITING) {
         //On fait la même chose que dans wait.
         s->processes[pere].state.state = RUNNABLE;
         s->processes[i].state.state = FREE;
@@ -451,19 +416,15 @@ void picoexit(state *s)
     s->runqueues[s->curr_priority] = filter(s->runqueues[s->curr_priority], i);
 }
 
-int picowait(state *s)
-{
+int picowait(state *s) {
     int i = s->curr_pid;
     int fils = 0;
     //On trouve un fils zombie
     int j;
-    for (j = 0; j < NUM_PROCESSES; j++)
-    {
-        if (s->processes[j].parent_id == i)
-        {
+    for (j = 0; j < NUM_PROCESSES; j++) {
+        if (s->processes[j].parent_id == i) {
             fils = 1;
-            if (s->processes[j].state.state == ZOMBIE)
-            {
+            if (s->processes[j].state.state == ZOMBIE) {
                 s->registers[0] = 1;
                 s->registers[1] = j;
                 s->registers[2] = s->processes[j].saved_context[1];
@@ -473,8 +434,7 @@ int picowait(state *s)
         }
     }
 
-    if (fils)
-    {
+    if (fils) {
         s->processes[i].state.state = WAITING;
         return 1;
     }
@@ -484,13 +444,10 @@ int picowait(state *s)
 }
 
 
-void piconew_channel(state *s)
-{
+void piconew_channel(state *s) {
     int i;
-    for (i = 0; i < NUM_CHANNELS; i++)
-    {
-        if (s->channels[i].state == UNUSED)
-        {
+    for (i = 0; i < NUM_CHANNELS; i++) {
+        if (s->channels[i].state == UNUSED) {
             //On a un channel de libre.
             //On le met a receivers vide
             s->channels[i].state = RECEIVER;
@@ -504,20 +461,17 @@ void piconew_channel(state *s)
 }
 
 
-int picosend(state *s, chanid i, value v)
-{
+int picosend(state *s, chanid i, value v) {
     pid writer = s->curr_pid;
     channel_state *ch = &(s->channels[i]);
 
-    if (ch->state == UNUSED || ch->state == SENDER)
-    {
+    if (ch->state == UNUSED || ch->state == SENDER) {
         s->registers[0] = 0;
         return 0;
     }
 
     //Le canal est valide, on regarde s'il est vide.
-    if (ch->recvs == NULL)
-    {
+    if (ch->recvs == NULL) {
         ch->state = SENDER;
         ch->s_value = v;
         ch->s_pid = s->curr_pid;
@@ -550,20 +504,16 @@ int picosend(state *s, chanid i, value v)
 }
 
 
-int picoreceive(state *s, list *ch_list)
-{
+int picoreceive(state *s, list *ch_list) {
     int valide = 0;
 
     list *next_ch = ch_list;
-    while (next_ch != NULL)
-    {
+    while (next_ch != NULL) {
         chanid ch_id = next_ch->hd;
 
-        if (ch_id >= 0 && ch_id < NUM_CHANNELS)
-        {
+        if (ch_id >= 0 && ch_id < NUM_CHANNELS) {
             channel_state *ch = &(s->channels[ch_id]);
-            if (ch->state == SENDER)
-            {
+            if (ch->state == SENDER) {
                 s->registers[0] = 1;
                 s->registers[1] = ch_id;
                 s->registers[2] = ch->s_value;
@@ -574,9 +524,7 @@ int picoreceive(state *s, list *ch_list)
                 ch->recvs = NULL;
                 release_recv(s, s->curr_pid, ch_list);
                 return ch->s_priority >= s->curr_priority;
-            }
-            else if (ch->state == RECEIVER)
-            {
+            } else if (ch->state == RECEIVER) {
                 valide = 1;
                 ch->recvs = add_recv(s->curr_pid, s->curr_priority, ch->recvs);
             }
@@ -585,8 +533,7 @@ int picoreceive(state *s, list *ch_list)
 
     }
 
-    if (valide)
-    {
+    if (valide) {
         s->processes[s->curr_pid].state.state = BLOCKEDREADING;
         s->processes[s->curr_pid].state.ch_list = ch_list;
         //s->registers[0] = 0;
@@ -598,15 +545,12 @@ int picoreceive(state *s, list *ch_list)
 }
 
 
-void picotransition(state *s, event ev)
-{
+void picotransition(state *s, event ev) {
     int reorder = 0;
-    if (ev == SYSCALL)
-    {
+    if (ev == SYSCALL) {
         syscall sc = decode(s);
 
-        switch (sc.t)
-        {
+        switch (sc.t) {
         case SEND:
             reorder = picosend(s, sc.ch_send, sc.val_send);
             break;
@@ -635,12 +579,9 @@ void picotransition(state *s, event ev)
         case INVALID:
             break;
         }
-    }
-    else
-    {
+    } else {
         s->processes[s->curr_pid].slices_left --;
-        if (s->processes[s->curr_pid].slices_left == 0)
-        {
+        if (s->processes[s->curr_pid].slices_left == 0) {
             reorder = 1;
             //On remet le processus a la fin
             priority p = s->curr_priority;
@@ -650,18 +591,14 @@ void picotransition(state *s, event ev)
     }
 
     pid next_pid;
-    if (reorder)
-    {
+    if (reorder) {
         //On reelit un processus
         priority p;
         list *rq;
-        for (p = MAX_PRIORITY; p >= 0; p--)
-        {
+        for (p = MAX_PRIORITY; p >= 0; p--) {
             rq = s->runqueues[p];
-            while (rq != NULL)
-            {
-                if (s->processes[rq->hd].state.state == RUNNABLE) //&& s->processes[rq->hd].slices_left > 0 ?
-                {
+            while (rq != NULL) {
+                if (s->processes[rq->hd].state.state == RUNNABLE) //&& s->processes[rq->hd].slices_left > 0 ? {
                     next_pid = rq->hd;
                     //s->processes[next_pid].slices_left = MAX_TIME_SLICES;
                     //On sauvegarde les registres
@@ -681,15 +618,13 @@ void picotransition(state *s, event ev)
     }
 }
 
-state *picoinit()
-{
+state *picoinit() {
     state *s = &global_state;
     s->curr_pid = 1;
     s->curr_priority = MAX_PRIORITY;
 
     int i;
-    for (i = 0; i < NUM_CHANNELS; i++)
-    {
+    for (i = 0; i < NUM_CHANNELS; i++) {
         s->channels[i].recvs = NULL;
         s->channels[i].state = UNUSED;
         s->channels[i].s_pid = 0;
@@ -697,24 +632,18 @@ state *picoinit()
         s->channels[i].s_value = 0;
     }
 
-    for (i = 0; i < NUM_PROCESSES; i++)
-    {
-        if (i == 0)
-        {
+    for (i = 0; i < NUM_PROCESSES; i++) {
+        if (i == 0) {
             s->processes[i].parent_id = 0;
             s->processes[i].state.state = RUNNABLE;
             s->processes[i].slices_left = MAX_TIME_SLICES;
             s->processes[i].state.ch_list = NULL;
-        }
-        else if (i == 1)
-        {
+        } else if (i == 1) {
             s->processes[i].parent_id = 1;
             s->processes[i].state.state = RUNNABLE;
             s->processes[i].slices_left = MAX_TIME_SLICES;
             s->processes[i].state.ch_list = NULL;
-        }
-        else
-        {
+        } else {
             s->processes[i].parent_id = 0;
             s->processes[i].state.state = FREE;
             s->processes[i].slices_left = 0;
@@ -722,24 +651,17 @@ state *picoinit()
         }
 
         int j;
-        for (j = 0; j < NUM_REGISTERS; j++)
-        {
+        for (j = 0; j < NUM_REGISTERS; j++) {
             s->processes[i].saved_context[j] = 0;
         }
     }
 
-    for (i = 0; i <= MAX_PRIORITY; i++)
-    {
-        if (i == MAX_PRIORITY)
-        {
+    for (i = 0; i <= MAX_PRIORITY; i++) {
+        if (i == MAX_PRIORITY) {
             s->runqueues[i] = add(1, NULL);
-        }
-        else if (i == 0)
-        {
+        } else if (i == 0) {
             s->runqueues[i] = add(0, NULL);
-        }
-        else
-        {
+        } else {
             s->runqueues[i] = NULL;
         }
     }
@@ -750,11 +672,9 @@ state *picoinit()
 }
 
 /*
-char* process_to_str(process p)
-{
+char* process_to_str(process p) {
     char* state = malloc(100 * sizeof(char));
-    switch (p.state.state)
-    {
+    switch (p.state.state) {
         case FREE:
             sprintf(state, "Free");
             break;
@@ -783,11 +703,9 @@ char* process_to_str(process p)
     return state;
 }
 
-char* channel_to_str(channel_state c)
-{
+char* channel_to_str(channel_state c) {
     char* state = malloc(100 * sizeof(char));
-    switch (c.state)
-    {
+    switch (c.state) {
         case UNUSED:
             sprintf(state, "Unused");
             break;
@@ -804,33 +722,27 @@ char* channel_to_str(channel_state c)
 }
 */
 
-void log_state(state* s)
-{
+void log_state(state* s) {
     kprintf("Current process is %d (priority %d, %d slices left)\n",
         s->curr_pid, s->curr_priority, s->processes[s->curr_pid].slices_left);
     kprintf("Registers are: r0=%d, r1=%d, r2=%d, r3=%d, r4=%d\n",
         s->registers[0], s->registers[1], s->registers[2], s->registers[3], s->registers[4]);
 
     kprintf("\nRunqueues:\n");
-    for (priority prio = MAX_PRIORITY; prio >= 0; prio--)
-    {
+    for (priority prio = MAX_PRIORITY; prio >= 0; prio--) {
         list* q = s->runqueues[prio];
-        if (q != NULL)
-        {
+        if (q != NULL) {
             kprintf("Priority %d:\n", prio);
             kprintf("%d(%d)\n", q->hd, s->processes[q->hd].state.state);
-            for (list *curr = q->tl; curr != NULL; curr = curr->tl)
-            {
+            for (list *curr = q->tl; curr != NULL; curr = curr->tl) {
                 kprintf("%d(%d)\n", curr->hd, s->processes[curr->hd].state.state);
             }
         }
     }
 
     kprintf("\nChannels:\n");
-    for (chanid c = 0; c < NUM_CHANNELS; c++)
-    {
-        if (s->channels[c].state != UNUSED)
-        {
+    for (chanid c = 0; c < NUM_CHANNELS; c++) {
+        if (s->channels[c].state != UNUSED) {
             kprintf("%d: %d\n", c, s->channels[c].state);
         }
     }
@@ -838,8 +750,7 @@ void log_state(state* s)
 }
 
 
-int launch()
-{
+int launch() {
     kprintf("Initial state\n");
     state* s = picoinit();
     log_state(s);
@@ -899,8 +810,7 @@ int launch()
     log_state(s);
 
     kprintf("Letting the timer tick until we're back to the grandchild\n");
-    for (int i = MAX_TIME_SLICES; i >= 0; i--)
-    {
+    for (int i = MAX_TIME_SLICES; i >= 0; i--) {
         picotransition(s, TIMER);
     }
     log_state(s);
@@ -931,4 +841,3 @@ int launch()
     
     return 0;
 }
-
