@@ -598,7 +598,7 @@ void picotransition(state *s, event ev) {
         for (p = MAX_PRIORITY; p >= 0; p--) {
             rq = s->runqueues[p];
             while (rq != NULL) {
-                if (s->processes[rq->hd].state.state == RUNNABLE) //&& s->processes[rq->hd].slices_left > 0 ? {
+                if (s->processes[rq->hd].state.state == RUNNABLE) {//&& s->processes[rq->hd].slices_left > 0 ?
                     next_pid = rq->hd;
                     //s->processes[next_pid].slices_left = MAX_TIME_SLICES;
                     //On sauvegarde les registres
