@@ -20,19 +20,18 @@ all: build/os.bin
 build/os.bin: $(OBJS) sources/linker.ld
 	$(CC) -T sources/linker.ld -o $@ $(CFLAGS) $(OBJS) $(LIBS)
 
-build/%.o: sources/%.c
+build/%.o: sources/%.c build
 	$(CC) $< -c -o $@  $(CFLAGS) $(CPPFLAGS)
 
-build/%.o: sources/%.s
+build/%.o: sources/%.s build
 	$(AS) $< -o $@
 
 clean:
 	rm -rf build
-	mkdir build
-
+	
 iso: os.iso
 
-build/isodir build/isodir/boot build/isodir/boot/grub:
+build build/isodir build/isodir/boot build/isodir/boot/grub:
 	mkdir -p $@
 
 build/isodir/boot/os.bin: build/os.bin build/isodir/boot
