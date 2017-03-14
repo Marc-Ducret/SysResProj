@@ -57,19 +57,19 @@ void terminal_initialize() {
 		}
 }
 
-void terminal_setcolor(uint8_t color)
-{
+void terminal_setcolor(uint8_t color) {
 	terminal_color = color;
 }
 
-void terminal_putentryat(char c, uint8_t color, size_t x, size_t y)
-{
-	const size_t index = y * VGA_WIDTH + x;
-	terminal_buffer[index] = make_vgaentry(c, color);
+size_t index(size_t x, size_t y) {
+	return x + y * VGA_WIDTH;
 }
 
-void putchar(char c)
-{
+void terminal_putentryat(char c, uint8_t color, size_t x, size_t y) {
+	terminal_buffer[index(x, y)] = make_vgaentry(c, color);
+}
+
+void putchar(char c) {
         if (c == '\n') {
             while (terminal_column < VGA_WIDTH) {
                 terminal_putentryat(' ', terminal_color, terminal_column, terminal_row);
@@ -81,8 +81,12 @@ void putchar(char c)
         }
        	if ( ++terminal_column == VGA_WIDTH ) {
 		terminal_column = 0;
-		if ( ++terminal_row == VGA_HEIGHT ) { //TODO use a buffer
-			terminal_row = 0;
+		if ( ++terminal_row == VGA_HEIGHT ) {
+			for(int row = 0; row < VGA_HEIGHT-1; row ++) for(int col = 0; col < VGA_WIDTH; col++)
+				terminal_buffer[index(col, row)] = terminal_buffer[index(col, row+1)];
+			for(int col = 0; col < VGA_WIDTH; col++)
+				terminal_putentryat(' ', terminal_color, col, VGA_HEIGHT-1);
+			terminal_row = VGA_HEIGHT-1;
 		}
 	}
 }
