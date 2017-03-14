@@ -104,14 +104,12 @@ struct state {
 
 state global_state;
 
-list* malloc_list()
-/{
+list* malloc_list() {
     static int base = 0;
     int i;
     
     for (i=base; i < MAX_SIZE_LIST; i++){
-        if (list_memory[i].free == 0)
-        {
+        if (list_memory[i].free == 0) {
             base = i + 1;
             if (base == MAX_SIZE_LIST)
                 base = 0;
