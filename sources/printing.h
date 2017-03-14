@@ -20,7 +20,7 @@ void terminal_putentryat(char c, uint8_t color, size_t x, size_t y);
 void putchar(char c);
 void terminal_writestring(const char* data);
 void putint(int i);
-void kprintf(const char* data);
+void kprintf(const char* data, ...);
 
 #endif /* PRINTING_H */
 
