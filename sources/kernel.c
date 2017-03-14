@@ -105,7 +105,7 @@ struct state {
 state global_state;
 
 list* malloc_list()
-{
+/{
     static int base = 0;
     int i;
     

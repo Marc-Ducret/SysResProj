@@ -5,15 +5,15 @@
  */
 
 /* 
- * File:   picokernel.h
+ * File:   kernel.h
  * Author: martin
  *
  * Created on 12 mars 2017, 17:11
  */
 
-#ifndef PICOKERNEL_H
-#define PICOKERNEL_H
+#ifndef KERNEL_H
+#define KERNEL_H
 int launch();
 
-#endif /* PICOKERNEL_H */
+#endif /* KERNEL_H */
 
