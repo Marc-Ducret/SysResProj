@@ -3,10 +3,11 @@
 #include <stdint.h>
 #include "kernel.h"
 #include "printing.h"
+#include "io.h"
 
 void kmain() {
 	terminal_initialize();
-	unsigned char key;
+	unsigned char key = 0;
         launch();
 	while(true) {
 		unsigned char cur = inportb(0x60);

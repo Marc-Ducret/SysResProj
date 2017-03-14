@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "args.h"
+#include "io.h"
 
 static const uint8_t COLOR_BLACK = 0;
 static const uint8_t COLOR_BLUE = 1;
@@ -82,13 +83,18 @@ void putchar(char c) {
        	if ( ++terminal_column == VGA_WIDTH ) {
 		terminal_column = 0;
 		if ( ++terminal_row == VGA_HEIGHT ) {
-			for(int row = 0; row < VGA_HEIGHT-1; row ++) for(int col = 0; col < VGA_WIDTH; col++)
+			for(size_t row = 0; row < VGA_HEIGHT-1; row ++) for(size_t col = 0; col < VGA_WIDTH; col++)
 				terminal_buffer[index(col, row)] = terminal_buffer[index(col, row+1)];
-			for(int col = 0; col < VGA_WIDTH; col++)
+			for(size_t col = 0; col < VGA_WIDTH; col++)
 				terminal_putentryat(' ', terminal_color, col, VGA_HEIGHT-1);
 			terminal_row = VGA_HEIGHT-1;
 		}
 	}
+	unsigned short pos = terminal_column + VGA_WIDTH * terminal_row;
+	outportb(0x3D4, 0x0F);
+	outportb(0x3D5, (unsigned char) (pos & 0xFF));
+	outportb(0x3D4, 0x0E);
+	outportb(0x3D5, (unsigned char) ((pos >> 8) & 0xFF));
 }
 
 void putint(int i) {
