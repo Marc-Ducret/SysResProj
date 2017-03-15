@@ -4,11 +4,15 @@
 #include "kernel.h"
 #include "printing.h"
 #include "io.h"
+#include "gdt.h"
 
 void kmain() {
 	terminal_initialize();
 	unsigned char key = 0;
-        launch();
+        kprintf("Init\n");
+        //asm("cli"); // Clear interrupts
+        init_descriptor(); // trying to init GDT..
+        //launch();
 	while(true) {
 		unsigned char cur = inportb(0x60);
 		if(cur != key) {

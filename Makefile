@@ -10,6 +10,7 @@ build/boot.o \
 build/io.o \
 build/kernel.o \
 build/printing.o \
+build/gdt.o \
 build/main.o
 
 
@@ -28,7 +29,7 @@ build/%.o: sources/%.s build
 
 clean:
 	rm -rf build
-	
+
 iso: os.iso
 
 build build/isodir build/isodir/boot build/isodir/boot/grub:
