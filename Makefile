@@ -11,6 +11,9 @@ build/io.o \
 build/kernel.o \
 build/printing.o \
 build/gdt.o \
+build/keycode.o \
+build/keyboard.o \
+build/shell.o \
 build/main.o
 
 

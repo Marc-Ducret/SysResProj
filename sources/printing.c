@@ -70,6 +70,14 @@ void terminal_putentryat(char c, uint8_t color, size_t x, size_t y) {
 	terminal_buffer[index(x, y)] = make_vgaentry(c, color);
 }
 
+void updatecursor() {
+    unsigned short pos = terminal_column + VGA_WIDTH * terminal_row;
+	outportb(0x3D4, 0x0F);
+	outportb(0x3D5, (unsigned char) (pos & 0xFF));
+	outportb(0x3D4, 0x0E);
+	outportb(0x3D5, (unsigned char) ((pos >> 8) & 0xFF));
+}
+
 void putchar(char c) {
         if (c == '\n') {
             while (terminal_column < VGA_WIDTH) {
@@ -90,11 +98,18 @@ void putchar(char c) {
 			terminal_row = VGA_HEIGHT-1;
 		}
 	}
-	unsigned short pos = terminal_column + VGA_WIDTH * terminal_row;
-	outportb(0x3D4, 0x0F);
-	outportb(0x3D5, (unsigned char) (pos & 0xFF));
-	outportb(0x3D4, 0x0E);
-	outportb(0x3D5, (unsigned char) ((pos >> 8) & 0xFF));
+    updatecursor();
+}
+
+void erase() {
+    terminal_column--;
+    if(terminal_column < 0) {
+        terminal_row--;
+        terminal_column = VGA_WIDTH-1;
+        if(terminal_row < 0) terminal_row = 0;
+    }
+    terminal_putentryat(' ', terminal_color, terminal_column, terminal_row);
+    updatecursor();
 }
 
 void putint(int i) {

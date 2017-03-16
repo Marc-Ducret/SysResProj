@@ -10,11 +10,10 @@ SECTIONS
 	/* First put the multiboot header, as it is required to be put very early
 	   early in the image or the bootloader won't recognize the file format.
 	   Next we'll put the .text section. */
-	. = 0x1500; /* ?? wtf */
+	. = 0x1500;
 
 	.text BLOCK(4K) : ALIGN(4K)
 	{
-		//. = 0x1500;
 		*(.multiboot);
 		*(.text);
 	}
