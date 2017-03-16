@@ -2,34 +2,30 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "printing.h"
-
+#include "gdt.h"
+u32 x;
+// code pour afficher rip
+/*asm("jmp next3 \n \
+         next2: pop x \n \
+         push x \n \
+         ret \n \
+         next3: \n \
+         call next2 \n \
+         ");
+    putint(x);*/
+    
 void* memcpy(char *dst, char *src, int n) {
+    // Virer ce truc de là !
     char *p = dst;
     while (n--)
         *dst++ = *src++;
     return p;
 }
 
-struct gdtr {
-    unsigned short limite;
-    unsigned int base;
-} __attribute__ ((packed));
-
-struct gdtdesc {
-    unsigned short lim0_15;
-    unsigned short base0_15;
-    unsigned char base16_23;
-    unsigned char acces;
-    unsigned char lim16_19:4;
-    unsigned char other:4;
-    unsigned char base24_31;
-} __attribute__ ((packed));
-
-#define GDTBASE 0x00000800
-#define GDTSIZE 0xFF
-
+struct tss default_tss;
 struct gdtdesc kgdt[GDTSIZE];
-struct gdtr    kgdtr;
+struct gdtr kgdtr;
+struct gdtr idtr;
 
 void init_gdt_desc(unsigned int base, unsigned int limite, unsigned char acces,
                  unsigned char other, struct gdtdesc *desc) {
@@ -44,17 +40,23 @@ void init_gdt_desc(unsigned int base, unsigned int limite, unsigned char acces,
 }
 
 void init_gdt(void) {
+    // Initialize the default tss
+    default_tss.debug_flag = 0x00;
+    default_tss.io_map = 0x00;
+    default_tss.esp0 = 0x1FFF0;
+    default_tss.ss0 = 0x18;
+                                
     /* initialize gdt segments */
     init_gdt_desc(0x0, 0x0, 0x0, 0x0, &kgdt[0]);
-    init_gdt_desc(0x0, 0xFFFFF, 0x9B, 0x0D, &kgdt[1]);  /* code */
-    init_gdt_desc(0x0, 0xFFFFF, 0x93, 0x0D, &kgdt[2]);  /* data */
+    init_gdt_desc(0x00, 0xFFFFF, 0x9B, 0x0D, &kgdt[1]);  /* code */
+    init_gdt_desc(0x00, 0xFFFFF, 0x93, 0x0D, &kgdt[2]);  /* data */
     init_gdt_desc(0x0, 0x0, 0x97, 0x0D, &kgdt[3]);      /* stack */
 
     init_gdt_desc(0x0, 0xFFFFF, 0xFF, 0x0D, &kgdt[4]);  /* ucode */
     init_gdt_desc(0x0, 0xFFFFF, 0xF3, 0x0D, &kgdt[5]);  /* udata */
     init_gdt_desc(0x0, 0x0, 0xF7, 0x0D, &kgdt[6]);      /* ustack */
 
-    //init_gdt_desc((unsigned int) & default_tss, 0x67, 0xE9, 0x00, &kgdt[7]); /* descripteur de tss */
+    init_gdt_desc((u32) & default_tss, 0x67, 0xE9, 0x00, &kgdt[7]); /* descripteur de tss */
 
     /* initialize the gdtr structure */
     kgdtr.limite = GDTSIZE * 8;
@@ -65,8 +67,8 @@ void init_gdt(void) {
 
     /* load the gdtr registry */
     asm("lgdtl (kgdtr)");
-
-    /* initiliaz the segments */
+    
+    /* initiliaze the segments */
     asm("   movw $0x10, %ax \n \
             movw %ax, %ds   \n \
             movw %ax, %es   \n \
@@ -74,6 +76,11 @@ void init_gdt(void) {
             movw %ax, %gs   \n \
             ljmp $0x08, $next   \n \
             next:       \n");
-
     kprintf("GDT initialized\n");
+    
+    idtr.limite = 2048;
+    idtr.base = 0x0;
+    asm("lidt idtr");
+    kprintf("IDT initialized\n");
+    
 }
