@@ -11,12 +11,13 @@ void kmain() {
 	unsigned char key = 0;
         kprintf("Init\n");
         //asm("cli"); // Clear interrupts
-        init_descriptor(); // trying to init GDT..
+        //init_descriptor(); // trying to init GDT..
         //launch();
 	while(true) {
 		unsigned char cur = inportb(0x60);
 		if(cur != key) {
 			key = cur;
+			if(key == 128 + 82) init_gdt();
 			if(key >= 128) {
 				putchar('R');
 				putint(key - 128);
