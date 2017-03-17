@@ -14,6 +14,11 @@ void kmain() {
     kprintf("Init\n");
     init_gdt();
     shell();
+    dieSlowly();
+}
+
+void dieSlowly() {
+    for(;;);
 }
 
 

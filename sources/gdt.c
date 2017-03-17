@@ -3,7 +3,8 @@
 #include <stdint.h>
 #include "printing.h"
 #include "gdt.h"
-u32 x;
+#include "lib.h"
+//u32 x;
 // code pour afficher rip
 /*asm("jmp next3 \n \
          next2: pop x \n \
@@ -13,14 +14,6 @@ u32 x;
          call next2 \n \
          ");
     putint(x);*/
-    
-void* memcpy(char *dst, char *src, int n) {
-    // Virer ce truc de là !
-    char *p = dst;
-    while (n--)
-        *dst++ = *src++;
-    return p;
-}
 
 struct tss default_tss;
 struct gdtdesc kgdt[GDTSIZE];

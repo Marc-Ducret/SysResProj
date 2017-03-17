@@ -14,6 +14,7 @@ build/gdt.o \
 build/keycode.o \
 build/keyboard.o \
 build/shell.o \
+build/lib.o \
 build/main.o
 
 
