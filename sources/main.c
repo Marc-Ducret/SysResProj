@@ -8,6 +8,14 @@
 #include "keycode.h"
 #include "shell.h"
 
+void dieSlowly() {
+    clear(COLOR_LIGHT_GREEN);
+    terminal_setcolor(make_color(COLOR_LIGHT_RED, COLOR_LIGHT_GREEN));
+    for(int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++) 
+        putchar(i % 2 == 0 ? ' ' : '#');
+    for(;;);
+}
+
 void kmain() {
 	terminal_initialize();
 	initCharTable();
@@ -16,9 +24,3 @@ void kmain() {
     shell();
     dieSlowly();
 }
-
-void dieSlowly() {
-    for(;;);
-}
-
-

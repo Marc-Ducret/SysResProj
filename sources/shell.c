@@ -8,12 +8,18 @@ char cmd[CMD_SIZE];
 int pos;
 int run;
 void newCmd() {
-    kprintf("\n> ");
+    kprintf("> ");
 }
 
 void execCmd() {
-    if(strEqual(cmd, "exit")) run = 0;
-    else kprintf("\nUnknown command (%s)", cmd);
+    if(     strEqual(cmd, "help")) kprintf("Available commands: help, clear, exit\n");
+    else if(strEqual(cmd, "exit")) run = 0;
+    else if(strEqual(cmd, "clear")) {
+        u8 color = make_color(COLOR_GREEN, COLOR_BLACK);
+        clear(COLOR_BLACK);
+        terminal_setcolor(color);
+    }
+    else kprintf("Unknown command (%s)\n", cmd);
     while(pos > 0)
         cmd[--pos] = 0;
     newCmd();
@@ -25,8 +31,10 @@ void shell() {
     while(run) {
         int key = waitPress();
         char c = getKeyChar(key);
-        if(c == '\n') execCmd();
-        else if(c != 0 && pos < CMD_SIZE) {
+        if(c == '\n') {
+            putchar('\n');
+            execCmd();
+        } else if(c != 0 && pos < CMD_SIZE) {
             putchar(c);
             cmd[pos++] = c;
         } else if(key == KEY_BACKSPACE && pos > 0) {
