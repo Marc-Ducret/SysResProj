@@ -1,9 +1,11 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include "io.h"
 #include "printing.h"
 #include "gdt.h"
 #include "lib.h"
+
 //u32 x;
 // code pour afficher rip
 /*asm("jmp next3 \n \
@@ -18,6 +20,7 @@
 struct tss default_tss;
 struct gdtdesc kgdt[GDTSIZE];
 struct gdtr kgdtr;
+struct idtdesc kidt[IDTSIZE];
 struct gdtr idtr;
 
 void init_gdt_desc(unsigned int base, unsigned int limite, unsigned char acces,
@@ -70,10 +73,83 @@ void init_gdt(void) {
             ljmp $0x08, $next   \n \
             next:       \n");
     kprintf("GDT initialized\n");
+}
+
+void init_idt_desc(u8 num, u16 select, u32 offset, u8 type) {
+    struct idtdesc *desc = &(kidt[num]);
+    desc->offset0_15 = (offset & 0xffff);
+    desc->offset16_31 = (offset & 0xffff0000) >> 16;
+    desc->zeros = 0;
+    desc->type = type;
+    desc->select = select;
+}
+
+void init_idt(void) {
+    // Adding the many isr
+    init_idt_desc(0, 0x08, (u32) isr0, INTGATE);
+    init_idt_desc(1, 0x08, (u32) isr1, INTGATE);
+    init_idt_desc(2, 0x08, (u32) isr2, INTGATE);
+    init_idt_desc(3, 0x08, (u32) isr3, INTGATE);
+    init_idt_desc(4, 0x08, (u32) isr4, INTGATE);
+    init_idt_desc(5, 0x08, (u32) isr5, INTGATE);
+    init_idt_desc(6, 0x08, (u32) isr6, INTGATE);
+    init_idt_desc(7, 0x08, (u32) isr7, INTGATE);
+    init_idt_desc(8, 0x08, (u32) isr8, INTGATE);
+    init_idt_desc(9, 0x08, (u32) isr9, INTGATE);
+    init_idt_desc(10, 0x08, (u32) isr10, INTGATE);
+    init_idt_desc(11, 0x08, (u32) isr11, INTGATE);
+    init_idt_desc(12, 0x08, (u32) isr12, INTGATE);
+    init_idt_desc(13, 0x08, (u32) isr13, INTGATE);
+    init_idt_desc(14, 0x08, (u32) isr14, INTGATE);
+    init_idt_desc(15, 0x08, (u32) isr15, INTGATE);
+    init_idt_desc(16, 0x08, (u32) isr16, INTGATE);
+    init_idt_desc(17, 0x08, (u32) isr17, INTGATE);
+    init_idt_desc(18, 0x08, (u32) isr18, INTGATE);
+    init_idt_desc(19, 0x08, (u32) isr19, INTGATE);
+    init_idt_desc(20, 0x08, (u32) isr20, INTGATE);
+    init_idt_desc(21, 0x08, (u32) isr21, INTGATE);
+    init_idt_desc(22, 0x08, (u32) isr22, INTGATE);
+    init_idt_desc(23, 0x08, (u32) isr23, INTGATE);
+    init_idt_desc(24, 0x08, (u32) isr24, INTGATE);
+    init_idt_desc(25, 0x08, (u32) isr25, INTGATE);
+    init_idt_desc(26, 0x08, (u32) isr26, INTGATE);
+    init_idt_desc(27, 0x08, (u32) isr27, INTGATE);
+    init_idt_desc(28, 0x08, (u32) isr28, INTGATE);
+    init_idt_desc(29, 0x08, (u32) isr29, INTGATE);
+    init_idt_desc(30, 0x08, (u32) isr30, INTGATE);
+    init_idt_desc(31, 0x08, (u32) isr31, INTGATE);
     
-    idtr.limite = 2048;
-    idtr.base = 0x0;
-    asm("lidt idtr");
+    idtr.limite = IDTSIZE * 8;
+    idtr.base = IDTBASE;
+    
+    /* copy the idtr to its memory area */
+    memcpy((char *) idtr.base, (char *) kidt, idtr.limite);
+    
+    asm("lidtl (idtr)");
     kprintf("IDT initialized\n");
+}
+
+void init_pic(void)
+{
+    /* Initialization of ICW1 */
+    outportb(0x20, 0x11);
+    outportb(0xA0, 0x11);
+
+    /* Initialization of ICW2 */
+    outportb(0x21, 0x20);	/* start vector = 32 */
+    outportb(0xA1, 0x60);	/* start vector = 96 */
+
+    /* Initialization of ICW3 */
+    outportb(0x21, 0x04);
+    outportb(0xA1, 0x02);
+
+    /* Initialization of ICW4 */
+    outportb(0x21, 0x01);
+    outportb(0xA1, 0x01);
+
+    /* mask interrupts */
+    outportb(0x21, 0x0);
+    outportb(0xA1, 0x0);
     
+    kprintf("PIC initialized\n");
 }

@@ -1,4 +1,4 @@
-AS:=as --32
+AS:=as -am --32
 CC:=gcc
 
 CFLAGS:=-ffreestanding -O2 -Wall -Wextra -nostdlib -nostartfiles -nodefaultlibs -m32
@@ -10,6 +10,8 @@ build/boot.o \
 build/io.o \
 build/kernel.o \
 build/printing.o \
+build/int_handlers.o \
+build/isr.o \
 build/gdt.o \
 build/keycode.o \
 build/keyboard.o \

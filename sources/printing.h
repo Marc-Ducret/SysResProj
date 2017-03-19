@@ -23,6 +23,7 @@
 #define VGA_WIDTH 80
 #define VGA_HEIGHT 24
 
+
 u8 make_color(u8 fg, u8 bg);
 void terminal_initialize();
 void terminal_setcolor(u8 color);
@@ -32,6 +33,5 @@ void erase();
 void putint(int i);
 void kprintf(const char* data, ...);
 void clear(u8 bgColor);
-
 #endif
 

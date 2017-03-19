@@ -21,6 +21,10 @@ void kmain() {
 	initCharTable();
     kprintf("Init\n");
     init_gdt();
+    init_idt();
+    init_pic();
+    //asm("sti");
+    //asm volatile ("int $0x3");
     shell();
     dieSlowly();
 }
