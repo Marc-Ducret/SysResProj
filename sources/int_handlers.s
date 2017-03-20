@@ -2,17 +2,28 @@
 .global isr\nb
 isr\nb:
     cli
+    add $4, %esp
+    pushr
     push $\nb
-    jmp isr_common_stub
+	call isr_handler
+	add $0x4, %esp
+	popr
+	sti
+	iret
 .endm
 
 .macro isr_no_error_code nb
 .global isr\nb
 isr\nb:
     cli
-    push $0
+    
+    pushr
     push $\nb
-    jmp isr_common_stub
+	call isr_handler
+	add $4, %esp
+	popr
+	sti
+	iret
 .endm
 
 .macro pusha
@@ -37,30 +48,30 @@ isr\nb:
     pop %edi
 .endm
 
-isr_common_stub:
-   pusha                    # Pushes edi,esi,ebp,esp,ebx,edx,ecx,eax
+.macro pushr
+	pusha
 
-   movw %ds, %ax              # Lower 16-bits of eax = ds.
-   push %eax                 # save the data segment descriptor
+	push %ds
+	push %es
+	push %fs
+	push %gs 
+	push %ebx
+	mov $0x10, %bx
+	mov %bx, %ds
+	pop %ebx
+.endm
 
-   movw $0x10, %ax  # load the kernel data segment descriptor
-   movw %ax, %ds
-   movw %ax, %es
-   movw %ax, %fs
-   movw %ax, %gs
+.macro popr
+	mov $0x20, %al
+	out %al, $0x20
+	
+	pop %gs
+	pop %fs
+	pop %es
+	pop %ds
 
-   call isr_handler
-
-   pop %eax        # reload the original data segment descriptor
-   movw %ax, %ds
-   movw %ax, %es
-   movw %ax, %fs
-   movw %ax, %gs
-
-   popa                     # Pops edi,esi,ebp...
-   add $8, %esp     # Cleans up the pushed error code and pushed ISR number
-   sti
-   iret
+	popa 
+.endm
 
 isr_no_error_code 0
 isr_no_error_code 1

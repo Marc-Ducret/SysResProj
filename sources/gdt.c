@@ -119,6 +119,8 @@ void init_idt(void) {
     init_idt_desc(30, 0x08, (u32) isr30, INTGATE);
     init_idt_desc(31, 0x08, (u32) isr31, INTGATE);
     
+    init_idt_desc(33, 0x08, (u32) isr1, INTGATE); //KEYBOARD
+    
     idtr.limite = IDTSIZE * 8;
     idtr.base = IDTBASE;
     
@@ -137,7 +139,7 @@ void init_pic(void)
 
     /* Initialization of ICW2 */
     outportb(0x21, 0x20);	/* start vector = 32 */
-    outportb(0xA1, 0x60);	/* start vector = 96 */
+    outportb(0xA1, 0x70);	/* start vector = 96 */
 
     /* Initialization of ICW3 */
     outportb(0x21, 0x04);

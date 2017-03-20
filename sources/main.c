@@ -13,7 +13,7 @@ void dieSlowly() {
     terminal_setcolor(make_color(COLOR_LIGHT_RED, COLOR_LIGHT_GREEN));
     for(int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++) 
         putchar(i % 2 == 0 ? ' ' : '#');
-    for(;;);
+    for(;;) asm("hlt");
 }
 
 void kmain() {
@@ -23,8 +23,7 @@ void kmain() {
     init_gdt();
     init_idt();
     init_pic();
-    //asm("sti");
-    //asm volatile ("int $0x3");
+    asm("sti");
     shell();
     dieSlowly();
 }
