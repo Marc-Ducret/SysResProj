@@ -3,6 +3,7 @@
 #include "keyboard.h"
 #include "keycode.h"
 #include "lib.h"
+#include "kernel.h"
 
 char cmd[CMD_SIZE];
 int pos;
@@ -12,14 +13,16 @@ void newCmd() {
 }
 
 void execCmd() {
-    if(     strEqual(cmd, "help")) kprintf("Available commands: help, clear, exit, test\n");
+    if(     strEqual(cmd, "help")) kprintf("Available commands: help, clear, exit, test, launch\n");
     else if(strEqual(cmd, "exit")) run = 0;
     else if(strEqual(cmd, "clear")) {
         u8 color = make_color(COLOR_GREEN, COLOR_BLACK);
         clear(COLOR_BLACK);
         terminal_setcolor(color);
     } else if(strEqual(cmd, "test")) {
-        asm volatile ("int $3");
+        asm volatile ("int $0x03");
+    } else if(strEqual(cmd, "launch")) {
+        launch();
     }
     else kprintf("Unknown command (%s)\n", cmd);
     while(pos > 0)

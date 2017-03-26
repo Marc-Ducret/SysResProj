@@ -18,8 +18,8 @@ void dieSlowly() {
 }
 
 void kmain() {
-	terminal_initialize();
-	initCharTable();
+    terminal_initialize();
+    initCharTable();
     kprintf("Init\n");
     init_gdt();
     init_idt();

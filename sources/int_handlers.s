@@ -2,12 +2,12 @@
 .global isr\nb
 isr\nb:
     cli
-    add $4, %esp
-    pushr
-    push $\nb
+    pushr # Saves the registers
+    push $\nb # Saves the number of interrupt
     call isr_handler
     add $0x4, %esp
     popr
+    add $0x4, %esp
     sti
     iret
 .endm
@@ -16,12 +16,13 @@ isr\nb:
 .global isr\nb
 isr\nb:
     cli
-    
-    pushr
-    push $\nb
+    push $0 # Adds an error code
+    pushr # Saves the registers
+    push $\nb # Saves the number of interrupt
     call isr_handler
     add $4, %esp
     popr
+    add $0x4, %esp
     sti
     iret
 .endm
@@ -30,7 +31,6 @@ isr\nb:
 .global irq\nb
 irq\nb:
     cli
-    
     pushr
     push $\nb
     call irq_handler
@@ -45,17 +45,17 @@ irq\nb:
     push %esi
     push %ebp
     push %esp
-    push %ebx
     push %edx
     push %ecx
+    push %ebx
     push %eax
 .endm
 
 .macro popa
     pop %eax
+    pop %ebx
     pop %ecx
     pop %edx
-    pop %ebx
     pop %esp
     pop %ebp
     pop %esi
@@ -146,4 +146,3 @@ asm_syscall:
     popr
     sti
     iret
-.endm

@@ -93,7 +93,7 @@ typedef struct state state;
 struct state {
     pid curr_pid;
     priority curr_priority;
-    registers_t *registers;
+    registers_t registers;
     process processes[NUM_PROCESSES];
     channel_state channels[NUM_CHANNELS];
     list* runqueues[MAX_PRIORITY+1];
@@ -284,6 +284,25 @@ void init_registers(registers_t *regs) {
     regs->gs = 0;
 }
 
+/*
+void set_registers(int dest[NUM_REGISTERS], registers regs) {
+    dest[0] = regs.r0;
+    dest[1] = regs.r1;
+    dest.ecx = regs.r2;
+    dest.edx = regs.r3;
+    dest.esi = regs.r4;
+}
+
+
+void set_registers_bis(int dest[NUM_REGISTERS], registers *regs) {
+    dest[0] = regs->r0;
+    dest[1] = regs->r1;
+    dest.ecx = regs->r2;
+    dest.edx = regs->r3;
+    dest.esi = regs->r4;
+}
+*/
+
 typedef enum event event;
 enum event { TIMER, SYSCALL };
 
@@ -305,32 +324,32 @@ typedef struct syscall_t
 syscall_t decode(state *s) {
     syscall_t res;
 
-    switch (s->registers->eax) {
+    switch (s->registers.eax) {
     case 0:
         res.t = NEWCHANNEL;
         break;
 
     case 1:
         res.t = SEND;
-        res.ch_send = s->registers->ebx;
-        res.val_send = s->registers->ecx;
+        res.ch_send = s->registers.ebx;
+        res.val_send = s->registers.ecx;
         break;
 
     case 2:
         res.t = RECV;
-        res.ch_list = add(s->registers->ebx,
-                          add(s->registers->ecx,
-                              add(s->registers->edx,
-                                  add(s->registers->esi,
+        res.ch_list = add(s->registers.ebx,
+                          add(s->registers.ecx,
+                              add(s->registers.edx,
+                                  add(s->registers.esi,
                                       NULL))));
         break;
 
     case 3:
         res.t = FORK;
-        res.priority = s->registers->ebx;
-        res.v2 = s->registers->ecx;
-        res.v3 = s->registers->edx;
-        res.v4 = s->registers->esi;
+        res.priority = s->registers.ebx;
+        res.v2 = s->registers.ecx;
+        res.v3 = s->registers.edx;
+        res.v4 = s->registers.esi;
         break;
 
     case 4:
@@ -350,7 +369,7 @@ syscall_t decode(state *s) {
 
 void picofork(state *s, priority nprio, value v2, value v3, value v4) {
     if (s->curr_priority < nprio) {
-        s->registers->eax = 0;
+        s->registers.eax = 0;
         return;
     }
 
@@ -360,8 +379,8 @@ void picofork(state *s, priority nprio, value v2, value v3, value v4) {
     for (i = 0; i < NUM_PROCESSES; i++) {
         if (s->processes[i].state.state == FREE) {
             //Found a free process
-            s->registers->eax = 1;
-            s->registers->ebx = i;
+            s->registers.eax = 1;
+            s->registers.ebx = i;
 
             //Creating the new process
             process *new_p = &(s->processes[i]);
@@ -382,7 +401,7 @@ void picofork(state *s, priority nprio, value v2, value v3, value v4) {
     }
 
     //No free process
-    s->registers->eax = 0;
+    s->registers.eax = 0;
     return;
 }
 
@@ -407,7 +426,7 @@ void picoexit(state *s) {
         registers_t *regs = &(s->processes[i].saved_context);
         regs->eax = 1;
         regs->ebx = i;
-        regs->ecx = s->registers->eax;
+        regs->ecx = s->registers.eax;
     }
 
     //On enlève le processus de sa file
@@ -423,9 +442,9 @@ int picowait(state *s) {
         if (s->processes[j].parent_id == i) {
             fils = 1;
             if (s->processes[j].state.state == ZOMBIE) {
-                s->registers->eax = 1;
-                s->registers->ebx = j;
-                s->registers->ecx = s->processes[j].saved_context.ebx;
+                s->registers.eax = 1;
+                s->registers.ebx = j;
+                s->registers.ecx = s->processes[j].saved_context.ebx;
                 s->processes[j].state.state = FREE;
                 return 0;
             }
@@ -437,7 +456,7 @@ int picowait(state *s) {
         return 1;
     }
 
-    s->registers->eax = 0;
+    s->registers.eax = 0;
     return 0;
 }
 
@@ -450,11 +469,11 @@ void piconew_channel(state *s) {
             //On le met a receivers vide
             s->channels[i].state = RECEIVER;
             s->channels[i].recvs = NULL;
-            s->registers->eax = i;
+            s->registers.eax = i;
             return;
         }
     }
-    s->registers->eax = -1;
+    s->registers.eax = -1;
     return;
 }
 
@@ -464,7 +483,7 @@ int picosend(state *s, chanid i, value v) {
     channel_state *ch = &(s->channels[i]);
 
     if (ch->state == UNUSED || ch->state == SENDER) {
-        s->registers->eax = 0;
+        s->registers.eax = 0;
         return 0;
     }
 
@@ -476,7 +495,7 @@ int picosend(state *s, chanid i, value v) {
         ch->s_priority = s->curr_priority;
         s->processes[writer].state.state = BLOCKEDWRITING;
         s->processes[writer].state.ch = i;
-        s->registers->eax = 1;
+        s->registers.eax = 1;
         return 1;
     }
 
@@ -495,7 +514,7 @@ int picosend(state *s, chanid i, value v) {
     s->processes[recv].saved_context.eax = 1;
     s->processes[recv].saved_context.ebx = i;
     s->processes[recv].saved_context.ecx = v;
-    s->registers->eax = 1;
+    s->registers.eax = 1;
 
     //On ne sait pas trop ce que renvoie cette fonction
     return recv_p > s->curr_priority;
@@ -512,9 +531,9 @@ int picoreceive(state *s, list *ch_list) {
         if (ch_id >= 0 && ch_id < NUM_CHANNELS) {
             channel_state *ch = &(s->channels[ch_id]);
             if (ch->state == SENDER) {
-                s->registers->eax = 1;
-                s->registers->ebx = ch_id;
-                s->registers->ecx = ch->s_value;
+                s->registers.eax = 1;
+                s->registers.ebx = ch_id;
+                s->registers.ecx = ch->s_value;
                 s->processes[ch->s_pid].state.state = RUNNABLE;
 
 
@@ -534,11 +553,11 @@ int picoreceive(state *s, list *ch_list) {
     if (valide) {
         s->processes[s->curr_pid].state.state = BLOCKEDREADING;
         s->processes[s->curr_pid].state.ch_list = ch_list;
-        //s->registers->eax = 0;
+        //s->registers.eax = 0;
         return 1;
     }
 
-    s->registers->eax = 0;
+    s->registers.eax = 0;
     return 0;
 }
 
@@ -600,8 +619,8 @@ void picotransition(state *s, event ev) {
                     next_pid = rq->hd;
                     //s->processes[next_pid].slices_left = MAX_TIME_SLICES;
                     //On sauvegarde les registres
-                    copy_registers(s->registers, &(s->processes[s->curr_pid].saved_context));
-                    copy_registers(&(s->processes[next_pid].saved_context), s->registers);
+                    copy_registers(&(s->registers), &(s->processes[s->curr_pid].saved_context));
+                    copy_registers(&(s->processes[next_pid].saved_context), &(s->registers));
                     s->curr_pid = next_pid;
                     s->curr_priority = p;
 
@@ -616,7 +635,7 @@ void picotransition(state *s, event ev) {
     }
 }
 
-state *picoinit(registers_t *regs) {
+state *picoinit() {
     state *s = &global_state;
     s->curr_pid = 1;
     s->curr_priority = MAX_PRIORITY;
@@ -664,7 +683,7 @@ state *picoinit(registers_t *regs) {
         }
     }
 
-    init_registers(s->registers);
+    init_registers(&(s->registers));
 
     return s;
 }
@@ -724,7 +743,7 @@ void log_state(state* s) {
     kprintf("Current process is %d (priority %d, %d slices left)\n",
         s->curr_pid, s->curr_priority, s->processes[s->curr_pid].slices_left);
     kprintf("Registers are: r0=%d, r1=%d, r2=%d, r3=%d, r4=%d\n",
-        s->registers->eax, s->registers->ebx, s->registers->ecx, s->registers->edx, s->registers->esi);
+        s->registers.eax, s->registers.ebx, s->registers.ecx, s->registers.edx, s->registers.esi);
 
     kprintf("\nRunqueues:\n");
     for (priority prio = MAX_PRIORITY; prio >= 0; prio--) {
@@ -748,63 +767,62 @@ void log_state(state* s) {
 }
 
 
-void launch() {
+int launch() {
     kprintf("Initial state\n");
-    registers_t regs;
-    state* s = picoinit(&regs);
+    state* s = picoinit();
     log_state(s);
 
     kprintf("Forking init\n");
-    s->registers->eax = 3;
-    s->registers->ebx = MAX_PRIORITY;
+    s->registers.eax = 3;
+    s->registers.ebx = MAX_PRIORITY;
     picotransition(s, SYSCALL);
     log_state(s);
-    
+
     kprintf("Asking for a new channel, in r4\n");
-    s->registers->eax = 0;
+    s->registers.eax = 0;
     picotransition(s, SYSCALL);
-    s->registers->esi = s->registers->eax;
+    s->registers.esi = s->registers.eax;
     log_state(s);
 
     kprintf("Making init wait for a message on the channel\n");
     kprintf("This should switch to the child process since init is BlockedReading\n");
-    s->registers->eax = 2;
-    s->registers->ebx = -1;
-    s->registers->ecx = -1;
-    s->registers->edx = -1;
+    s->registers.eax = 2;
+    s->registers.ebx = -1;
+    s->registers.ecx = -1;
+    s->registers.edx = -1;
     picotransition(s, SYSCALL);
     log_state(s);
 
     kprintf("Getting a new channel in r3\n");
-    s->registers->eax = 0;
+    s->registers.eax = 0;
     picotransition(s, SYSCALL);
-    s->registers->edx = s->registers->eax;
+    s->registers.edx = s->registers.eax;
     log_state(s);
 
     kprintf("What about having a child of our own?\n");
-    s->registers->eax = 3;
-    s->registers->ebx = MAX_PRIORITY - 1;
+    s->registers.eax = 3;
+    s->registers.ebx = MAX_PRIORITY - 1;
     picotransition(s, SYSCALL);
     log_state(s);
 
     kprintf("Let's wait for him to die!\n");
-    s->registers->eax = 5;
+    s->registers.eax = 5;
     picotransition(s, SYSCALL);
     log_state(s);
 
     kprintf("On with the grandchild, which'll send on channel r3\n");
-    s->registers->eax = 1;
-    s->registers->ebx = s->registers->edx;
-    s->registers->ecx = -12;
+    s->registers.eax = 1;
+    s->registers.ebx = s->registers.edx;
+    s->registers.ecx = -12;
     picotransition(s, SYSCALL);
     log_state(s);
 
     kprintf("On with idle, to listen to the grandchild!\n");
-    s->registers->eax = 2;
-    s->registers->ebx = 1; // Little hack, not supposed to know it's gonna be channel one
-    s->registers->ecx = -1;
-    s->registers->edx = -1;
-    s->registers->esi = -1;
+    s->registers.eax = 2;
+    s->registers.ebx = 1; // Little hack, not supposed to know it's gonna be channel one
+    s->registers.ecx = -1;
+    s->registers.edx = -1;
+    s->registers.esi = -1;
     picotransition(s, SYSCALL);
     log_state(s);
 
@@ -815,26 +833,28 @@ void launch() {
     log_state(s);
 
     kprintf("Hara-kiri\n");
-    s->registers->eax = 4;
-    s->registers->ebx = 125;
+    s->registers.eax = 4;
+    s->registers.ebx = 125;
     picotransition(s, SYSCALL);
     log_state(s);
 
     kprintf("Let's speak to dad!\n");
-    s->registers->eax = 1;
-    s->registers->ebx = s->registers->esi;
-    s->registers->ecx = 42;
+    s->registers.eax = 1;
+    s->registers.ebx = s->registers.esi;
+    s->registers.ecx = 42;
     picotransition(s, SYSCALL);
     log_state(s);
 
     kprintf("Our job is done, back to dad! (see 42 in r2?)\n");
-    s->registers->eax = 4;
-    s->registers->ebx = 12; // Return value
+    s->registers.eax = 4;
+    s->registers.ebx = 12; // Return value
     picotransition(s, SYSCALL);
     log_state(s);
 
     kprintf("Let's loot the body of our child (see 12 in r2?)\n");
-    s->registers->eax = 5;
+    s->registers.eax = 5;
     picotransition(s, SYSCALL);
     log_state(s);
+    
+    return 0;
 }
