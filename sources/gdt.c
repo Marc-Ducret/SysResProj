@@ -119,8 +119,25 @@ void init_idt(void) {
     init_idt_desc(30, 0x08, (u32) isr30, INTGATE);
     init_idt_desc(31, 0x08, (u32) isr31, INTGATE);
     
-    init_idt_desc(33, 0x08, (u32) isr1, INTGATE); //KEYBOARD
+    init_idt_desc(32, 0x08, (u32) irq0, INTGATE); //Timer
+    init_idt_desc(33, 0x08, (u32) irq1, INTGATE); //Keyboard
+    init_idt_desc(34, 0x08, (u32) irq2, INTGATE);
+    init_idt_desc(35, 0x08, (u32) irq3, INTGATE);
+    init_idt_desc(36, 0x08, (u32) irq4, INTGATE);
+    init_idt_desc(37, 0x08, (u32) irq5, INTGATE);
+    init_idt_desc(38, 0x08, (u32) irq6, INTGATE);
+    init_idt_desc(39, 0x08, (u32) irq7, INTGATE);
+    init_idt_desc(40, 0x08, (u32) irq8, INTGATE);
+    init_idt_desc(41, 0x08, (u32) irq9, INTGATE);
+    init_idt_desc(42, 0x08, (u32) irq10, INTGATE);
+    init_idt_desc(43, 0x08, (u32) irq11, INTGATE);
+    init_idt_desc(44, 0x08, (u32) irq12, INTGATE);
+    init_idt_desc(45, 0x08, (u32) irq13, INTGATE);
+    init_idt_desc(46, 0x08, (u32) irq14, INTGATE);
+    init_idt_desc(47, 0x08, (u32) irq15, INTGATE);
     
+    init_idt_desc(128, 0x08, (u32) asm_syscall, TRAPGATE);
+
     idtr.limite = IDTSIZE * 8;
     idtr.base = IDTBASE;
     
@@ -138,8 +155,9 @@ void init_pic(void)
     outportb(0xA0, 0x11);
 
     /* Initialization of ICW2 */
-    outportb(0x21, 0x20);	/* start vector = 32 */
-    outportb(0xA1, 0x70);	/* start vector = 96 */
+    outportb(0x21, 0x20);	/* start vector of master PIC = 32 */
+    outportb(0xA1, 0x28);	/* start vector of slave PIC = 40 */
+    //outportb(0xA1, 0x70);	/* start vector of slave PIC = 112 */
 
     /* Initialization of ICW3 */
     outportb(0x21, 0x04);

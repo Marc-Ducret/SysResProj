@@ -10,6 +10,7 @@ build/boot.o \
 build/io.o \
 build/kernel.o \
 build/printing.o \
+build/timer.o \
 build/int_handlers.o \
 build/isr.o \
 build/gdt.o \

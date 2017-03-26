@@ -7,6 +7,7 @@
 #include "gdt.h"
 #include "keycode.h"
 #include "shell.h"
+#include "timer.h"
 
 void dieSlowly() {
     clear(COLOR_LIGHT_GREEN);
@@ -23,6 +24,7 @@ void kmain() {
     init_gdt();
     init_idt();
     init_pic();
+    init_timer(100);
     asm("sti");
     shell();
     dieSlowly();
