@@ -17,6 +17,7 @@ build/gdt.o \
 build/keycode.o \
 build/keyboard.o \
 build/shell.o \
+build/syscall.o \
 build/lib.o \
 build/main.o
 

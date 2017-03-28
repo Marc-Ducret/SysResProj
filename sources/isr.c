@@ -2,6 +2,7 @@
 #include "printing.h"
 #include "io.h"
 #include "keyboard.h"
+#include "kernel.h"
 
 void test() {
     putchar('.');
@@ -19,6 +20,7 @@ void print_reg(registers_t x) {
 void syscall(u32 id, registers_t regs, stack_state_t stack) {
     kprintf("Caught syscall %d \n", id);
     print_reg(regs);
+    picosyscall(&regs);
 }
 
 void print_stack(stack_state_t x) {
@@ -43,7 +45,7 @@ void isr_handler(u32 id, registers_t regs, u32 err_code, stack_state_t stack) {
 void irq_handler(u32 id, registers_t regs, stack_state_t stack) {
     
     if (id == 0) { // Timer
-        schedule();
+        //picotimer(&regs);
     }
     if(id == 1) { // Keyboard
         while ((inportb(0x64) & 0x01) == 0);

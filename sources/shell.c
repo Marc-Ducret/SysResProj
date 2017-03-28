@@ -4,6 +4,7 @@
 #include "keycode.h"
 #include "lib.h"
 #include "kernel.h"
+#include "syscall.h""
 
 char cmd[CMD_SIZE];
 int pos;
@@ -23,6 +24,8 @@ void execCmd() {
         asm volatile ("int $0x03");
     } else if(strEqual(cmd, "launch")) {
         launch();
+    } else if(strEqual(cmd, "newlaunch")) {
+        new_launch();
     }
     else kprintf("Unknown command (%s)\n", cmd);
     while(pos > 0)

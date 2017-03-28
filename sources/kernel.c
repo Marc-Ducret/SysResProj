@@ -2,102 +2,11 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "printing.h"
+#include "kernel.h"
 
 static const int CONSTANTE = 42;
 //Variable que dans ce fichier la
 //Dans une fonction, elle n'est definie qu'une fois
-#define MAX_SIZE_LIST 100
-#define MAX_SIZE_C_LIST 100
-
-
-#define MAX_TIME_SLICES 5
-#define MAX_PRIORITY 15
-#define NUM_PROCESSES 32
-#define NUM_CHANNELS 128
-#define NUM_REGISTERS 5
-
-typedef int pid;
-typedef int chanid;
-typedef int value;
-typedef int interrupt;
-typedef int priority;
-
-typedef struct registers
-{
-   u32 gs, fs, es, ds;                  // Data segment selector
-   u32 eax, ebx, ecx, edx, esp, ebp, esi, edi; // Pushed by pusha.
-} __attribute__ ((packed)) registers_t;
-
-typedef struct list list;
-struct list {
-    int hd;
-    list *tl;
-};
-
-struct elt_list {
-    int free;
-    list elt;
-};
-
-struct elt_list list_memory[MAX_SIZE_LIST];
-
-typedef enum p_state p_state;
-enum p_state {
-    FREE, BLOCKEDWRITING, BLOCKEDREADING, WAITING, RUNNABLE, ZOMBIE
-};
-
-typedef struct process_state process_state;
-struct process_state {
-    p_state state;
-    list *ch_list;
-    chanid ch;
-};
-
-typedef struct process process;
-struct process {
-    pid parent_id;
-    process_state state;
-    int slices_left;
-    registers_t saved_context;
-};
-
-typedef enum c_state c_state;
-enum c_state {
-    UNUSED, SENDER, RECEIVER
-};
-
-typedef struct c_list c_list;
-struct c_list {
-    pid pid;
-    priority priority;
-    c_list *tl;
-};
-
-struct elt_c_list {
-    int free;
-    c_list elt;
-};
-
-struct elt_c_list c_list_memory[MAX_SIZE_C_LIST];
-
-typedef struct channel_state channel_state;
-struct channel_state {
-    c_state state;
-    pid s_pid;
-    priority s_priority;
-    value s_value;
-    c_list *recvs;
-};
-
-typedef struct state state;
-struct state {
-    pid curr_pid;
-    priority curr_priority;
-    registers_t *registers;
-    process processes[NUM_PROCESSES];
-    channel_state channels[NUM_CHANNELS];
-    list* runqueues[MAX_PRIORITY+1];
-};
 
 state global_state;
 
@@ -210,7 +119,7 @@ c_list* get_recv(state *s, chanid i) {
     return res;
 }
 
-c_list* remove_recv(pid r, c_list* l) {
+c_list* remove_recv(pid_t r, c_list* l) {
     //On ne le fait pas en place !
     if (l == NULL) {
         return NULL;
@@ -227,7 +136,7 @@ c_list* remove_recv(pid r, c_list* l) {
     return l;
 }
 
-void release_recv(state *s, pid r, list *ch_list) {
+void release_recv(state *s, pid_t r, list *ch_list) {
     while (ch_list != NULL) {
         s->channels[ch_list->hd].recvs = remove_recv(r, s->channels[ch_list->hd].recvs);
         if (s->channels[ch_list->hd].recvs == NULL) {
@@ -238,7 +147,7 @@ void release_recv(state *s, pid r, list *ch_list) {
 }
 
 
-c_list *add_recv(pid i, priority p, c_list* l) {
+c_list *add_recv(pid_t i, priority p, c_list* l) {
     if (l == NULL || p > l->priority) {
         c_list *res = malloc_c_list();
         res->pid = i;
@@ -283,24 +192,6 @@ void init_registers(registers_t *regs) {
     regs->fs = 0;
     regs->gs = 0;
 }
-
-typedef enum event event;
-enum event { TIMER, SYSCALL };
-
-typedef enum sysc_name sysc_name;
-enum sysc_name { SEND, RECV, FORK, WAIT, EXIT, NEWCHANNEL, INVALID };
-
-typedef struct syscall_t 
-{
-    sysc_name t;
-    chanid ch_send;
-    value val_send;
-    list *ch_list;
-    priority priority;
-    value v2;
-    value v3;
-    value v4;
-} syscall_t;
 
 syscall_t decode(state *s) {
     syscall_t res;
@@ -460,7 +351,7 @@ void piconew_channel(state *s) {
 
 
 int picosend(state *s, chanid i, value v) {
-    pid writer = s->curr_pid;
+    pid_t writer = s->curr_pid;
     channel_state *ch = &(s->channels[i]);
 
     if (ch->state == UNUSED || ch->state == SENDER) {
@@ -482,7 +373,7 @@ int picosend(state *s, chanid i, value v) {
 
     //Le canal n'est pas vide.
     c_list *r = get_recv(s, i);
-    pid recv = r->pid;
+    pid_t recv = r->pid;
     priority recv_p = r->priority;
     free_c_list(r);
 
@@ -583,12 +474,12 @@ void picotransition(state *s, event ev) {
             reorder = 1;
             //On remet le processus a la fin
             priority p = s->curr_priority;
-            pid id = s->curr_pid;
+            pid_t id = s->curr_pid;
             s->runqueues[p] = append(filter(s->runqueues[p], id), id);
         }
     }
 
-    pid next_pid;
+    pid_t next_pid;
     if (reorder) {
         //On reelit un processus
         priority p;
@@ -616,11 +507,24 @@ void picotransition(state *s, event ev) {
     }
 }
 
+void picosyscall(registers_t * regs) {
+    // Calls the picotransition with current registers pointing regs.
+    global_state.registers = regs;
+    picotransition(&global_state, SYSCALL);
+}
+
+void picotimer(registers_t * regs) {
+    // Calls the picotransition with current registers pointing regs.
+    global_state.registers = regs;
+    picotransition(&global_state, TIMER);
+}
+
 state *picoinit(registers_t *regs) {
     state *s = &global_state;
     s->curr_pid = 1;
     s->curr_priority = MAX_PRIORITY;
-
+    s->registers = regs;
+    
     int i;
     for (i = 0; i < NUM_CHANNELS; i++) {
         s->channels[i].recvs = NULL;
