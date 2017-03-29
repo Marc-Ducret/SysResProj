@@ -23,13 +23,13 @@ pid_t kfork(priority prio) {
         movl %%ebx, %1"
         : "=m" (ret_value), "=m" (child)
         : "m" (prio)
+        : "%ebx", "esi", "edi"
         );
     
     kprintf("Fork returned with code %d, and child %d \n", ret_value, child);
-    
     if (!ret_value)
         return -1;
-    
+
     return child;
 }
 
@@ -45,6 +45,7 @@ pid_t kwait(int *status) {
         movl %%ecx, %2"
         : "=m" (ret_value), "=m" (child), "=m" (exit_value)
         :
+        : "%ebx", "esi", "edi"
         );
 
     if (ret_value) {
@@ -65,6 +66,7 @@ void kexit(int status) {
         int $0x80"
         :
         : "m" (status)
+        : "%ebx", "esi", "edi"
         );
     
     // This syscall should never return.
@@ -84,6 +86,7 @@ int ksend(chanid channel, int msg) {
         movl %%eax, %0 \n"
         : "=m" (ret_value)
         : "m" (channel), "m" (msg)
+        : "%ebx", "esi", "edi"
         );
     
     if (ret_value) {
@@ -111,6 +114,7 @@ int kreceive(chanid channel[4], int *dest) {
         movl %%ecx, %2 \n"
         : "=m" (ret_value), "=m" (chan), "=m" (res)
         : "m" (channel[0]), "m" (channel[1]), "m" (channel[2]), "m" (channel[3])
+        : "%ebx", "esi", "edi"
         );
     kprintf("Bonjour, je reviens de receive ! \n");
    
@@ -132,7 +136,8 @@ chanid knew_channel() {
                 int $0x80 \n \
                 movl %%eax, %0"
                 : "=m" (chan)
-                :);
+                :
+                : "%ebx", "esi", "edi");
     return chan;
 }
 
@@ -145,38 +150,27 @@ void new_launch() {
     log_state(s);
 
     kprintf("Forking init\n");
-    //s->registers->eax = 3;
-    //s->registers->ebx = MAX_PRIORITY;
-    //picotransition(s, SYSCALL);
     pid_t init = kfork(MAX_PRIORITY);
-    //kprintf("We have a new process : %d\n", init);
-    log_state(s);
-    
-    kprintf("Asking for a new channel, in r4\n");
-    //s->registers->eax = 0;
-    //picotransition(s, SYSCALL);
-    chanid chan1 = knew_channel();
-    kprintf("Channel obtenu : %d", chan1);
-    //s->registers->esi = s->registers->eax;
+    kprintf("We have a new process : %d\n", init);
     log_state(s);
 
+    kprintf("Asking for a new channel, in r4\n");
+    chanid chan1 = knew_channel();
+    kprintf("Channel obtenu : %d\n", chan1);
+    log_state(s);
+    
     kprintf("Making init wait for a message on the channel\n");
     kprintf("This should switch to the child process since init is BlockedReading\n");
-    //s->registers->eax = 2;
-    //s->registers->ebx = -1;
-    //s->registers->ecx = -1;
-    //s->registers->edx = -1;
-    //picotransition(s, SYSCALL);
+    
     channels[0] = chan1;
     channels[1] = -1;
     channels[2] = -1;
     channels[3] = -1;
     int res;
-    kprintf("J'ai demeande %d \n", chan1);
+    kprintf("J'ai demande %d \n", chan1);
     kreceive(channels, &res);
     log_state(s);
-    for(;;){}
-    /*for (;;){}
+
     kprintf("Getting a new channel in r3\n");
     //s->registers->eax = 0;
     //picotransition(s, SYSCALL);
@@ -190,7 +184,7 @@ void new_launch() {
     //picotransition(s, SYSCALL);
     pid_t child2 = kfork(MAX_PRIORITY - 1);
     log_state(s);
-    for (;;){}
+
     kprintf("Let's wait for him to die!\n");
     //s->registers->eax = 5;
     //picotransition(s, SYSCALL);
@@ -252,6 +246,4 @@ void new_launch() {
 
     kwait(&status);
     log_state(s);
-    
-    return;*/
 }

@@ -54,3 +54,6 @@ build/os.iso: build/isodir/boot/os.bin build/isodir/boot/grub/grub.cfg
 
 run-qemu: build/os.iso
 	qemu-system-i386 -cdrom build/os.iso
+
+debugbochs: build/os.iso
+	bochs

@@ -162,18 +162,18 @@ c_list *add_recv(pid_t i, priority p, c_list* l) {
 
 void copy_registers(registers_t* src, registers_t *dest) {
     //TODO Peut on faire une copie directe dest = src ?
-    dest->ds = src->ds;
+    //dest->ds = src->ds;
     dest->eax = src->eax;
     dest->ebx = src->ebx;
     dest->ecx = src->ecx;
     dest->edx = src->edx;
-    dest->ebp = src->ebp;
-    dest->esp = src->esp;
+    //dest->ebp = src->ebp;
+    //dest->esp = src->esp;
     dest->edi = src->edi;
     dest->esi = src->esi;
-    dest->es = src->es;
-    dest->fs = src->fs;
-    dest->gs = src->gs;
+    //dest->es = src->es;
+    //dest->fs = src->fs;
+    //dest->gs = src->gs;
 }
 
 void init_registers(registers_t *regs) {
