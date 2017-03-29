@@ -12,23 +12,33 @@ void schedule() {
     //TODO
 }
 
-void print_reg(registers_t x) {
-    kprintf("eax %d, ebx %d, ecx %d, edx %d, esp %d, ebp %d, esi %d, edi %d\n",
-            x.eax, x.ebx, x.ecx, x.edx, x.esp, x.ebp, x.esi, x.edi);
+void print_reg(registers_t *x) {
+    kprintf("Registres : eax %d, ebx %d, ecx %d, edx %d, esp %d, \
+                         ebp %d, esi %d, edi %d.\n",
+            x->eax, x->ebx, x->ecx, x->edx, x->esp, x->ebp, x->esi, x->edi);
 }
 
-void syscall(u32 id, registers_t regs, stack_state_t stack) {
+void syscall(u32 id, context_t *context) {
+    registers_t *regs = &(context->regs);
+    stack_state_t *stack = &(context->stack);
+    
     kprintf("Caught syscall %d \n", id);
     print_reg(regs);
-    picosyscall(&regs);
+    
+    picosyscall(regs);
+    
 }
 
-void print_stack(stack_state_t x) {
-    kprintf("ss %d, eip %d\n", x.ss, x.eip);
+void print_stack(stack_state_t *x) {
+    kprintf("ss %d, eip %d\n", x->ss, x->eip);
 }
 
-void isr_handler(u32 id, registers_t regs, u32 err_code, stack_state_t stack) {
+void isr_handler(u32 id, context_t *context) {
+    u32 err_code;
     //TODO Gérer les interruptions importantes !
+    registers_t *regs = &(context->regs);
+    stack_state_t *stack = &(context->stack);
+    
     kprintf("Caught interruption %d, error code %d\n", id, err_code);
     print_reg(regs);
     print_stack(stack);
@@ -42,10 +52,12 @@ void isr_handler(u32 id, registers_t regs, u32 err_code, stack_state_t stack) {
     //outportb(0xA0,0x20);
 }
 
-void irq_handler(u32 id, registers_t regs, stack_state_t stack) {
+void irq_handler(u32 id, context_t *context) {
+    registers_t *regs = &(context->regs);
+    stack_state_t *stack = &(context->stack);
     
     if (id == 0) { // Timer
-        //picotimer(&regs);
+        //picotimer(regs);
     }
     if(id == 1) { // Keyboard
         while ((inportb(0x64) & 0x01) == 0);

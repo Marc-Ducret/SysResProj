@@ -27,6 +27,14 @@ typedef struct stack_state
    u32 eip, cs, eflags, useresp, ss; // Pushed by the processor automatically.
 } __attribute__ ((packed)) stack_state_t;
 
+typedef struct context_t 
+{
+    registers_t regs;
+    u32 err_code;
+    stack_state_t stack;
+} __attribute((packed)) context_t;
+
+
 typedef struct list list;
 struct list {
     int hd;
@@ -115,6 +123,8 @@ typedef struct syscall_t
     value v3;
     value v4;
 } syscall_t;
+
+state global_state;
 
 void launch();
 state *picoinit(registers_t *regs);

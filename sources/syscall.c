@@ -11,39 +11,45 @@
 // TODO Determiner si il faut sauver les registres avant de mettre les args.
 
 pid_t kfork(priority prio) {
-    asm("movl $3, %eax");
-    asm volatile("movl %0, %%ebx"::"" (prio));
-    
-    asm("int $0x80");
-    
+    kprintf("Requested a fork, with priority %d\n", prio);
     pid_t child;
-    asm("movl %%ebx, %0":"=rm" (child):);
+    int ret_value;
     
-    int err;
-    asm("movl %%eax, %0":"=rm" (err):);
+    asm volatile("\
+        movl $3, %%eax \n \
+        movl %2, %%ebx \n \
+        int $0x80 \n \
+        movl %%eax, %0 \n \
+        movl %%ebx, %1"
+        : "=m" (ret_value), "=m" (child)
+        : "m" (prio)
+        );
     
-    if (!err)
+    kprintf("Fork returned with code %d, and child %d \n", ret_value, child);
+    
+    if (!ret_value)
         return -1;
     
     return child;
 }
 
 pid_t kwait(int *status) {
-    asm("movl $5, %eax");
+    int ret_value, exit_value;
+    pid_t child;
     
-    asm("int $0x80");
-    
-    int res;
-    asm("movl %%eax, %0":"=rm" (res):);
-    
-    if (res) {
-        // A Zombie child has been found.
-        pid_t child;
-        int ret_value;
-        asm("movl %%ebx, %0":"=rm" (child):);
-        asm("movl %%ecx, %0":"=rm" (ret_value):);
-        
-        *status = ret_value;
+    asm volatile("\
+        movl $5, %%eax \n \
+        int $0x80 \n \
+        movl %%eax, %0 \n \
+        movl %%ebx, %1 \n \
+        movl %%ecx, %2"
+        : "=m" (ret_value), "=m" (child), "=m" (exit_value)
+        :
+        );
+
+    if (ret_value) {
+        // A Zombie child has been found.        
+        *status = exit_value;
         return child;
     }
     else {
@@ -53,10 +59,13 @@ pid_t kwait(int *status) {
 }
 
 void kexit(int status) {
-    asm("movl $4, %eax");
-    asm volatile("movl %0, %%ebx"::""((status)));
-    
-    asm("int $0x80");
+    asm volatile("\
+        movl $4, %%eax \n \
+        movl %0, %%ebx \n \
+        int $0x80"
+        :
+        : "m" (status)
+        );
     
     // This syscall should never return.
     kprintf("WARNING : Returned after exit. Trying again.\n");
@@ -65,14 +74,17 @@ void kexit(int status) {
 
 // Utilisera-t-on des file descriptors ? TODO
 int ksend(chanid channel, int msg) {
-    asm("movl $1, %eax");
-    asm volatile("movl %0, %%ebx"::"" (channel));
-    asm volatile("movl %0, %%ecx"::"" (msg));
-    
-    asm("int $0x80");
-    
     int ret_value;
-    asm("movl %%eax, %0":"=rm" (ret_value):);
+    
+    asm volatile("\
+        movl $1, %%eax \n \
+        movl %1, %%ebx \n \
+        movl %2, %%ecx \n \
+        int $0x80 \n \
+        movl %%eax, %0 \n"
+        : "=m" (ret_value)
+        : "m" (channel), "m" (msg)
+        );
     
     if (ret_value) {
         return 0;
@@ -83,48 +95,44 @@ int ksend(chanid channel, int msg) {
     }
 }
 
-int kreceive(chanid channel[4], int *dest) {
-    asm("movl $2, %eax");
-    asm("movl %0, %%ebx"::"" (channel[0]));
-    asm("movl %0, %%ecx"::"" (channel[1]));
-    asm("movl %0, %%edx"::"" (channel[2]));
-    asm("movl %0, %%esi"::"" (channel[3]));
+int kreceive(chanid channel[4], int *dest) {    
+    int ret_value, res;
+    chanid chan;
     
-    asm("int $0x80");
-    
-    int ret_value;
-    asm("movl %%eax, %0":"=rm" (ret_value):);
-    
-    if (ret_value) {
-        int res;
-        chanid chan;
-        asm("movl %%ebx, %0":"=rm" (chan):);
-        asm("movl %%eax, %0":"=rm" (res):);
-        
+    asm volatile("\
+        movl %3, %%ebx \n \
+        movl %4, %%ecx \n \
+        movl %5, %%edx \n \
+        movl %6, %%esi \n \
+        movl $2, %%eax \n \
+        int $0x80 \n \
+        movl %%eax, %0 \n \
+        movl %%ebx, %1 \n \
+        movl %%ecx, %2 \n"
+        : "=m" (ret_value), "=m" (chan), "=m" (res)
+        : "m" (channel[0]), "m" (channel[1]), "m" (channel[2]), "m" (channel[3])
+        );
+    kprintf("Bonjour, je reviens de receive ! \n");
+   
+    if (ret_value) {   
         //TODO On ignore le channel choisi ici ?
         *dest = res;
         return 0;
     }
     else {
-        // No valid channel 
+        // No valid channel
         return -1;
     }
 }
 
 chanid knew_channel() {
-    asm("movl $0, %eax");
-    
-    asm("int $0x80");
-    
     chanid chan;
-    asm("movl %%ebx, %0":"=rm" (chan):);
-    
-    int ret_value;
-    asm("movl %%eax, %0":"=rm" (ret_value):);
-    
-    if (!ret_value)
-        return -1;
-    
+    asm volatile("\
+                movl $0, %%eax \n \
+                int $0x80 \n \
+                movl %%eax, %0"
+                : "=m" (chan)
+                :);
     return chan;
 }
 
@@ -135,21 +143,23 @@ void new_launch() {
     registers_t regs;
     state* s = picoinit(&regs);
     log_state(s);
-    for (;;){}
+
     kprintf("Forking init\n");
     //s->registers->eax = 3;
     //s->registers->ebx = MAX_PRIORITY;
     //picotransition(s, SYSCALL);
     pid_t init = kfork(MAX_PRIORITY);
+    //kprintf("We have a new process : %d\n", init);
     log_state(s);
-    for (;;){}
+    
     kprintf("Asking for a new channel, in r4\n");
     //s->registers->eax = 0;
     //picotransition(s, SYSCALL);
     chanid chan1 = knew_channel();
+    kprintf("Channel obtenu : %d", chan1);
     //s->registers->esi = s->registers->eax;
     log_state(s);
-    for (;;){}
+
     kprintf("Making init wait for a message on the channel\n");
     kprintf("This should switch to the child process since init is BlockedReading\n");
     //s->registers->eax = 2;
@@ -162,10 +172,11 @@ void new_launch() {
     channels[2] = -1;
     channels[3] = -1;
     int res;
-    
+    kprintf("J'ai demeande %d \n", chan1);
     kreceive(channels, &res);
     log_state(s);
-
+    for(;;){}
+    /*for (;;){}
     kprintf("Getting a new channel in r3\n");
     //s->registers->eax = 0;
     //picotransition(s, SYSCALL);
@@ -242,5 +253,5 @@ void new_launch() {
     kwait(&status);
     log_state(s);
     
-    return;
+    return;*/
 }

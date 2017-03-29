@@ -3,9 +3,10 @@
 isr\nb:
     cli
     pushr # Saves the registers
+    push %esp
     push $\nb # Saves the number of interrupt
     call isr_handler
-    add $0x4, %esp
+    add $0x8, %esp
     popr
     add $0x4, %esp
     sti
@@ -18,9 +19,10 @@ isr\nb:
     cli
     push $0 # Adds an error code
     pushr # Saves the registers
+    push %esp
     push $\nb # Saves the number of interrupt
     call isr_handler
-    add $4, %esp
+    add $8, %esp
     popr
     add $0x4, %esp
     sti
@@ -31,11 +33,14 @@ isr\nb:
 .global irq\nb
 irq\nb:
     cli
+    push $0
     pushr
+    push %esp
     push $\nb
     call irq_handler
-    add $4, %esp
+    add $8, %esp
     popr
+    add $4, %esp
     sti
     iret
 .endm
@@ -139,10 +144,13 @@ irq 15
 .global asm_syscall
 asm_syscall:
     cli
+    push $0
     pushr
+    push %esp
     push %eax
     call syscall
-    add $4, %esp
+    add $8, %esp
     popr
+    add $4, %esp
     sti
     iret

@@ -8,8 +8,6 @@ static const int CONSTANTE = 42;
 //Variable que dans ce fichier la
 //Dans une fonction, elle n'est definie qu'une fois
 
-state global_state;
-
 list* malloc_list() {
     static int base = 0;
     int i;
@@ -244,7 +242,8 @@ void picofork(state *s, priority nprio, value v2, value v3, value v4) {
         s->registers->eax = 0;
         return;
     }
-
+    //kprintf("Hi ! I have here : prio %d, v2 %d, v3 %d, v4 %d\n", nprio, v2, v3, v4);
+    
     //Good priority
     //Finds the new process
     int i;
@@ -253,7 +252,7 @@ void picofork(state *s, priority nprio, value v2, value v3, value v4) {
             //Found a free process
             s->registers->eax = 1;
             s->registers->ebx = i;
-
+            
             //Creating the new process
             process *new_p = &(s->processes[i]);
             new_p->parent_id = s->curr_pid;
@@ -267,7 +266,7 @@ void picofork(state *s, priority nprio, value v2, value v3, value v4) {
             
             new_p->state.state = RUNNABLE;
             s->runqueues[nprio] = add(i, s->runqueues[nprio]);
-
+            
             return;
         }
     }
@@ -504,10 +503,16 @@ void picotransition(state *s, event ev) {
         }
         kprintf("Dommage... \n");
         //fprintf(stderr, "No process to run, undefined behavior.\n");
+        return;
+    }
+    else {
+        // No reorder, just saves the new registers for a nice print.
+        copy_registers(s->registers, &(s->processes[s->curr_pid].saved_context));
+        return;
     }
 }
 
-void picosyscall(registers_t * regs) {
+void picosyscall(registers_t *regs) {
     // Calls the picotransition with current registers pointing regs.
     global_state.registers = regs;
     picotransition(&global_state, SYSCALL);
@@ -627,8 +632,11 @@ char* channel_to_str(channel_state c) {
 void log_state(state* s) {
     kprintf("Current process is %d (priority %d, %d slices left)\n",
         s->curr_pid, s->curr_priority, s->processes[s->curr_pid].slices_left);
+    
+    registers_t *regs = &(s->processes[s->curr_pid].saved_context);
+    
     kprintf("Registers are: r0=%d, r1=%d, r2=%d, r3=%d, r4=%d\n",
-        s->registers->eax, s->registers->ebx, s->registers->ecx, s->registers->edx, s->registers->esi);
+        regs->eax, regs->ebx, regs->ecx, regs->edx, regs->esi);
 
     kprintf("\nRunqueues:\n");
     for (priority prio = MAX_PRIORITY; prio >= 0; prio--) {

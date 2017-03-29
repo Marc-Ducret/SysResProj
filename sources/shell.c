@@ -4,7 +4,7 @@
 #include "keycode.h"
 #include "lib.h"
 #include "kernel.h"
-#include "syscall.h""
+#include "syscall.h"
 
 char cmd[CMD_SIZE];
 int pos;
