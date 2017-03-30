@@ -4,82 +4,91 @@
 
 
 u8 make_color(u8 fg, u8 bg) {
-	return fg | bg << 4;
+    return fg | bg << 4;
 }
 
 u16 make_vgaentry(char c, u8 color) {
-	u16 c16 = c;
-	u16 color16 = color;
-	return c16 | color16 << 8;
+    u16 c16 = c;
+    u16 color16 = color;
+    return c16 | color16 << 8;
 }
 
 u32 strlen(const char* str) {
-	u32 ret = 0;
-	while ( str[ret] != 0)
-		ret++;
-	return ret;
+    u32 ret = 0;
+    while(str[ret] != 0)
+        ret++;
+    return ret;
 }
 
 int terminal_row;
 int terminal_column;
 u8 terminal_color;
 u16* terminal_buffer;
+u16 scroll_buffer[VGA_WIDTH * SCROLL_HEIGHT];
+int scroll_off;
+int scroll;
 
 void terminal_initialize() {
-	terminal_row = 0;
-	terminal_column = 0;
-	terminal_color = make_color(COLOR_LIGHT_BLUE, COLOR_BLACK);
-	terminal_buffer = (u16*) 0xB8000;
-	for ( u32 y = 0; y < VGA_HEIGHT; y++ )
-		for ( u32 x = 0; x < VGA_WIDTH; x++ ) {
-			const u32 index = y * VGA_WIDTH + x;
-                        terminal_buffer[index] = make_vgaentry(' ', terminal_color);
-		}
+    terminal_row = 0;
+    terminal_column = 0;
+    terminal_color = make_color(COLOR_LIGHT_BLUE, COLOR_BLACK);
+    terminal_buffer = (u16*) 0xB8000;
+    for (u32 y = 0; y < VGA_HEIGHT; y++)
+        for (u32 x = 0; x < VGA_WIDTH; x++) {
+            const u32 index = y * VGA_WIDTH + x;
+            terminal_buffer[index] = make_vgaentry(' ', terminal_color);
+        }
 }
 
 void terminal_setcolor(u8 color) {
-	terminal_color = color;
+    terminal_color = color;
 }
 
 u32 index(u32 x, u32 y) {
-	return x + y * VGA_WIDTH;
+    return x + y * VGA_WIDTH;
 }
 
 
 void terminal_putentryat(char c, u8 color, u32 x, u32 y) {
-	terminal_buffer[index(x, y)] = make_vgaentry(c, color);
+    terminal_buffer[index(x, y)] = make_vgaentry(c, color);
+    scroll_buffer[index(x, (y+scroll_off) % SCROLL_HEIGHT)] = make_vgaentry(c, color);
 }
 
 void updatecursor() {
     unsigned short pos = terminal_column + VGA_WIDTH * terminal_row;
-	outportb(0x3D4, 0x0F);
-	outportb(0x3D5, (unsigned char) (pos & 0xFF));
-	outportb(0x3D4, 0x0E);
-	outportb(0x3D5, (unsigned char) ((pos >> 8) & 0xFF));
+    outportb(0x3D4, 0x0F);
+    outportb(0x3D5, (unsigned char) (pos & 0xFF));
+    outportb(0x3D4, 0x0E);
+    outportb(0x3D5, (unsigned char) ((pos >> 8) & 0xFF));
 }
 
 void putchar(char c) {
-        if (c == '\n') {
-            while (terminal_column < VGA_WIDTH) {
-                terminal_putentryat(' ', terminal_color, terminal_column, terminal_row);
-                terminal_column ++;
-            }
-            terminal_column --;
-        } else {
-            terminal_putentryat(c, terminal_color, terminal_column, terminal_row);
+    if (c == '\n') {
+        while (terminal_column < VGA_WIDTH) {
+            terminal_putentryat(' ', terminal_color, terminal_column, terminal_row);
+            terminal_column ++;
         }
-       	if ( ++terminal_column == VGA_WIDTH ) {
-		terminal_column = 0;
-		if ( ++terminal_row == VGA_HEIGHT ) {
-			for(u32 row = 0; row < VGA_HEIGHT-1; row ++) 
-				for(u32 col = 0; col < VGA_WIDTH; col++)
-					terminal_buffer[index(col, row)] = terminal_buffer[index(col, row+1)];
-			for(u32 col = 0; col < VGA_WIDTH; col++)
-				terminal_putentryat(' ', terminal_color, col, VGA_HEIGHT-1);
-			terminal_row = VGA_HEIGHT-1;
-		}
-	}
+        terminal_column --;
+    } else {
+        terminal_putentryat(c, terminal_color, terminal_column, terminal_row);
+    }
+    if (++terminal_column == VGA_WIDTH) {
+    terminal_column = 0;
+        if (++terminal_row == VGA_HEIGHT) {
+            scroll_off += 1;
+            for(u32 row = 0; row < VGA_HEIGHT-1; row ++) 
+                for(u32 col = 0; col < VGA_WIDTH; col++)
+                    terminal_buffer[index(col, row)] = terminal_buffer[index(col, row+1)];
+            for(u32 col = 0; col < VGA_WIDTH; col++)
+                terminal_putentryat(' ', terminal_color, col, VGA_HEIGHT-1);
+            terminal_row = VGA_HEIGHT-1;
+        }
+    }
     updatecursor();
+    if(scroll > 0) {
+        scroll = 0;
+        load_from_scroll();
+    }    
 }
 
 void erase() {
@@ -104,9 +113,9 @@ void putint(int i) {
 }
 
 void terminal_writestring(const char* data) {
-	u32 datalen = strlen(data);
-	for ( u32 i = 0; i < datalen; i++ )
-		putchar(data[i]);
+    u32 datalen = strlen(data);
+    for ( u32 i = 0; i < datalen; i++ )
+        putchar(data[i]);
 }
 
 void print_string(char *s) {
@@ -156,4 +165,21 @@ void clear(u8 bgColor) {
             terminal_putentryat(' ', bgColor, x, y);
     terminal_row = terminal_column = 0;
     updatecursor();
+}
+
+void scrolldown() {
+    if(--scroll < 0) scroll = 0;
+    else load_from_scroll();
+}
+
+void scrollup() {
+    if(++scroll >= SCROLL_HEIGHT) scroll = SCROLL_HEIGHT-1;
+    else load_from_scroll();
+}
+
+void load_from_scroll() {
+    for(int i = 0; i < VGA_HEIGHT * VGA_WIDTH; i ++) {
+        int y = (scroll_off - scroll) % SCROLL_HEIGHT;
+        terminal_buffer[i] = scroll_buffer[i + y * VGA_WIDTH];
+    }
 }

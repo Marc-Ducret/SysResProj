@@ -21,7 +21,8 @@
 #define COLOR_WHITE 15
 
 #define VGA_WIDTH 80
-#define VGA_HEIGHT 24
+#define VGA_HEIGHT 25
+#define SCROLL_HEIGHT 256
 
 
 u8 make_color(u8 fg, u8 bg);
@@ -33,5 +34,7 @@ void erase();
 void putint(int i);
 void kprintf(const char* data, ...);
 void clear(u8 bgColor);
+void scrollup();
+void scrolldown();
 #endif
 
