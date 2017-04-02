@@ -47,6 +47,10 @@ void isr_handler(u32 id, context_t *context) {
         kprintf("General Protection Fault, must die.");
         asm("hlt");
     }
+    else if (id == 14) {
+        kprintf("Page Fault.\n");
+        asm("hlt");
+    }
     // Peut etre pas besoin de s'en acquitter si c'est une interruption ?
     //outportb(0x20,0x20);
     //outportb(0xA0,0x20);
