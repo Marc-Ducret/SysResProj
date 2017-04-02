@@ -14,7 +14,7 @@ typedef struct pde
     u32 pcd        : 1;   // Page-level cache disable
     u32 accessed   : 1;   // Has the page been accessed since last refresh?
     u32 unused     : 6;   // Amalgamation of unused and reserved bits
-    u32 table_addr : 20;  // Frame address (shifted right 12 bits)
+    u32 table_addr : 20;  // Table address (shifted right 12 bits)
 } pde_t;
 
 typedef struct page
@@ -39,11 +39,11 @@ typedef struct page_directory
 {
 
     //Array of page directory entries.
-    pde_t tables[1024];
+    page_table_t *tables[1024];
     
     //Array of pointers to the pagetables above, but gives their *physical*
     //location, for loading into the CR3 register.
-    u32 tablesPhysical[1024];
+    pde_t tablesPhysical[1024];
     
     //The physical address of tablesPhysical. This comes into play
     //when we get our kernel heap allocated and the directory
@@ -52,7 +52,7 @@ typedef struct page_directory
 } page_directory_t;
 
 void init_paging();
-void switch_page_directory(page_directory_t *new);
+void switch_page_directory(page_directory_t *directory);
 page_t *get_page(u32 address, int make, page_directory_t *dir);
 //void page_fault(registers_t regs);
 

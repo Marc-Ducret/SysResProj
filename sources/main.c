@@ -8,6 +8,7 @@
 #include "keycode.h"
 #include "shell.h"
 #include "timer.h"
+#include "paging.h"
 
 void dieSlowly() {
     clear(COLOR_LIGHT_GREEN);
@@ -26,6 +27,7 @@ void kmain() {
     init_idt();
     init_pic();
     init_timer(100);
+    init_paging(0x1000000);
     asm("sti");
     shell();
     dieSlowly();
