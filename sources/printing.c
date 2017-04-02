@@ -27,6 +27,7 @@ u16* terminal_buffer;
 u16 scroll_buffer[VGA_WIDTH * SCROLL_HEIGHT];
 int scroll_off;
 int scroll;
+int max_scroll;
 
 void terminal_initialize() {
     terminal_row = 0;
@@ -56,6 +57,7 @@ void terminal_putentryat(char c, u8 color, u32 x, u32 y) {
 
 void updatecursor() {
     unsigned short pos = terminal_column + VGA_WIDTH * terminal_row;
+    if(scroll > 0) pos = -1;
     outportb(0x3D4, 0x0F);
     outportb(0x3D5, (unsigned char) (pos & 0xFF));
     outportb(0x3D4, 0x0E);
@@ -75,7 +77,8 @@ void putchar(char c) {
     if (++terminal_column == VGA_WIDTH) {
     terminal_column = 0;
         if (++terminal_row == VGA_HEIGHT) {
-            scroll_off += 1;
+            scroll_off ++;
+            if(++max_scroll > SCROLL_HEIGHT-VGA_HEIGHT) max_scroll = SCROLL_HEIGHT-VGA_HEIGHT;
             for(u32 row = 0; row < VGA_HEIGHT-1; row ++) 
                 for(u32 col = 0; col < VGA_WIDTH; col++)
                     terminal_buffer[index(col, row)] = terminal_buffer[index(col, row+1)];
@@ -158,12 +161,21 @@ void kprintf(const char* data, ...) {
     va_end(args);
 }
 
-void clear(u8 bgColor) {
-    bgColor = make_color(bgColor, bgColor);
+void clear(u8 color) {
     for(int x = 0; x < VGA_WIDTH; x ++)
         for(int y = 0; y < VGA_HEIGHT; y ++)
-            terminal_putentryat(' ', bgColor, x, y);
+            terminal_putentryat(' ', color, x, y);
     terminal_row = terminal_column = 0;
+    updatecursor();
+    max_scroll = 0;
+    scroll = 0;
+}
+
+void load_from_scroll() {
+    for(int i = 0; i < VGA_HEIGHT * VGA_WIDTH; i ++) {
+        int y = (i/VGA_WIDTH + scroll_off - scroll) % SCROLL_HEIGHT;
+        terminal_buffer[i] = scroll_buffer[i%VGA_WIDTH + y * VGA_WIDTH];
+    }
     updatecursor();
 }
 
@@ -173,13 +185,6 @@ void scrolldown() {
 }
 
 void scrollup() {
-    if(++scroll >= SCROLL_HEIGHT) scroll = SCROLL_HEIGHT-1;
+    if(++scroll > max_scroll) scroll = max_scroll;
     else load_from_scroll();
-}
-
-void load_from_scroll() {
-    for(int i = 0; i < VGA_HEIGHT * VGA_WIDTH; i ++) {
-        int y = (scroll_off - scroll) % SCROLL_HEIGHT;
-        terminal_buffer[i] = scroll_buffer[i + y * VGA_WIDTH];
-    }
 }
