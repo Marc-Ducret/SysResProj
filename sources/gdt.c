@@ -59,7 +59,7 @@ void init_gdt(void) {
     kgdtr.base = GDTBASE;
 
     /* copy the gdtr to its memory area */
-    memcpy((char *) kgdtr.base, (char *) kgdt, kgdtr.limite);
+    memcpy((u8 *) kgdtr.base, (u8 *) kgdt, kgdtr.limite);
 
     /* load the gdtr registry */
     asm("lgdtl (kgdtr)");
@@ -142,7 +142,7 @@ void init_idt(void) {
     idtr.base = IDTBASE;
     
     /* copy the idtr to its memory area */
-    memcpy((char *) idtr.base, (char *) kidt, idtr.limite);
+    memcpy((u8 *) idtr.base, (u8 *) kidt, idtr.limite);
     
     asm("lidtl (idtr)");
     kprintf("IDT initialized\n");

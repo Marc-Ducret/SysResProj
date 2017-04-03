@@ -182,14 +182,14 @@ void new_launch() {
     //s->registers->eax = 3;
     //s->registers->ebx = MAX_PRIORITY - 1;
     //picotransition(s, SYSCALL);
-    pid_t child2 = kfork(MAX_PRIORITY - 1);
+    /*pid_t child2 = */kfork(MAX_PRIORITY - 1);
     log_state(s);
 
     kprintf("Let's wait for him to die!\n");
     //s->registers->eax = 5;
     //picotransition(s, SYSCALL);
     int status;
-    int res_wait = kwait(&status);
+    /*int res_wait = */kwait(&status);
     log_state(s);
 
     kprintf("On with the grandchild, which'll send on channel r3\n");
@@ -197,7 +197,7 @@ void new_launch() {
     //s->registers->ebx = s->registers->edx;
     //s->registers->ecx = -12;
     //picotransition(s, SYSCALL);
-    int res_send = ksend(chan2, -12);
+    /*int res_send = */ksend(chan2, -12);
     log_state(s);
 
     kprintf("On with idle, to listen to the grandchild!\n");
@@ -209,7 +209,7 @@ void new_launch() {
     //picotransition(s, SYSCALL);
     channels[0] = 1;
     int dest2;
-    int res_recv = kreceive(channels, &dest2);
+    /*int res_recv = */kreceive(channels, &dest2);
     log_state(s);
 
     kprintf("Letting the timer tick until we're back to the grandchild\n");

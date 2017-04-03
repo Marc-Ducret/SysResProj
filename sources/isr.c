@@ -20,7 +20,7 @@ void print_reg(registers_t *x) {
 
 void syscall(u32 id, context_t *context) {
     registers_t *regs = &(context->regs);
-    stack_state_t *stack = &(context->stack);
+    //stack_state_t *stack = &(context->stack);
     
     kprintf("Caught syscall %d \n", id);
     print_reg(regs);
@@ -34,12 +34,11 @@ void print_stack(stack_state_t *x) {
 }
 
 void isr_handler(u32 id, context_t *context) {
-    u32 err_code;
     //TODO Gérer les interruptions importantes !
     registers_t *regs = &(context->regs);
     stack_state_t *stack = &(context->stack);
     
-    kprintf("Caught interruption %d, error code %d\n", id, err_code);
+    kprintf("Caught interruption %d, error code %d\n", id, context->err_code);
     print_reg(regs);
     print_stack(stack);
     
@@ -66,6 +65,11 @@ void irq_handler(u32 id, context_t *context) {
     if(id == 1) { // Keyboard
         while ((inportb(0x64) & 0x01) == 0);
         provideKeyEvent(inportb(0x60));
+    }
+    if(id == 42) {
+        print_reg(regs);
+        print_stack(stack);
+        //TODO rm (temporary to remove warnings)
     }
     
     // Informs the PIC we are done with this IRQ
