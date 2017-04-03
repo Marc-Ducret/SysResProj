@@ -27,7 +27,7 @@ void kmain() {
     init_idt();
     init_pic();
     init_timer(100);
-    init_paging(0x1000000);
+    init_paging(0x100000);
     asm("sti");
     shell();
     dieSlowly();

@@ -47,12 +47,8 @@ void isr_handler(u32 id, context_t *context) {
         asm("hlt");
     }
     else if (id == 14) {
-        kprintf("Page Fault.\n");
-        asm("hlt");
+        page_fault(context);
     }
-    // Peut etre pas besoin de s'en acquitter si c'est une interruption ?
-    //outportb(0x20,0x20);
-    //outportb(0xA0,0x20);
 }
 
 void irq_handler(u32 id, context_t *context) {
