@@ -185,7 +185,7 @@ void page_fault(context_t* context) {
         kprintf("user-mode ");
     if (reserved) 
         kprintf("reserved ");
-    kprintf(") at %d\n", faulting_address);
+    kprintf(") id[%d] at %d\n", id, faulting_address);
     
     asm("hlt");
 }

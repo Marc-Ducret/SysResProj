@@ -3,6 +3,7 @@
 #include "io.h"
 #include "keyboard.h"
 #include "kernel.h"
+#include "paging.h"
 
 void test() {
     putchar('.');
