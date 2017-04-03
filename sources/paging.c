@@ -59,23 +59,7 @@ u32 new_frame() {
 
 void alloc_page(page_t *page, int is_kernel, int is_writable) {
     // Allocates a frame for this page, if not already done.
-    if (page->present)
-        return;
-    
-    u32 frame = new_frame();
-    
-    if (frame == nb_frames) {
-        kprintf("No more frames left. Not good.\n");
-        return;
-    }
-
-    set_frame(frame << 12);
-    page->present = 1;
-    page->frame = frame;
-    page->rw = is_writable? 1:0;
-    page->user = is_kernel? 0:1;
-    page->accessed = 0;
-    page->dirty = 0;    
+    map_page(page, NULL, is_kernel, is_writable);
 }
 
 void free_page(page_t * page) {
@@ -124,6 +108,33 @@ page_t *get_page(u32 address, int make, page_directory_t* directory) {
     
 }
 
+void map_page(page_t* page, u32 phys_address, int is_kernel, int is_writable) {
+    // Maps the specified page to the frame at phys_address.
+    // Uses the parameters to determine the flags.
+    // Allocates a frame for this page, if not already done.
+    
+    if (page->present)
+        return;
+    
+    u32 frame = phys_address >> 12;
+    
+    if (!phys_address)
+        frame = new_frame();
+    
+    if (frame == nb_frames) {
+        kprintf("No more frames left. Not good.\n");
+        return;
+    }
+
+    set_frame(frame << 12);
+    page->present = 1;
+    page->frame = frame;
+    page->rw = is_writable? 1:0;
+    page->user = is_kernel? 0:1;
+    page->accessed = 0;
+    page->dirty = 0; 
+}
+
 void switch_page_directory(page_directory_t* directory) {
     current_page_directory = directory;
     asm volatile("mov %0, %%cr3":: "r"(&directory->tablesPhysical));
@@ -148,13 +159,14 @@ void init_paging(u32 mem_end) {
     // Identity paging
     u32 i = 0;
     
-    while (i < memory_end) {
+    // TODO Put something else instead of memory_end, and protect the screen !
+    while (i < free_address) {
         alloc_page(get_page(i, 1, page_directory), 0, 1);
         i += 0x1000;
     }
     
     // Initialises the memory used by the screen ?
-    
+    map_page(get_page(0xB8000, 1, page_directory), 0xB8000, 0, 1);
     switch_page_directory(page_directory);
     kprintf("Paging initialized.\n");
     return;
