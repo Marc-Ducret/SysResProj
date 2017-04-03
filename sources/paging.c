@@ -167,6 +167,7 @@ void init_paging(u32 mem_end) {
     
     // Initialises the memory used by the screen ?
     map_page(get_page(0xB8000, 1, page_directory), 0xB8000, 0, 1);
+    
     switch_page_directory(page_directory);
     kprintf("Paging initialized.\n");
     return;
