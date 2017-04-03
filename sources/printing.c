@@ -64,6 +64,14 @@ void updatecursor() {
     outportb(0x3D5, (unsigned char) ((pos >> 8) & 0xFF));
 }
 
+void load_from_scroll() {
+    for(int i = 0; i < VGA_HEIGHT * VGA_WIDTH; i ++) {
+        int y = (i/VGA_WIDTH + scroll_off - scroll) % SCROLL_HEIGHT;
+        terminal_buffer[i] = scroll_buffer[i%VGA_WIDTH + y * VGA_WIDTH];
+    }
+    updatecursor();
+}
+
 void putchar(char c) {
     if (c == '\n') {
         while (terminal_column < VGA_WIDTH) {
@@ -169,14 +177,6 @@ void clear(u8 color) {
     updatecursor();
     max_scroll = 0;
     scroll = 0;
-}
-
-void load_from_scroll() {
-    for(int i = 0; i < VGA_HEIGHT * VGA_WIDTH; i ++) {
-        int y = (i/VGA_WIDTH + scroll_off - scroll) % SCROLL_HEIGHT;
-        terminal_buffer[i] = scroll_buffer[i%VGA_WIDTH + y * VGA_WIDTH];
-    }
-    updatecursor();
 }
 
 void scrolldown() {
