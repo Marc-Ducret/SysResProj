@@ -2,7 +2,7 @@
 #define PAGING_H
 
 #include "int.h"
-
+#include "kernel.h"
 //TODO Déterminer si c'est le site qui a raison ou cela ?
 
 typedef struct pde
@@ -54,7 +54,7 @@ typedef struct page_directory
 void init_paging();
 void switch_page_directory(page_directory_t *directory);
 page_t *get_page(u32 address, int make, page_directory_t *dir);
-//void page_fault(registers_t regs);
+void page_fault(context_t* context);
 
 #endif /* PAGING_H */
 

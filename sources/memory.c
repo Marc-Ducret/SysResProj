@@ -1,7 +1,7 @@
 #include "memory.h"
 #include <stddef.h>
 
-u32 free_address = &end;
+volatile u32 free_address = &end;
 
 void* kmalloc_3(u32 size, int align, u32 *phys) {
     //Simple linear malloc, whithout any free.
@@ -19,7 +19,7 @@ void* kmalloc_3(u32 size, int align, u32 *phys) {
     
     void* tmp = (void*) free_address;
     free_address += size;
-    
+
     return tmp;
 }
 

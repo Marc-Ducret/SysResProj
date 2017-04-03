@@ -11,8 +11,8 @@ u32 size_frames_table; // Size of the frames table
 u32 *frames; // Pointer to the frames table
 
 //Page directory
-page_directory_t *page_directory;
-page_directory_t *current_page_directory;
+page_directory_t *page_directory = NULL;
+page_directory_t *current_page_directory = NULL;
 
 void set_frame(u32 frame_addr) {
     // Sets the corresponding frame as used.
@@ -48,9 +48,9 @@ u32 new_frame() {
             u32 value = frames[index];
             for (offset = 0; offset < 32; offset++) {
                 if (!(value & 1)) {
-                    return index << 5 + offset;
+                    return (index << 5) + offset;
                 }
-                value >> 1;
+                value = value >> 1;
             }
         }
     }
@@ -68,7 +68,7 @@ void alloc_page(page_t *page, int is_kernel, int is_writable) {
         kprintf("No more frames left. Not good.\n");
         return;
     }
-    
+
     set_frame(frame << 12);
     page->present = 1;
     page->frame = frame;
@@ -92,10 +92,10 @@ void free_page(page_t * page) {
 page_t *get_page(u32 address, int make, page_directory_t* directory) {
     // Gets a pointer to the page entry.
     // If make, creates the corresponding page table if it doesn't exist.
-    address = address >> 10;      // Index of the page
+    address = address >> 12;      // Index of the page
     u32 index = address >> 10;    // Index in page_directory
     u32 offset = address & 0x3FF; // Index in page_table
-    
+
     if (directory->tables[index]) {
         // The page table already exists.
         return &(directory->tables[index]->pages[offset]);
@@ -114,7 +114,7 @@ page_t *get_page(u32 address, int make, page_directory_t* directory) {
             directory->tablesPhysical[index].accessed = 0;
             directory->tablesPhysical[index].rw = 1;
             directory->tablesPhysical[index].user = 0; //TODO ?
-            kprintf("Page table : %d", new_table);
+            
             return &(new_table->pages[offset]);
         }
         else {
@@ -127,7 +127,6 @@ page_t *get_page(u32 address, int make, page_directory_t* directory) {
 void switch_page_directory(page_directory_t* directory) {
     current_page_directory = directory;
     asm volatile("mov %0, %%cr3":: "r"(&directory->tablesPhysical));
-    BREAKPOINT;
     u32 cr0;
     asm volatile("mov %%cr0, %0": "=r"(cr0));
     cr0 |= 0x80000000; // Enable paging!
@@ -149,16 +148,44 @@ void init_paging(u32 mem_end) {
     // Identity paging
     u32 i = 0;
     
-    while (i < free_address) {
-        alloc_page(get_page(i, 1, page_directory), 0, 0);
+    while (i < memory_end) {
+        alloc_page(get_page(i, 1, page_directory), 0, 1);
         i += 0x1000;
     }
-    kprintf("Suspense..");
-    BREAKPOINT;
+    
+    // Initialises the memory used by the screen ?
+    
     switch_page_directory(page_directory);
-    BREAKPOINT;
     kprintf("Paging initialized.\n");
     return;
 }
 
-//void page_fault(registers_t regs);
+void page_fault(context_t* context) {
+    // A page fault has occurred.
+    // The faulting address is stored in the CR2 register.
+    u32 faulting_address;
+
+    asm volatile("mov %%cr2, %0" : "=r" (faulting_address));
+
+    // The error code gives us details of what happened.
+    int err_code = context->err_code;
+    int present   = !(err_code & 0x1); // Page not present
+    int rw = err_code & 0x2;           // Write operation?
+    int us = err_code & 0x4;           // Processor was in user-mode?
+    int reserved = err_code & 0x8;     // Overwritten CPU-reserved bits of page entry?
+    int id = err_code & 0x10;          // Caused by an instruction fetch?
+
+    // Output an error message.
+    kprintf("Page fault! ( ");
+    if (present) 
+        kprintf("present ");
+    if (rw)
+        kprintf("read-only ");
+    if (us)
+        kprintf("user-mode ");
+    if (reserved) 
+        kprintf("reserved ");
+    kprintf(") at %d\n", faulting_address);
+    
+    asm("hlt");
+}
