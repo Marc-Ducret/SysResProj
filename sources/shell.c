@@ -39,7 +39,7 @@ void execCmd() {
 void keyTyped(int key) {
     if(key == KEY_SHIFT) scrollup();
     if(key == KEY_CTRL)  scrolldown();
-	char c = getKeyChar(key);
+    char c = getKeyChar(key);
     if(c == '\n') {
         putchar('\n');
         execCmd();
@@ -58,9 +58,9 @@ void shell() {
     while(run) {
         int event;
         while((event = nextKeyEvent()) >= 0)
-		    if(event <= 0x80) {
-		    	keyTyped(event);
-		    }
-		asm("hlt");
+            if(event <= 0x80) {
+                keyTyped(event);
+            }
+            asm("hlt");
     }
 }

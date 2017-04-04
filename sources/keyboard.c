@@ -10,11 +10,11 @@ int keyboardState() {
 }
 
 void provideKeyEvent(int event) {
-	eventBuffer[eventCursor++] = event;
+    eventBuffer[eventCursor++] = event;
 }
 
 int nextKeyEvent() {
-	if(eventCursor > 0)
-		return eventBuffer[--eventCursor];
-	return -1;
+    if(eventCursor > 0)
+        return eventBuffer[--eventCursor];
+    return -1;
 }

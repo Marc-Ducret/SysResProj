@@ -31,6 +31,31 @@ void initCharTable() {
     chars[KEY_Z] = 'z';
     chars[KEY_SPACE] = ' ';
     chars[KEY_ENTER] = '\n';
+    chars[KEY_1] = '1';
+    chars[KEY_2] = '2';
+    chars[KEY_3] = '3';
+    chars[KEY_4] = '4';
+    chars[KEY_5] = '5';
+    chars[KEY_6] = '6';
+    chars[KEY_7] = '7';
+    chars[KEY_8] = '8';
+    chars[KEY_9] = '9';
+    chars[KEY_0] = '0';
+    chars[KEY_RPAR] = ')';
+    chars[KEY_PERCENT] = '%';
+    //chars[KEY_SQUARE_SUPERSCRIPT] = '';
+    //chars[KEY_SHIFT] = '';
+    chars[KEY_STAR] = '*';
+    chars[KEY_HAT] = '^';
+    chars[KEY_DOLLAR] = '$';
+    chars[KEY_COMMA] = ',';
+    chars[KEY_SEMI_COLON] = ';';
+    chars[KEY_COLON] = ':';
+    chars[KEY_EXCLAMATION] = '!';
+    chars[KEY_EQUAL] = '=';
+    //chars[KEY_RSHIFT] = '';
+    //chars[KEY_NUM_STAR] = '';
+    //chars[KEY_ALT_GR] = '';
 }
 
 char getKeyChar(short key) {

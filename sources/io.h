@@ -1,9 +1,9 @@
 #ifndef IO_H
 #define IO_H
-
-unsigned char inportb(unsigned short _port);
-void outportb(unsigned short _port, unsigned char _data);
-void wai_key(unsigned char k);
+#include "int.h"
+u8 inportb(u16 _port);
+void outportb(u16 _port, u8 _data);
+void wait_key(u8 k);
 
 #endif /* IO_H */
 

@@ -5,7 +5,7 @@
 #include <stddef.h>
 
 // Frames table
-u32 memory_end; // Size of the meory covered by pages
+u32 memory_end; // Size of the memory covered by pages
 u32 nb_frames; // Maximum number of frames
 u32 size_frames_table; // Size of the frames table
 u32 *frames; // Pointer to the frames table
@@ -159,13 +159,13 @@ void init_paging(u32 mem_end) {
     // Identity paging
     u32 i = 0;
     
-    // TODO Put something else instead of memory_end, and protect the screen !
+    // Allocates only what we need
     while (i < free_address) {
         alloc_page(get_page(i, 1, page_directory), 0, 1);
         i += 0x1000;
     }
     
-    // Initialises the memory used by the screen ?
+    // Initialises the memory used by the screen.
     map_page(get_page(0xB8000, 1, page_directory), 0xB8000, 0, 1);
     
     switch_page_directory(page_directory);
@@ -198,7 +198,7 @@ void page_fault(context_t* context) {
         kprintf("user-mode ");
     if (reserved) 
         kprintf("reserved ");
-    kprintf(") id[%d] at %d\n", id, faulting_address);
+    kprintf(") id[%d] at %x\n", id, faulting_address);
     
     asm("hlt");
 }

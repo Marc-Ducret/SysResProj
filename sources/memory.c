@@ -1,6 +1,8 @@
 #include "memory.h"
 #include <stddef.h>
 
+//TODO Frame allocation !!!!
+
 volatile u32 free_address = (u32) &end;
 
 void* kmalloc_3(u32 size, int align, u32 *phys) {
@@ -35,5 +37,3 @@ void* kmalloc_p(u32 size, u32 *phys) {
     return kmalloc_3(size, 0, phys);
 }
 
-
-//TODO Frame allocation !

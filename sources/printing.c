@@ -123,6 +123,12 @@ void putint(int i) {
     }
 }
 
+void putint_hex(u32 i) {
+    if(i >= 16) putint_hex(i >> 4);
+    u32 number = i % 16;
+    putchar((number < 10) ? ('0' + number) : ('A' + number - 10));
+}
+
 void terminal_writestring(const char* data) {
     u32 datalen = strlen(data);
     for ( u32 i = 0; i < datalen; i++ )
@@ -154,6 +160,13 @@ void kprintf(const char* data, ...) {
                 case 's':
                     s = va_arg(args, char*);
                     print_string(s);
+                    break;
+                
+                case 'x':
+                    nb = va_arg(args, unsigned int);
+                    kprintf("0x");
+                    putint_hex(nb);
+
                 default:
                     break;
             }

@@ -3,7 +3,6 @@
 
 #include "int.h"
 #include "kernel.h"
-//TODO Déterminer si c'est le site qui a raison ou cela ?
 
 typedef struct pde
 {
