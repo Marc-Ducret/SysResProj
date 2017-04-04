@@ -1,16 +1,16 @@
 #include "int.h"
 
-void *memcpy(u8 *dst, u8 *src, u32 n) {
+void *memcpy(void *dst, void *src, u32 n) {
     u8 *p = dst;
     while(n--)
-        *dst++ = *src++;
+        *(u8*)dst++ = *(u8*)src++;
     return p;
 }
 
-void memset(u8 *dst, u8 src, u32 len) {
+void memset(void *dst, u8 src, u32 len) {
     // Copy len times src from the address dst.
     while (len>0) {
-        *dst = src;
+        *(u8*)dst = src;
         dst++;
         len--;
     }

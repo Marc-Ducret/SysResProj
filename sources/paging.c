@@ -57,9 +57,36 @@ u32 new_frame() {
     return nb_frames;
 }
 
+void map_page(page_t* page, u32 phys_address, int is_kernel, int is_writable) {
+    // Maps the specified page to the frame at phys_address.
+    // Uses the parameters to determine the flags.
+    // Allocates a frame for this page, if not already done.
+    
+    if (page->present)
+        return;
+    
+    u32 frame = phys_address >> 12;
+    
+    if (!phys_address)
+        frame = new_frame();
+    
+    if (frame == nb_frames) {
+        kprintf("No more frames left. Not good.\n");
+        return;
+    }
+
+    set_frame(frame << 12);
+    page->present = 1;
+    page->frame = frame;
+    page->rw = is_writable? 1:0;
+    page->user = is_kernel? 0:1;
+    page->accessed = 0;
+    page->dirty = 0; 
+}
+
 void alloc_page(page_t *page, int is_kernel, int is_writable) {
     // Allocates a frame for this page, if not already done.
-    map_page(page, NULL, is_kernel, is_writable);
+    map_page(page, 0, is_kernel, is_writable);
 }
 
 void free_page(page_t * page) {
@@ -106,33 +133,6 @@ page_t *get_page(u32 address, int make, page_directory_t* directory) {
         }
     }
     
-}
-
-void map_page(page_t* page, u32 phys_address, int is_kernel, int is_writable) {
-    // Maps the specified page to the frame at phys_address.
-    // Uses the parameters to determine the flags.
-    // Allocates a frame for this page, if not already done.
-    
-    if (page->present)
-        return;
-    
-    u32 frame = phys_address >> 12;
-    
-    if (!phys_address)
-        frame = new_frame();
-    
-    if (frame == nb_frames) {
-        kprintf("No more frames left. Not good.\n");
-        return;
-    }
-
-    set_frame(frame << 12);
-    page->present = 1;
-    page->frame = frame;
-    page->rw = is_writable? 1:0;
-    page->user = is_kernel? 0:1;
-    page->accessed = 0;
-    page->dirty = 0; 
 }
 
 void switch_page_directory(page_directory_t* directory) {

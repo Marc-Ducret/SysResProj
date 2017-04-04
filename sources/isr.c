@@ -26,7 +26,7 @@ void syscall(u32 id, context_t *context) {
     kprintf("Caught syscall %d \n", id);
     print_reg(regs);
     
-    picosyscall(regs);
+    picosyscall(context);
     
 }
 
@@ -53,20 +53,12 @@ void isr_handler(u32 id, context_t *context) {
 }
 
 void irq_handler(u32 id, context_t *context) {
-    registers_t *regs = &(context->regs);
-    stack_state_t *stack = &(context->stack);
-    
     if (id == 0) { // Timer
-        //picotimer(regs);
+        picotimer(context);
     }
     if(id == 1) { // Keyboard
         while ((inportb(0x64) & 0x01) == 0);
         provideKeyEvent(inportb(0x60));
-    }
-    if(id == 42) {
-        print_reg(regs);
-        print_stack(stack);
-        //TODO rm (temporary to remove warnings)
     }
     
     // Informs the PIC we are done with this IRQ

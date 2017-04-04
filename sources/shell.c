@@ -25,6 +25,7 @@ void execCmd() {
             kprintf("%d\n", i);
     } else if(strEqual(cmd, "int")) {
         asm volatile ("int $0x03");
+        asm volatile ("int $0x03");
     } else if(strEqual(cmd, "launch")) {
         launch();
     } else if(strEqual(cmd, "newlaunch")) {

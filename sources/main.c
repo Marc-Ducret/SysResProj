@@ -9,6 +9,7 @@
 #include "shell.h"
 #include "timer.h"
 #include "paging.h"
+#include "lib.h"
 
 void dieSlowly() {
     clear(make_color(COLOR_LIGHT_GREEN, COLOR_LIGHT_GREEN));
@@ -19,7 +20,7 @@ void dieSlowly() {
     for(;;) asm("hlt");
 }
 
-void kmain() {
+void init() {
     terminal_initialize();
     initCharTable();
     kprintf("Init\n");
@@ -28,7 +29,13 @@ void kmain() {
     init_pic();
     init_timer(100);
     init_paging(0x100000);
+    context_t ctx;
+    picoinit(&ctx);
     asm("sti");
+}
+
+void kmain() {
+    init();
     shell();
     dieSlowly();
 }

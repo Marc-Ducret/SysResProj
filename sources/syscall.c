@@ -145,8 +145,8 @@ void new_launch() {
     kprintf("Initial state\n");
     chanid channels[4];
     // A priori superflu
-    registers_t regs;
-    state* s = picoinit(&regs);
+    context_t ctx;
+    state* s = picoinit(&ctx);
     log_state(s);
 
     kprintf("Forking init\n");

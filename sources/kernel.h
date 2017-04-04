@@ -65,7 +65,7 @@ struct process {
     pid_t parent_id;
     process_state state;
     int slices_left;
-    registers_t saved_context;
+    context_t saved_context;
 };
 
 typedef enum c_state c_state;
@@ -100,7 +100,7 @@ typedef struct state state;
 struct state {
     pid_t curr_pid;
     priority curr_priority;
-    registers_t *registers;
+    context_t *ctx;
     process processes[NUM_PROCESSES];
     channel_state channels[NUM_CHANNELS];
     list* runqueues[MAX_PRIORITY+1];
@@ -127,9 +127,9 @@ typedef struct syscall_t
 state global_state;
 
 void launch();
-state *picoinit(registers_t *regs);
-void picosyscall(registers_t *);
-void picotimer(registers_t *);
+state *picoinit(context_t *ctx);
+void picosyscall(context_t *);
+void picotimer(context_t *);
 void picotransition(state *s, event ev);;
 void log_state(state *s);
 #endif /* KERNEL_H */
