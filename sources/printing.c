@@ -163,10 +163,13 @@ void kprintf(const char* data, ...) {
                     break;
                 
                 case 'x':
-                    nb = va_arg(args, unsigned int);
                     kprintf("0x");
+                
+                case 'h':
+                    nb = va_arg(args, unsigned int);
                     putint_hex(nb);
-
+                    break;
+                
                 default:
                     break;
             }

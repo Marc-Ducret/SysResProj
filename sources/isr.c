@@ -56,11 +56,13 @@ void irq_handler(u32 id, context_t *context) {
     if (id == 0) { // Timer
         picotimer(context);
     }
-    if(id == 1) { // Keyboard
+    else if(id == 1) { // Keyboard
         while ((inportb(0x64) & 0x01) == 0);
         provideKeyEvent(inportb(0x60));
     }
-    
+    else {
+        kprintf("Received an IRQ with id %d.\n", id);
+    }
     // Informs the PIC we are done with this IRQ
     outportb(0x20,0x20);
     

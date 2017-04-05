@@ -10,6 +10,7 @@
 #include "timer.h"
 #include "paging.h"
 #include "lib.h"
+#include "disk.h"
 
 void dieSlowly() {
     clear(make_color(COLOR_LIGHT_GREEN, COLOR_LIGHT_GREEN));
@@ -32,6 +33,7 @@ void init() {
     context_t ctx;
     picoinit(&ctx);
     asm("sti");
+    init_disk();
 }
 
 void kmain() {
