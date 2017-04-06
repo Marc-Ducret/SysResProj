@@ -35,6 +35,7 @@ void init() {
 }
 
 void kmain() {
+    terminal_initialize();
     init();
     shell();
     dieSlowly();

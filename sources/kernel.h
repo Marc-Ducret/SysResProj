@@ -1,6 +1,8 @@
 #ifndef KERNEL_H
 #define KERNEL_H
 #include "int.h"
+#include "context.h"
+#include "paging.h"
 
 #define MAX_SIZE_LIST 100
 #define MAX_SIZE_C_LIST 100
@@ -15,25 +17,6 @@ typedef int chanid;
 typedef int value;
 //typedef int interrupt;
 typedef int priority;
-
-typedef struct registers
-{
-   u32 gs, fs, es, ds;                  // Data segment selector
-   u32 eax, ebx, ecx, edx, esp, ebp, esi, edi; // Pushed by pusha.
-} __attribute__ ((packed)) registers_t;
-
-typedef struct stack_state 
-{
-   u32 eip, cs, eflags, useresp, ss; // Pushed by the processor automatically.
-} __attribute__ ((packed)) stack_state_t;
-
-typedef struct context_t 
-{
-    registers_t regs;
-    u32 err_code;
-    stack_state_t stack;
-} __attribute((packed)) context_t;
-
 
 typedef struct list list;
 struct list {
@@ -66,6 +49,8 @@ struct process {
     process_state state;
     int slices_left;
     context_t saved_context;
+    page_directory_t page_directory;
+    char *name;
 };
 
 typedef enum c_state c_state;

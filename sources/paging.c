@@ -132,7 +132,6 @@ page_t *get_page(u32 address, int make, page_directory_t* directory) {
             return NULL;
         }
     }
-    
 }
 
 void switch_page_directory(page_directory_t* directory) {
@@ -142,6 +141,10 @@ void switch_page_directory(page_directory_t* directory) {
     asm volatile("mov %%cr0, %0": "=r"(cr0));
     cr0 |= 0x80000000; // Enable paging!
     asm volatile("mov %0, %%cr0":: "r"(cr0));
+}
+
+void switch_to_default_page_directory() {
+    switch_page_directory(page_directory);
 }
 
 void init_paging(u32 mem_end) {
@@ -171,6 +174,10 @@ void init_paging(u32 mem_end) {
     switch_page_directory(page_directory);
     kprintf("Paging initialized.\n");
     return;
+}
+
+page_directory_t init_user_page_dir() {
+    
 }
 
 void page_fault(context_t* context) {

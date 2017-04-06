@@ -41,6 +41,8 @@ _start:
 	# Now that the initial bootstrap environment is set up, call the kernel's
 	# main function using the C calling convention.
 	call kmain
+	cli
+	hlt
 
 	# The kernel is done executing, so let's put the computer in an infinite
 	# loop. The halt instruction ('hlt') stops the CPU until an interrupt

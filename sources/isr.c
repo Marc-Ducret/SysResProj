@@ -19,19 +19,19 @@ void print_reg(registers_t *x) {
             x->eax, x->ebx, x->ecx, x->edx, x->esp, x->ebp, x->esi, x->edi);
 }
 
+void print_stack(stack_state_t *x) {
+    kprintf("ss %d, eip %d\n", x->ss, x->eip);
+}
+
 void syscall(u32 id, context_t *context) {
     registers_t *regs = &(context->regs);
-    //stack_state_t *stack = &(context->stack);
+    stack_state_t *stack = &(context->stack);
     
     kprintf("Caught syscall %d \n", id);
     print_reg(regs);
+    print_stack(stack);
     
     picosyscall(context);
-    
-}
-
-void print_stack(stack_state_t *x) {
-    kprintf("ss %d, eip %d\n", x->ss, x->eip);
 }
 
 void isr_handler(u32 id, context_t *context) {

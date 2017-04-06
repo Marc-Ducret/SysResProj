@@ -2,7 +2,7 @@
 #define PAGING_H
 
 #include "int.h"
-#include "kernel.h"
+#include "context.h"
 
 typedef struct pde
 {
@@ -52,6 +52,7 @@ typedef struct page_directory
 
 void init_paging();
 void switch_page_directory(page_directory_t *directory);
+void switch_to_default_page_directory();
 page_t *get_page(u32 address, int make, page_directory_t *dir);
 void page_fault(context_t* context);
 

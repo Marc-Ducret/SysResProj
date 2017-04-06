@@ -160,9 +160,12 @@ c_list *add_recv(pid_t i, priority p, c_list* l) {
     return l;
 }
 
-
 void copy_context(context_t *src, context_t *dst) {
     memcpy(dst, src, sizeof(context_t));
+}
+
+void start_process(/*TODO*/) {
+    
 }
 
 syscall_t decode(state *s) {
@@ -417,10 +420,10 @@ void reorder(state *s) {
             if (s->processes[rq->hd].state.state == RUNNABLE) {//&& s->processes[rq->hd].slices_left > 0 ?
                 next_pid = rq->hd;
                 s->processes[next_pid].slices_left = MAX_TIME_SLICES;
-                copy_context(&(s->processes[next_pid].saved_context), s->ctx);
+                copy_context(&(s->processes[next_pid].saved_context), s->ctx); //TODO finish
+                //switch_page_directory(&global_state.processes[next_pid].page_directory);
                 s->curr_pid = next_pid;
                 s->curr_priority = p;
-
                 return;
             }
             rq = rq->tl;
