@@ -11,7 +11,7 @@ u32 size_frames_table; // Size of the frames table
 u32 *frames; // Pointer to the frames table
 
 //Page directory
-page_directory_t *page_directory = NULL;
+page_directory_t *identity_pd = NULL;
 page_directory_t *current_page_directory = NULL;
 
 void set_frame(u32 frame_addr) {
@@ -62,13 +62,11 @@ void map_page(page_t* page, u32 phys_address, int is_kernel, int is_writable) {
     // Uses the parameters to determine the flags.
     // Allocates a frame for this page, if not already done.
     
+    
     if (page->present)
         return;
     
-    u32 frame = phys_address >> 12;
-    
-    if (!phys_address)
-        frame = new_frame();
+    u32 frame = phys_address ? phys_address >> 12 : new_frame();
     
     if (frame == nb_frames) {
         kprintf("No more frames left. Not good.\n");
@@ -110,27 +108,23 @@ page_t *get_page(u32 address, int make, page_directory_t* directory) {
     if (directory->tables[index]) {
         // The page table already exists.
         return &(directory->tables[index]->pages[offset]);
-    }
-    else {
-        if (make) {
-            // Creates the corresponding page table.
-            u32 tmp;
-            page_table_t* new_table = (page_table_t*) 
-                    kmalloc_3(sizeof(page_table_t), 1, &tmp);
-            memset((u8*) new_table, 0, 0x1000);
-            
-            directory->tables[index] = new_table;
-            directory->tablesPhysical[index].table_addr = tmp >> 12;
-            directory->tablesPhysical[index].present = 1;
-            directory->tablesPhysical[index].accessed = 0;
-            directory->tablesPhysical[index].rw = 1;
-            directory->tablesPhysical[index].user = 0; //TODO ?
-            
-            return &(new_table->pages[offset]);
-        }
-        else {
-            return NULL;
-        }
+    } else if (make) {
+        // Creates the corresponding page table.
+        u32 tmp;
+        page_table_t* new_table = (page_table_t*) 
+                kmalloc_3(sizeof(page_table_t), 1, &tmp);
+        memset((u8*) new_table, 0, 0x1000);
+        
+        directory->tables[index] = new_table;
+        directory->tablesPhysical[index].table_addr = tmp >> 12;
+        directory->tablesPhysical[index].present = 1;
+        directory->tablesPhysical[index].accessed = 0;
+        directory->tablesPhysical[index].rw = 1;
+        directory->tablesPhysical[index].user = 0; //TODO ?
+        
+        return &(new_table->pages[offset]);
+    } else {
+        return NULL;
     }
 }
 
@@ -144,8 +138,10 @@ void switch_page_directory(page_directory_t* directory) {
 }
 
 void switch_to_default_page_directory() {
-    switch_page_directory(page_directory);
+    switch_page_directory(identity_pd);
 }
+
+page_directory_t *get_identity() { return &identity_pd; }
 
 void init_paging(u32 mem_end) {
     // Init of frames table
@@ -156,28 +152,32 @@ void init_paging(u32 mem_end) {
     memset((u8*) frames, 0, size_frames_table << 2);
     
     // Init of page directory
-    page_directory = (page_directory_t*) kmalloc_a(sizeof(page_directory_t));
-    memset((u8*)page_directory, 0, sizeof(page_directory_t));
+    identity_pd = (page_directory_t*) kmalloc_a(sizeof(page_directory_t));
+    memset((u8*)identity_pd, 0, sizeof(page_directory_t));
 
     // Identity paging
-    u32 i = 0;
-    
     // Allocates only what we need
-    while (i < free_address) {
-        alloc_page(get_page(i, 1, page_directory), 0, 1);
-        i += 0x1000;
+    for(u32 i = 0; i < mem_end; i += 0x1000) {
+        page_t *page = get_page(i, 1, identity_pd);
+        if(i < free_address) alloc_page(page, 0, 1);
     }
     
     // Initialises the memory used by the screen.
-    map_page(get_page(0xB8000, 1, page_directory), 0xB8000, 0, 1);
+    map_page(get_page(0xB8000, 1, identity_pd), 0xB8000, 0, 1);
     
-    switch_page_directory(page_directory);
+    switch_page_directory(identity_pd);
     kprintf("Paging initialized.\n");
     return;
 }
 
-page_directory_t init_user_page_dir() {
+void init_user_page_dir(u32 user_code_addr, page_directory_t *pd) {
+    memset(pd, 0, sizeof(page_directory_t));
     
+    for(u32 i = 0; i < free_address; i += 0x1000)
+        map_page(get_page(i, 1, pd), i+1, 0, 1);
+    /*map_page(get_page(0x40000000, 1, pd), user_code_addr, 0, 0); //CODE
+    map_page(get_page(0x40001000, 1, pd), 0, 0, 1); //STACK*/
+    memcpy(pd, identity_pd, sizeof(page_directory_t));
 }
 
 void page_fault(context_t* context) {
@@ -189,23 +189,30 @@ void page_fault(context_t* context) {
 
     // The error code gives us details of what happened.
     int err_code = context->err_code;
-    int present   = !(err_code & 0x1); // Page not present
+    int present  = err_code & 0x1;     // Page present
     int rw = err_code & 0x2;           // Write operation?
     int us = err_code & 0x4;           // Processor was in user-mode?
     int reserved = err_code & 0x8;     // Overwritten CPU-reserved bits of page entry?
     int id = err_code & 0x10;          // Caused by an instruction fetch?
-
+    
+    if(!present) {
+        alloc_page(get_page(faulting_address, 1, current_page_directory), 0, 1);
+        return;
+    }
+    
     // Output an error message.
     kprintf("Page fault! ( ");
     if (present) 
         kprintf("present ");
     if (rw)
-        kprintf("read-only ");
+        kprintf("read ");
+    else
+        kprintf("write ");
     if (us)
         kprintf("user-mode ");
     if (reserved) 
         kprintf("reserved ");
-    kprintf(") id[%d] at %x\n", id, faulting_address);
+    kprintf(") id=%d at %x\n", id, faulting_address);
     
     asm("hlt");
 }

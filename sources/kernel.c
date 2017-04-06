@@ -4,6 +4,8 @@
 #include "printing.h"
 #include "kernel.h"
 #include "lib.h"
+#include "memory.h"
+#include "paging.h"
 
 static const int CONSTANTE = 42;
 //Variable que dans ce fichier la
@@ -162,10 +164,6 @@ c_list *add_recv(pid_t i, priority p, c_list* l) {
 
 void copy_context(context_t *src, context_t *dst) {
     memcpy(dst, src, sizeof(context_t));
-}
-
-void start_process(/*TODO*/) {
-    
 }
 
 syscall_t decode(state *s) {
@@ -419,11 +417,18 @@ void reorder(state *s) {
         while (rq != NULL) {
             if (s->processes[rq->hd].state.state == RUNNABLE) {//&& s->processes[rq->hd].slices_left > 0 ?
                 next_pid = rq->hd;
+                kprintf("switch to process %d\n", next_pid);
                 s->processes[next_pid].slices_left = MAX_TIME_SLICES;
-                copy_context(&(s->processes[next_pid].saved_context), s->ctx); //TODO finish
-                //switch_page_directory(&global_state.processes[next_pid].page_directory);
                 s->curr_pid = next_pid;
                 s->curr_priority = p;
+                copy_context(&(s->processes[next_pid].saved_context), s->ctx);
+                page_directory_t *pd = get_identity();
+                asm volatile("mov %0, %%cr3":: "r"(pd));
+                //asm volatile("mov %0, %%cr3":: "r"(&global_state.processes[next_pid].page_directory.tablesPhysical));
+                asm("hlt");
+                switch_page_directory(&global_state.processes[next_pid].page_directory);
+                asm("hlt");
+                //TODO ?
                 return;
             }
             rq = rq->tl;
@@ -431,6 +436,7 @@ void reorder(state *s) {
 
     }
     kprintf("No process to run...\n");
+    asm("hlt");
     return;
 }
 
@@ -471,7 +477,8 @@ void picotransition(state *s, event ev) {
         }
     } else {
         s->processes[s->curr_pid].slices_left --;
-        if (s->processes[s->curr_pid].slices_left == 0) {
+        if (s->processes[s->curr_pid].slices_left <= 0) {
+            s->processes[s->curr_pid].slices_left = 0;
             reorder_req = 1;
             //On remet le processus a la fin
             priority p = s->curr_priority;
@@ -497,9 +504,24 @@ void picotimer(context_t *ctx) {
     picotransition(&global_state, TIMER);
 }
 
+void start_process(int pid, int parent) {
+    process *p = &global_state.processes[pid];
+    p->parent_id = parent;
+    p->state.state = RUNNABLE;
+    p->slices_left = MAX_TIME_SLICES;
+    p->state.ch_list = NULL;
+    u8 *user_code = kmalloc_a(0x1000);
+    memset(user_code, 0xF4, 0x1000);
+    init_user_page_dir((u32) user_code, &p->page_directory);
+    p->saved_context.stack.eip = 0x40000000;
+    p->saved_context.stack.useresp = 0x40001000;
+    
+    global_state.runqueues[MAX_PRIORITY] = append(global_state.runqueues[MAX_PRIORITY], pid);
+}
+
 state *picoinit(context_t *ctx) {
     state *s = &global_state;
-    s->curr_pid = 1;
+    s->curr_pid = 0;
     s->curr_priority = MAX_PRIORITY;
     s->ctx = ctx;
     
@@ -513,39 +535,17 @@ state *picoinit(context_t *ctx) {
     }
 
     for (i = 0; i < NUM_PROCESSES; i++) {
-        if (i == 0) {
-            s->processes[i].parent_id = 0;
-            s->processes[i].state.state = RUNNABLE;
-            s->processes[i].slices_left = MAX_TIME_SLICES;
-            s->processes[i].state.ch_list = NULL;
-        } else if (i == 1) {
-            s->processes[i].parent_id = 1;
-            s->processes[i].state.state = RUNNABLE;
-            s->processes[i].slices_left = MAX_TIME_SLICES;
-            s->processes[i].state.ch_list = NULL;
-        } else {
-            s->processes[i].parent_id = 0;
-            s->processes[i].state.state = FREE;
-            s->processes[i].slices_left = 0;
-            s->processes[i].state.ch_list = NULL;
-        }
-
-        int j;
-        for (j = 0; j < NUM_REGISTERS; j++) {
-            //init_registers(&(s->processes[i].saved_context)); TODO useless?? fct add process...
-        }
+        s->processes[i].parent_id = 0;
+        s->processes[i].state.state = FREE;
+        s->processes[i].slices_left = 0;
+        s->processes[i].state.ch_list = NULL;
     }
 
     for (i = 0; i <= MAX_PRIORITY; i++) {
-        if (i == MAX_PRIORITY) {
-            s->runqueues[i] = add(1, NULL);
-        } else if (i == 0) {
-            s->runqueues[i] = add(0, NULL);
-        } else {
-            s->runqueues[i] = NULL;
-        }
+        s->runqueues[i] = NULL;
     }
 
+    start_process(0, 0);
     //init_registers(s->ctx->regs);
     kprintf("Init kernel\n");
     return s;
