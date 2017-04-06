@@ -34,7 +34,7 @@ typedef struct {
     u16 command_port;
     u16 control_register;
 } bus;
-
+bus *pbus;
 void create_bus();
 int disk_identify();
 void init_disk();

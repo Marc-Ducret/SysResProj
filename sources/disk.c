@@ -89,7 +89,7 @@ status_byte get_status(bus *bus) {
 }
 
 int is_busy(status_byte status) {
-    return !((!status.busy && status.drq) || status.err || status.df);
+    return !(!status.busy || status.err || status.df);
 }
 
 int is_ready(status_byte status) {
@@ -99,6 +99,12 @@ int is_ready(status_byte status) {
 int poll(bus *bus) {
     // Just polls until drive is ready.
     while(is_busy(get_status(bus))) {}
+    //do {
+        //inportb(bus->command_port);
+        //inportb(bus->command_port);
+        //inportb(bus->command_port);
+        //inportb(bus->command_port);
+    //} while (is_busy(get_status(bus)));
     return is_ready(get_status(bus));
 }
 
@@ -121,7 +127,7 @@ void read_sectors(u32 sector, u8 sector_count, bus *bus, u16* buffer) {
     for (int i = 0; i < sector_count; i++) {
         // Waiting for an IRQ, or polling. (Here polling)
         int ready = poll(bus);
-
+        
         // Transfer the data from port to buffer.
         for (int j = 0; j < 256; j++) {
             buffer[j] = inportw(bus->data_port);
@@ -142,8 +148,7 @@ void write_sectors(u32 sector, u8 sector_count, bus *bus, u16* buffer) {
     
     for (int i = 0; i < sector_count; i++) {
         // Waiting for an IRQ, or polling. (Here polling)
-        kprintf("Result : %x\n", poll(bus));
-        kprintf("Error : %x\n", inportb(bus->error_port));
+        int ready = poll(bus);
         // Transfer the data from port to buffer.
         for (int j = 0; j < 256; j++) {
             outportw(bus->data_port, buffer[j]);
@@ -153,31 +158,36 @@ void write_sectors(u32 sector, u8 sector_count, bus *bus, u16* buffer) {
     }
     kprintf("\n");
     outportb(bus->command_port, 0xE7);
+    poll(bus);
 }
 
 void init_disk() {
     create_bus();
     software_reset(pbus);
     int res = disk_identify();
+    outportb(pbus->control_register, 0x0);
     u16 buffer[256];
     
     if (res == 2) {
+        /*
         read_sectors(0x0, 1, pbus, buffer);
         for (int i = 0; i < 20; i++) {
             kprintf("%h ", buffer[i]);
         }
         kprintf("...\n");
         kprintf("Status after first read : %x\n", inportb(pbus->command_port));
-        //write_sectors(0, 1, pbus, buffer);
-        //kprintf("Status after writing : %x\n", inportb(pbus->command_port));
-        //poll(pbus);
         
+        memset((void*)buffer, 0x13, 512);
+        write_sectors(43, 1, pbus, buffer);
+        kprintf("Status after writing : %x\n", inportb(pbus->control_register));
+        
+        read_sectors(42, 1, pbus, buffer);
         kprintf("New read sector :\n");
-        read_sectors(14, 1, pbus, buffer);
         for (int i = 0; i < 20; i++) {
             kprintf("%h ", buffer[i]);
         }
         kprintf("...\n");
         kprintf("Status after second read : %x\n", inportb(pbus->command_port));
+        */
     }
 }

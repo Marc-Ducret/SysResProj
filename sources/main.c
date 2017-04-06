@@ -28,7 +28,7 @@ void init() {
     init_gdt();
     init_idt();
     init_pic();
-    init_timer(100);
+    init_timer(10000);
     init_paging(0x100000);
     context_t ctx;
     picoinit(&ctx);

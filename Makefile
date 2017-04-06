@@ -98,6 +98,6 @@ grub_inst:
 cp_iso_to_img:
 	sudo rsync -r build/isodir/ /mnt/test/
 
-build_img: build/os.iso build/disk.img partition load_dev file_syst mount grub_inst cp_iso_to_img umount unload_dev
+build_img: clean build/os.iso build/disk.img partition load_dev file_syst mount grub_inst cp_iso_to_img umount unload_dev
 
-update_img: build/os.iso load_dev mount cp_iso_to_img umount unload_dev 
+update_img: build/os.iso load_dev mount cp_iso_to_img umount unload_dev

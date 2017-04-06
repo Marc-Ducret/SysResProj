@@ -4,7 +4,7 @@
 #include "keyboard.h"
 #include "kernel.h"
 #include "paging.h"
-
+#include "disk.h"
 void test() {
     putchar('.');
 }
@@ -59,6 +59,9 @@ void irq_handler(u32 id, context_t *context) {
     else if(id == 1) { // Keyboard
         while ((inportb(0x64) & 0x01) == 0);
         provideKeyEvent(inportb(0x60));
+    }
+    else if (id == 14) { // HDD
+        kprintf("HDD Interrupt\n");
     }
     else {
         kprintf("Received an IRQ with id %d.\n", id);
