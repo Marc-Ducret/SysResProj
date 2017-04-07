@@ -4,6 +4,7 @@
 #include "printing.h"
 #include <stddef.h>
 #include "io.h"
+#include "lib.h"
 
 #define PRIMARY_BUS 0x1F0
 #define SECONDARY_BUS 0x170
@@ -37,7 +38,10 @@ typedef struct {
 bus *pbus;
 void create_bus();
 int disk_identify();
-void init_disk();
-
+void init_disk(int test);
+void read_sectors(u32 sector, u8 sector_count, void* buffer);
+void read_address(u32 address, u32 length, void* buffer);
+void write_sectors(u32 sector, u8 sector_count, void* buffer);
+void write_address(u32 address, u32 length, void* buffer);
 #endif /* DISK_H */
 

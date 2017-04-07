@@ -77,7 +77,7 @@ int disk_identify() {
         }
         
         u32 lba28_sectors = table[60] | (table[61] << 16);
-        kprintf(" - There are %d 28-bit LBA addressable sectors.\n", lba28_sectors);
+        kprintf(" - There are %d 28-bit LBA addressable sectors.\n\n", lba28_sectors);
         return 2;
     }
 }
@@ -115,29 +115,87 @@ void software_reset(bus *bus) {
     outportb(bus->control_register, 0x0);
 }
 
-void read_sectors(u32 sector, u8 sector_count, bus *bus, u16* buffer) {
-    outportb(bus->drive_select, 0xE0 | ((sector >> 24) & 0x0F));
-    //outportb(bus->error_port, 0x0);
-    outportb(bus->sector_count, sector_count);
-    outportb(bus->lba_lo, (u8) sector);
-    outportb(bus->lba_mid, (u8) (sector >> 8));
-    outportb(bus->lba_hi, (u8) (sector >> 16));
-    outportb(bus->command_port, 0x20);
-    
-    for (int i = 0; i < sector_count; i++) {
-        // Waiting for an IRQ, or polling. (Here polling)
-        int ready = poll(bus);
-        
-        // Transfer the data from port to buffer.
-        for (int j = 0; j < 256; j++) {
-            buffer[j] = inportw(bus->data_port);
-        }
-        
-        buffer += 256;
-    }
+void read_sectors(u32 sector, u8 sector_count, void *buffer) {
+    read_address(sector * 512, sector_count * 512, buffer);
 }
 
-void write_sectors(u32 sector, u8 sector_count, bus *bus, u16* buffer) {
+void read_address(u32 address, u32 length, void *buffer) {
+    bus *bus = pbus;
+
+    u32 start_sector = address / 512;
+    u32 end_sector = (address + length - 1) / 512;
+    u32 sector_count = end_sector - start_sector + 1;
+    u32 start_offset = address % 512;
+    //kprintf("Start sector %d, End_sector %d, Sector_count %d, Start_offset %d\n",
+    //        start_sector, end_sector, sector_count, start_offset);
+    assert(sector_count < 256);
+
+    // Sends the read command.
+    outportb(bus->drive_select, 0xE0 | ((start_sector >> 24) & 0x0F));
+    //outportb(bus->error_port, 0x0);
+    outportb(bus->sector_count, (u8) sector_count);
+    outportb(bus->lba_lo, (u8) start_sector);
+    outportb(bus->lba_mid, (u8) (start_sector >> 8));
+    outportb(bus->lba_hi, (u8) (start_sector >> 16));
+    outportb(bus->command_port, 0x20);
+    
+    // Waits the disk
+    assert(poll(bus));
+    
+    // Throws the data until the wanted block starts.
+    u32 index = 0;
+    while (start_offset > 1) {
+        inportw(bus->data_port);
+        start_offset -= 2;
+        index ++;
+    }
+    if (start_offset) {
+        // Throws the last byte and reads the first we want.
+        u16 data = inportw(bus->data_port);
+        *((u8*) buffer) = data >> 8;
+        length --;
+        index ++;
+        buffer = ((u8*) buffer) + 1;
+    }
+    
+    // Read until one or zero byte lefts.
+    while (length > 1) {
+        // At each new sector, waiting for the disk.
+        if (index % 256 == 0)
+            assert(poll(bus));
+        
+        *((u16*) buffer) = inportw(bus->data_port);
+        buffer = ((u16*) buffer) + 1; // Read two new bytes.
+        length -= 2;
+        index ++;
+    }
+    
+    // If one byte left, read it.
+    if (length) {
+        u16 data = inportw(bus->data_port);
+        *((u8*) buffer) = (u8) data;
+        length --;
+        index ++;
+        buffer = ((u8*) buffer) + 1;
+    }
+    
+    // Finish reading the full sector.
+    while (index % 256) {
+        inportw(bus->data_port);
+        index ++;
+    }
+    
+    // Checking the results.
+    assert(length == 0);
+    assert(index == 256 * sector_count);
+}
+
+void write_sectors(u32 sector, u8 sector_count, void *buffer) {
+    bus *bus = pbus;
+
+    // sector_count = 0 means 256
+    assert(sector_count);
+    
     outportb(bus->drive_select, 0xE0 | ((sector >> 24) & 0x0F));
     //outportb(bus->error_port, 0x0);
     outportb(bus->sector_count, sector_count);
@@ -148,46 +206,81 @@ void write_sectors(u32 sector, u8 sector_count, bus *bus, u16* buffer) {
     
     for (int i = 0; i < sector_count; i++) {
         // Waiting for an IRQ, or polling. (Here polling)
-        int ready = poll(bus);
+        assert(poll(bus));
+        
         // Transfer the data from port to buffer.
         for (int j = 0; j < 256; j++) {
-            outportw(bus->data_port, buffer[j]);
+            outportw(bus->data_port, ((u16*) buffer)[j]);
         }
         
-        buffer += 256;
+        buffer = ((u16*) buffer) + 256;
     }
     kprintf("\n");
     outportb(bus->command_port, 0xE7);
     poll(bus);
 }
 
-void init_disk() {
+void write_address(u32 address, u32 length, void *buffer) {
+    u32 start_sector = address / 512;
+    u32 end_sector = (address + length - 1) / 512;
+    u32 sector_count = end_sector - start_sector + 1;
+    u32 start_offset = address % 512;
+    //kprintf("Start sector %d, End_sector %d, Sector_count %d, Start_offset %d\n",
+    //        start_sector, end_sector, sector_count, start_offset);
+    assert(sector_count < 256);
+
+    u8 tmp_buffer[512];
+    
+    if (start_offset) {
+        // Reads the sector to complete the writing data.
+        u32 to_copy = min(512 - start_offset, length);
+        read_sectors(start_sector, 1, tmp_buffer);
+        memcpy((void*) tmp_buffer + start_offset, buffer, to_copy);
+        write_sectors(start_sector, 1, tmp_buffer);
+        length -= to_copy;
+        buffer = ((u8*) buffer) + to_copy;
+        start_sector++;
+    }
+
+    // Writes the following sectors.
+    u32 plenty_sectors = length / 512;
+    if (plenty_sectors) {
+        write_sectors(start_sector, plenty_sectors, buffer);
+        length -= 512 * plenty_sectors;
+        buffer = ((u8*) buffer) + 512 * plenty_sectors;
+    }
+
+    // Reads and the writes the last sector.
+    if (length) {
+        read_sectors(end_sector, 1, tmp_buffer);
+        memcpy(tmp_buffer, buffer, length);
+        write_sectors(end_sector, 1, tmp_buffer);
+    }
+}
+
+void init_disk(int test) {
+    kprintf("Initialising Disk \n");
     create_bus();
     software_reset(pbus);
-    int res = disk_identify();
-    outportb(pbus->control_register, 0x0);
-    u16 buffer[256];
+    assert(disk_identify() == 2); // Asserts that it is an ATA drive.
+    outportb(pbus->control_register, 0x0);  // Sets control register to 0.
     
-    if (res == 2) {
-        /*
-        read_sectors(0x0, 1, pbus, buffer);
-        for (int i = 0; i < 20; i++) {
-            kprintf("%h ", buffer[i]);
-        }
-        kprintf("...\n");
+    
+    if (test) {
+        u16 buffer[256];
+        memset(buffer, 0x0, 512);
+        read_address(0x130, 5, buffer);
         kprintf("Status after first read : %x\n", inportb(pbus->command_port));
         
-        memset((void*)buffer, 0x13, 512);
-        write_sectors(43, 1, pbus, buffer);
-        kprintf("Status after writing : %x\n", inportb(pbus->control_register));
-        
-        read_sectors(42, 1, pbus, buffer);
-        kprintf("New read sector :\n");
         for (int i = 0; i < 20; i++) {
             kprintf("%h ", buffer[i]);
         }
         kprintf("...\n");
-        kprintf("Status after second read : %x\n", inportb(pbus->command_port));
-        */
+        
+        memset((void*)buffer, 0x55, 512);
+        write_address(0x13000, 0x200, buffer);
+        kprintf("Status after writing : %x\n", inportb(pbus->control_register));
     }
+    
+    kprintf("Disk initialised.\n");
 }

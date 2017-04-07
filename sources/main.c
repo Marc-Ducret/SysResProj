@@ -11,6 +11,8 @@
 #include "paging.h"
 #include "lib.h"
 #include "disk.h"
+#include "filesystem.h"
+#include "partition.h"
 
 void dieSlowly() {
     clear(make_color(COLOR_LIGHT_GREEN, COLOR_LIGHT_GREEN));
@@ -33,7 +35,8 @@ void init() {
     context_t ctx;
     picoinit(&ctx);
     asm("sti");
-    init_disk();
+    init_disk(0);
+    init_fs(0); // init_fs(1) to obtain much more details on the file system !
 }
 
 void kmain() {

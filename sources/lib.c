@@ -1,5 +1,5 @@
 #include "int.h"
-
+#include "printing.h"
 void *memcpy(void *dst, void *src, u32 n) {
     u8 *p = dst;
     while(n--)
@@ -23,4 +23,17 @@ int strEqual(char *strA, char *strB) {
         i++;
     }
     return 0;
+}
+
+void assert(int condition) {
+    if (!condition) {
+        kprintf("Assertion Failure.\n");
+        for (;;) {
+            asm("hlt");
+        }
+    }
+}
+
+int min(int a, int b) {
+    return a < b ? a : b;
 }

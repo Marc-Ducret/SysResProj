@@ -1,3 +1,4 @@
+
 AS:=as -am --32
 CC:=gcc
 
@@ -17,6 +18,8 @@ build/int_handlers.o \
 build/isr.o \
 build/gdt.o \
 build/disk.o \
+build/partition.o \
+build/filesystem.o \
 build/keycode.o \
 build/keyboard.o \
 build/shell.o \
@@ -61,7 +64,7 @@ iso-run-qemu: build/os.iso
 run-qemu-disk: build/os.iso update_img
 	qemu-system-i386 -boot c -drive format=raw,file=build/disk.img -m 512 -s
 
-debugbochs: build/os.iso
+debugbochs: build/os.iso update_img
 	bochs
 
 
