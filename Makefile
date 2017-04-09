@@ -2,7 +2,7 @@
 AS:=as -am --32
 CC:=gcc
 
-CFLAGS:=-ffreestanding -O2 -Wall -Wextra -nostdlib -nostartfiles -nodefaultlibs -m32
+CFLAGS:=-ffreestanding -O2 -Wall -Wextra -nostdlib -nostartfiles -nodefaultlibs -m32 -fplan9-extensions
 CPPFLAGS:= -std=gnu99
 LIBS:= #-lgcc
 
@@ -20,6 +20,8 @@ build/gdt.o \
 build/disk.o \
 build/partition.o \
 build/filesystem.o \
+build/file_name.o \
+build/fs_call.o \
 build/keycode.o \
 build/keyboard.o \
 build/shell.o \

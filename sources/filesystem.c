@@ -3,6 +3,8 @@
 mbr_t mbr;
 fs_t fs;
 extern partition_table_entry_t partition;
+ft_entry_t file_table[MAX_NB_FILE];
+fd_t next_free_fd = 0;
 
 void print_mbr(mbr_t *mbr) {
     kprintf("MBR description : \n \
@@ -123,18 +125,10 @@ void init_fs(int show) {
     fs.cluster_size = fs.sectors_per_cluster * fs.sector_size;
     fs.nb_clusters = fs.nb_data_sectors / fs.sectors_per_cluster;
     
-    kprintf("File System initialised.\n");
-    if (show)
-        print_fs();
-        kprintf("Content of root directory : \n");
-        read_dir_cluster(fs.root_cluster);
-        kprintf("Content of boot directory : \n");
-        read_dir_cluster(3);
-        kprintf("Content of grub directory : \n");
-        read_dir_cluster(4);    
+    kprintf("File System initialised.\n");   
 }
 
-void get_name(long_file_name_t* lfn, char *buffer) {
+void get_long_name(long_file_name_t* lfn, char *buffer) {
     // TODO Manage the two bytes characters !
     for(int i = 0; i < 5 ; ++i){
         buffer[i] = *(((char*) lfn->first5) + 2*i);
@@ -145,6 +139,12 @@ void get_name(long_file_name_t* lfn, char *buffer) {
     for(int i = 0 ; i < 2; ++i){
         buffer[i+11] = *(((char*) lfn->final2) + 2*i);
     }
+}
+
+void get_short_name(directory_entry_t *dirent, char *buffer) {
+    // TODO Do it more properly.
+    memcpy(buffer, dirent->file_name, 11);
+    buffer[11] = 0;
 }
 
 void read_cluster(u32 cluster, u8* buffer) {
@@ -209,43 +209,25 @@ void print_dirent(directory_entry_t *dirent, char *buffer) {
     kprintf(")\n");   
 }
 
-void read_dir_cluster(u32 cluster) {
-    // Reads and prints every entry of the corresponding directory.
-    u8 buffer[fs.cluster_size];
-    u32 next_cluster = 0;
-    // Create a buffer to store long names.
-    char tmp_buffer[30];
-    char *curr_index;
-    curr_index = tmp_buffer;
-
-    do {
-        read_cluster(cluster, buffer);
-
-        for (u32 i = 0; i < fs.cluster_size; i += 32) {
-            if (buffer[i] == 0) {
-                // No more directories or files.
-                break;
-            }
-            if (buffer[i] == 0xE5) {
-                // Unused entry
-                continue;
-            }
-            if (buffer[i + 11] == 0x0F) {
-                // Long name entry TODO Create a specific function  with loops ?
-                long_file_name_t *lfn = (long_file_name_t *) (buffer+i);
-                get_name(lfn, curr_index);
-                curr_index += 13;
-                continue;
-            }            
-            else {
-                // This is a directory entry.
-                directory_entry_t *dirent = (directory_entry_t *) (buffer+i);
-                *(curr_index + 1) = 0;
-                print_dirent(dirent, (tmp_buffer == curr_index) ? NULL : tmp_buffer);
-                curr_index = tmp_buffer;
-            }
+fd_t new_fd() {
+    for (fd_t i = next_free_fd; i < MAX_NB_FILE; i++) {
+        if (file_table[i].type == F_UNUSED) {
+            next_free_fd = i + 1;
+            return i;
         }
-        next_cluster = get_next_cluster(cluster);
-    } while (next_cluster < 0x0FFFFFF8);
-    kprintf("\n");
+    }
+    for (fd_t i = 0; i < next_free_fd; i++) {
+        if (file_table[i].type == F_UNUSED) {
+            next_free_fd = i + 1;
+            return i;
+        }
+    }
+    
+    // No more free entries left.
+    assert(0);
+    return -1;
+}
+
+void free_fd(fd_t fd) {
+    file_table[fd].type = F_UNUSED;
 }

@@ -6,6 +6,7 @@
 #include "partition.h"
 #include "lib.h"
 #include "stddef.h"
+#include "stdint.h"
 
 typedef struct {
     u8 start_code[3];
@@ -107,12 +108,71 @@ typedef struct {
     u32 cluster_size;
 } fs_t;
 
+fs_t fs;
 void init_fs(int show);
 void load_mbr(int show);
 void read_cluster(u32 cluster, u8* buffer);
 void read_dir_cluster(u32 cluster);
-void get_name(long_file_name_t* lfn, char *buffer);
+void get_short_name(directory_entry_t *dirent, char *buffer);
+void get_long_name(long_file_name_t* lfn, char *buffer);
 u32 get_next_cluster(u32 cluster);
 u32 get_cluster(directory_entry_t *dirent);
+
+#define MAX_FILE_NAME 64
+#define MAX_NB_FILE 256
+#define MAX_PATH_NAME 1024
+#define O_RDONLY 1
+#define O_WRONLY 2
+#define O_CREAT  4
+#define O_APPEND 8
+#define O_TRUNC  16
+
+typedef struct {
+    int read : 1;
+    int write : 1;
+    int create : 1;
+    int append : 1; // Not supported
+    int trunc : 1;  // Not supported
+    int unused : 3;
+} __attribute__ ((packed)) oflags_t;
+
+typedef enum {
+    F_UNUSED, FILE, DIR
+} ftype_t;
+
+typedef struct {
+    u32 offset;
+    oflags_t mode;
+    directory_entry_t file;
+    u32 name_cluster;      // Start of the name (may be a long name) (TODO)
+    u32 name_offset;       // Start of the name (may be a long name) (TODO)
+} __attribute__ ((packed)) file_descr_t;
+
+typedef struct {
+    u32 curr_cluster;   // Where the next entry will be read
+    u32 curr_offset;    // Where the next entry will be read
+    u32 start_cluster;  // Where the first entry can be read
+} dir_handler_t;
+
+typedef struct {
+    ftype_t type;
+    char name[MAX_FILE_NAME];
+    union {
+        dir_handler_t;
+        file_descr_t;
+    };
+} ft_entry_t;
+
+typedef u32 fd_t;
+
+ft_entry_t file_table[MAX_NB_FILE];
+
+fd_t new_fd();
+void free_fd(fd_t fd);
+
+typedef enum {
+    SEEK_SET, SEEK_CUR, SEEK_END
+} seek_cmd_t;
+
 #endif /* FILESYSTEM_H */
 

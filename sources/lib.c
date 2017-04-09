@@ -25,6 +25,13 @@ int strEqual(char *strA, char *strB) {
     return 0;
 }
 
+void strCopy(char *src, char* dest) {
+    while (*src) {
+        *dest ++ = *src ++;
+    }
+    *dest = 0;
+}
+
 void assert(int condition) {
     if (!condition) {
         kprintf("Assertion Failure.\n");
