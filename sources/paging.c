@@ -14,6 +14,8 @@ u32 *frames; // Pointer to the frames table
 page_directory_t *identity_pd = NULL;
 page_directory_t *current_page_directory = NULL;
 
+volatile page_directory_t *user_pd = NULL;
+
 void set_frame(u32 frame_addr) {
     // Sets the corresponding frame as used.
     u32 frame = frame_addr / 0x1000;
@@ -141,7 +143,7 @@ void switch_to_default_page_directory() {
     switch_page_directory(identity_pd);
 }
 
-page_directory_t *get_identity() { return &identity_pd; }
+page_directory_t *get_identity() { return identity_pd; }
 
 void init_paging(u32 mem_end) {
     // Init of frames table
@@ -159,7 +161,7 @@ void init_paging(u32 mem_end) {
     // Allocates only what we need
     for(u32 i = 0; i < mem_end; i += 0x1000) {
         page_t *page = get_page(i, 1, identity_pd);
-        if(i < free_address) alloc_page(page, 0, 1);
+        if(i < kernel_mem_end) alloc_page(page, 0, 1);
     }
     
     // Initialises the memory used by the screen.
@@ -170,14 +172,16 @@ void init_paging(u32 mem_end) {
     return;
 }
 
-void init_user_page_dir(u32 user_code_addr, page_directory_t *pd) {
+page_directory_t *init_user_page_dir(u32 user_code_addr) {
+    page_directory_t *pd = kmalloc(sizeof(page_directory_t));
     memset(pd, 0, sizeof(page_directory_t));
     
-    for(u32 i = 0; i < free_address; i += 0x1000)
+    for(u32 i = 0; i < kernel_mem_end; i += 0x1000)
         map_page(get_page(i, 1, pd), i+1, 0, 1);
-    /*map_page(get_page(0x40000000, 1, pd), user_code_addr, 0, 0); //CODE
-    map_page(get_page(0x40001000, 1, pd), 0, 0, 1); //STACK*/
-    memcpy(pd, identity_pd, sizeof(page_directory_t));
+    map_page(get_page(0xB8000, 1, pd), 0xB8000, 0, 1);
+    map_page(get_page(user_code_addr, 1, pd), user_code_addr, 0, 0); //CODE
+    map_page(get_page(0x6E000, 1, pd), 0, 0, 1); //STACK
+    return pd;
 }
 
 void page_fault(context_t* context) {
@@ -195,11 +199,6 @@ void page_fault(context_t* context) {
     int reserved = err_code & 0x8;     // Overwritten CPU-reserved bits of page entry?
     int id = err_code & 0x10;          // Caused by an instruction fetch?
     
-    if(!present) {
-        alloc_page(get_page(faulting_address, 1, current_page_directory), 0, 1);
-        return;
-    }
-    
     // Output an error message.
     kprintf("Page fault! ( ");
     if (present) 
@@ -213,6 +212,14 @@ void page_fault(context_t* context) {
     if (reserved) 
         kprintf("reserved ");
     kprintf(") id=%d at %x\n", id, faulting_address);
+    
+    if(!present) {
+        if(current_page_directory == identity_pd) 
+            map_page(get_page(faulting_address, 1, current_page_directory), faulting_address, 0, 1);
+        else 
+            alloc_page(get_page(faulting_address, 1, current_page_directory), 0, 1);
+        return;
+    }
     
     asm("hlt");
 }

@@ -49,7 +49,7 @@ struct process {
     process_state state;
     int slices_left;
     context_t saved_context;
-    page_directory_t page_directory;
+    page_directory_t *page_directory;
     char *name;
 };
 

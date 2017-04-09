@@ -2,7 +2,7 @@
 #define MEMORY_H
 #include "int.h"
 extern u32 end;
-volatile u32 free_address;
+volatile u32 free_address, kernel_mem_end;
 void* kmalloc(u32 size);
 void* kmalloc_a(u32 size);
 void* kmalloc_p(u32 size, u32 *phys);

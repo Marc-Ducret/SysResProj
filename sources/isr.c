@@ -14,13 +14,14 @@ void schedule() {
 }
 
 void print_reg(registers_t *x) {
-    kprintf("Registres : eax %d, ebx %d, ecx %d, edx %d, esp %d, \
-                         ebp %d, esi %d, edi %d.\n",
+    kprintf("Registres : eax %x, ebx %x, ecx %x, edx %x, esp %x, \
+                         ebp %x, esi %x, edi %x.\n",
             x->eax, x->ebx, x->ecx, x->edx, x->esp, x->ebp, x->esi, x->edi);
 }
 
 void print_stack(stack_state_t *x) {
-    kprintf("ss %d, eip %d\n", x->ss, x->eip);
+    kprintf("ss %x, esp %x, eflags %x, cs %x, eip %x\n", 
+        x->ss, x->useresp, x->eflags, x->cs, x->eip);
 }
 
 void syscall(u32 id, context_t *context) {
@@ -52,9 +53,10 @@ void isr_handler(u32 id, context_t *context) {
     }
 }
 
-void irq_handler(u32 id, context_t *context) {
+void irq_handler(u32 id, context_t *ctx) {
     if (id == 0) { // Timer
-        picotimer(context);
+        picotimer(ctx);
+        //kprintf("AFTER : eip = %x, cs = %x, eflags = %x, esp = %x, ss = %x\n", ctx->stack.eip, ctx->stack.cs, ctx->stack.eflags, ctx->stack.useresp, ctx->stack.ss);
     }
     if(id == 1) { // Keyboard
         while ((inportb(0x64) & 0x01) == 0);

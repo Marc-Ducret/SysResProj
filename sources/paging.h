@@ -4,6 +4,7 @@
 #include "int.h"
 #include "context.h"
 
+
 typedef struct pde
 {
     u32 present    : 1;   // Page present in memory
@@ -50,7 +51,10 @@ typedef struct page_directory
     u32 physicalAddr;
 } page_directory_t;
 
+volatile page_directory_t *user_pd;
+
 void init_paging();
+page_directory_t *init_user_page_dir(u32 user_code);
 void switch_page_directory(page_directory_t *directory);
 void switch_to_default_page_directory();
 page_t *get_page(u32 address, int make, page_directory_t *dir);
