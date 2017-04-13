@@ -112,7 +112,7 @@ typedef struct syscall_t
 state global_state;
 
 void launch();
-state *picoinit(context_t *ctx);
+state *picoinit();
 void picosyscall(context_t *);
 void picotimer(context_t *);
 void picotransition(state *s, event ev);;

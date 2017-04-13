@@ -40,27 +40,31 @@ void isr_handler(u32 id, context_t *context) {
     registers_t *regs = &(context->regs);
     stack_state_t *stack = &(context->stack);
     
-    kprintf("Caught interruption %d, error code %d\n", id, context->err_code);
-    print_reg(regs);
-    print_stack(stack);
+    u8 print = 1;
+    u8 die = 0;
     
     if (id == 13) {
         kprintf("General Protection Fault, must die.");
-        asm("hlt");
+        die = 1;
+    } else if (id == 14) {
+        if(page_fault(context)) die = 1;
+        else print = 0;
     }
-    else if (id == 14) {
-        page_fault(context);
+    if(print) {
+        kprintf("Caught interruption %d, error code %d\n", id, context->err_code);
+        print_reg(regs);
+        print_stack(stack);
     }
+    if(die) asm("hlt");
 }
 
 void irq_handler(u32 id, context_t *ctx) {
     if (id == 0) { // Timer
         picotimer(ctx);
-        //kprintf("AFTER : eip = %x, cs = %x, eflags = %x, esp = %x, ss = %x\n", ctx->stack.eip, ctx->stack.cs, ctx->stack.eflags, ctx->stack.useresp, ctx->stack.ss);
     }
     if(id == 1) { // Keyboard
-        while ((inportb(0x64) & 0x01) == 0);
-        provideKeyEvent(inportb(0x60));
+        //while ((inportb(0x64) & 0x01) == 0);
+        //provideKeyEvent(inportb(0x60));
     }
     
     // Informs the PIC we are done with this IRQ

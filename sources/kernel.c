@@ -162,6 +162,9 @@ c_list *add_recv(pid_t i, priority p, c_list* l) {
     return l;
 }
 
+volatile u32 user_esp;
+volatile page_directory_t *user_pd;
+
 void copy_context(context_t *src, context_t *dst) {
     memcpy(dst, src, sizeof(context_t));
 }
@@ -418,13 +421,15 @@ void reorder(state *s) {
             if (s->processes[rq->hd].state.state == RUNNABLE) {//&& s->processes[rq->hd].slices_left > 0 ?
                 next_pid = rq->hd;
                 //kprintf("switch to process %d\n", next_pid);
+                *((u16*) 0xB8006) = 0x0C30 + next_pid;
+                (*((u16*) 0xB8004))++;
                 s->processes[next_pid].slices_left = MAX_TIME_SLICES;
                 s->curr_pid = next_pid;
                 s->curr_priority = p;
                 //copy_context(&(s->processes[next_pid].saved_context), s->ctx);
-                memcpy(&s->ctx->stack, &(s->processes[next_pid].saved_context.stack), sizeof(stack_state_t));
-                //user_pd = global_state.processes[next_pid].page_directory;
-                //asm volatile("mov %0, %%cr3":: "r"(&user_pd->tablesPhysical));
+                //memcpy(&s->ctx->stack, &(s->processes[next_pid].saved_context.stack), sizeof(stack_state_t));
+                user_pd = global_state.processes[next_pid].page_directory;
+                user_esp = global_state.processes[next_pid].saved_context.regs.esp - 0x2C;
                 return;
             }
             rq = rq->tl;
@@ -485,7 +490,8 @@ void picotransition(state *s, event ev) {
             reorder_req = 1;
         }
     }
-
+    
+    user_esp = global_state.processes[s->curr_pid].saved_context.regs.esp - 0x2C;
     if (reorder_req) {
         reorder(s);
     }
@@ -497,16 +503,27 @@ void picosyscall(context_t *ctx) {
     picotransition(&global_state, SYSCALL);
 }
 
+u32 did_init = 0;
+
 void picotimer(context_t *ctx) {
-    //ctx->stack.eip = 0x2DA0;
-    //kprintf("TIMER: eip = %x, cs = %x, eflags = %x, esp = %x, ss = %x\n", ctx->stack.eip, ctx->stack.cs, ctx->stack.eflags, ctx->stack.useresp, ctx->stack.ss);
-    //return;
+    *((u16*)0xB800A + global_state.curr_pid) = 0x0C30 + (ctx->stack.eip % 10);
     // Calls the picotransition with current registers pointing regs.
     global_state.ctx = ctx;
+    if(!did_init) {
+        did_init = 1;
+        picoinit();
+        return;
+    }
     picotransition(&global_state, TIMER);
 }
 
+void writ(u8 *addr) {
+    addr[0] = 0xFF; addr[1] = 0x05; addr[2] = 0x00;
+    addr[3] = 0x80; addr[4] = 0x0B; addr[5] = 0x00; 
+}
+
 void start_process(int pid, int parent) {
+    *((u16*) 0xB8000) = 0x0C30;
     kprintf("Starting process %d\n", pid);
     process *p = &global_state.processes[pid];
     p->parent_id = parent;
@@ -514,33 +531,29 @@ void start_process(int pid, int parent) {
     p->slices_left = 0;
     p->state.ch_list = NULL;
     u8 *user_code = kmalloc_a(0x1000);
-    memset(user_code, 0x58, 0x1000);
-    memset(user_code, 0xF4, 0x10);
+    memset(user_code, 0xF4, 0x1000);
+    //writ(user_code);
+    //writ(user_code + 0x6);
+    //writ(user_code + 0x6);
+    for(int i = 0; i < 0x103; i ++) writ(user_code + 0xc * i);
     p->page_directory = init_user_page_dir((u32) user_code);
-    p->saved_context.stack.eip = (u32) user_code;
-    p->saved_context.stack.eip = 0x2D80;
-    p->saved_context.stack.cs = 0x20;
-    p->saved_context.stack.eflags = 0x200286;
-    p->saved_context.stack.useresp = 0x6EFFF;
-    p->saved_context.stack.ss = 0x30;
-    u32 stack_phys = get_page(0x6E000, 0, p->page_directory)->frame << 12;
-    kprintf("STACK PHYS = %x\n", stack_phys);
+    copy_context(global_state.ctx, &p->saved_context);
+    p->saved_context.stack.eip = (u32) 0x100000;
+    u32 stack_phys = get_page(0x101000, 0, p->page_directory)->frame << 12;
+    memcpy((void *) stack_phys + 0x1000 - sizeof(context_t), &p->saved_context, sizeof(context_t));
+    user_esp = 0x102000 - sizeof(context_t) - 0x8;
+    user_pd = p->page_directory;
     global_state.runqueues[MAX_PRIORITY] = append(global_state.runqueues[MAX_PRIORITY], pid);
 }
 
-u32 x = 0xA0C0FFE;
-void hello() {
-    kprintf("hi %x", x);
-    asm("mov %esp, x");
-    kprintf("  %x\n", x);
-    for(;;) asm("hlt");
+void load_context(context_t ctx) {
+    copy_context(&global_state.processes[global_state.curr_pid].saved_context, &ctx);
 }
 
-state *picoinit(context_t *ctx) {
+state *picoinit() {
     state *s = &global_state;
     s->curr_pid = -1;
     s->curr_priority = MAX_PRIORITY;
-    s->ctx = ctx;
     
     int i;
     for (i = 0; i < NUM_CHANNELS; i++) {
@@ -562,6 +575,8 @@ state *picoinit(context_t *ctx) {
         s->runqueues[i] = NULL;
     }
     start_process(0, 0);
+    start_process(1, 1);
+    s->curr_pid = 0;
     //init_registers(s->ctx->regs);
     kprintf("Init kernel\n");
     return s;

@@ -14,8 +14,6 @@ u32 *frames; // Pointer to the frames table
 page_directory_t *identity_pd = NULL;
 page_directory_t *current_page_directory = NULL;
 
-volatile page_directory_t *user_pd = NULL;
-
 void set_frame(u32 frame_addr) {
     // Sets the corresponding frame as used.
     u32 frame = frame_addr / 0x1000;
@@ -179,12 +177,12 @@ page_directory_t *init_user_page_dir(u32 user_code_addr) {
     for(u32 i = 0; i < kernel_mem_end; i += 0x1000)
         map_page(get_page(i, 1, pd), i+1, 0, 1);
     map_page(get_page(0xB8000, 1, pd), 0xB8000, 0, 1);
-    map_page(get_page(user_code_addr, 1, pd), user_code_addr, 0, 0); //CODE
-    map_page(get_page(0x6E000, 1, pd), 0, 0, 1); //STACK
+    map_page(get_page(0x100000, 1, pd), user_code_addr, 0, 0); //CODE
+    map_page(get_page(0x101000, 1, pd), 0, 0, 1); //STACK
     return pd;
 }
 
-void page_fault(context_t* context) {
+u8 page_fault(context_t* context) {
     // A page fault has occurred.
     // The faulting address is stored in the CR2 register.
     u32 faulting_address;
@@ -218,8 +216,6 @@ void page_fault(context_t* context) {
             map_page(get_page(faulting_address, 1, current_page_directory), faulting_address, 0, 1);
         else 
             alloc_page(get_page(faulting_address, 1, current_page_directory), 0, 1);
-        return;
     }
-    
-    asm("hlt");
+    return present;
 }
