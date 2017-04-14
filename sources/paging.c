@@ -170,15 +170,16 @@ void init_paging(u32 mem_end) {
     return;
 }
 
-page_directory_t *init_user_page_dir(u32 user_code_addr) {
+page_directory_t *init_user_page_dir(u32 user_code_addr, u32 user_code_len) {
     page_directory_t *pd = kmalloc(sizeof(page_directory_t));
     memset(pd, 0, sizeof(page_directory_t));
     
     for(u32 i = 0; i < kernel_mem_end; i += 0x1000)
         map_page(get_page(i, 1, pd), i+1, 0, 1);
     map_page(get_page(0xB8000, 1, pd), 0xB8000, 0, 1);
-    map_page(get_page(0x100000, 1, pd), user_code_addr, 0, 0); //CODE
-    map_page(get_page(0x101000, 1, pd), 0, 0, 1); //STACK
+    for(u32 i = 0; i < user_code_len; i += 0x1000)
+        map_page(get_page(USER_CODE_VIRTUAL + i, 1, pd), user_code_addr + i, 0, 0); //CODE
+    map_page(get_page(USER_STACK_VIRTUAL, 1, pd), 0, 0, 1); //STACK
     return pd;
 }
 

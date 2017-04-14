@@ -164,6 +164,7 @@ c_list *add_recv(pid_t i, priority p, c_list* l) {
 
 volatile u32 user_esp;
 volatile page_directory_t *user_pd;
+volatile multiboot_info_t *multiboot_info;
 
 void copy_context(context_t *src, context_t *dst) {
     memcpy(dst, src, sizeof(context_t));
@@ -530,18 +531,25 @@ void start_process(int pid, int parent) {
     p->state.state = RUNNABLE;
     p->slices_left = 0;
     p->state.ch_list = NULL;
-    u8 *user_code = kmalloc_a(0x1000);
-    memset(user_code, 0xF4, 0x1000);
-    //writ(user_code);
-    //writ(user_code + 0x6);
-    //writ(user_code + 0x6);
-    for(int i = 0; i < 0x103; i ++) writ(user_code + 0xc * i);
-    p->page_directory = init_user_page_dir((u32) user_code);
+    u8 *user_code;
+    if(pid) {
+        kprintf("mods_addr %x, mods_count %x\n", multiboot_info->mods_addr, multiboot_info->mods_count);
+        user_code = (u8*) multiboot_info->mods_addr;
+        asm("hlt");
+    } else {
+        user_code = kmalloc_a(0x1000);
+        memset(user_code, 0xF4, 0x1000);
+        //writ(user_code);
+        //writ(user_code + 0x6);
+        //writ(user_code + 0x6);
+        for(int i = 0; i < 0x103; i ++) writ(user_code + 0xc * i);
+    }
+    p->page_directory = init_user_page_dir((u32) user_code, 0x1000);
     copy_context(global_state.ctx, &p->saved_context);
-    p->saved_context.stack.eip = (u32) 0x100000;
-    u32 stack_phys = get_page(0x101000, 0, p->page_directory)->frame << 12;
+    p->saved_context.stack.eip = USER_CODE_VIRTUAL;
+    u32 stack_phys = get_page(USER_STACK_VIRTUAL, 0, p->page_directory)->frame << 12;
     memcpy((void *) stack_phys + 0x1000 - sizeof(context_t), &p->saved_context, sizeof(context_t));
-    user_esp = 0x102000 - sizeof(context_t) - 0x8;
+    user_esp = USER_STACK_VIRTUAL + 0x1000 - sizeof(context_t) - 0x8;
     user_pd = p->page_directory;
     global_state.runqueues[MAX_PRIORITY] = append(global_state.runqueues[MAX_PRIORITY], pid);
 }

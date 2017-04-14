@@ -10,6 +10,7 @@
 #include "timer.h"
 #include "paging.h"
 #include "lib.h"
+#include "multiboot.h"
 
 void dieSlowly() {
     clear(make_color(COLOR_LIGHT_GREEN, COLOR_LIGHT_GREEN));
@@ -31,9 +32,10 @@ void init() {
     init_paging(0x100000);
 }
 
-void kmain() {
-    terminal_initialize();
+void kmain(multiboot_info_t *mbinfo) {
+    multiboot_info = mbinfo;
     init();
+    kprintf("QSD %x %x %x\n", mbinfo->flags, mbinfo->mods_count, mbinfo->mods_addr);
     asm("sti");
     for(;;) asm("hlt");
     //shell();

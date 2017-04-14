@@ -40,6 +40,7 @@ _start:
 
 	# Now that the initial bootstrap environment is set up, call the kernel's
 	# main function using the C calling convention.
+	push %ebx
 	call kmain
 	cli
 	hlt

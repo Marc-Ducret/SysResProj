@@ -1,0 +1,14 @@
+flagc="-m32 -Wall -nostdlib -nostdinc -fno-builtin -fno-stack-protector -nostartfiles -nodefaultlibs"
+flagl="-T linker.ld"
+echo "Building $1"
+mkdir -p bin/$1
+as -am --32 lib/start.s -o bin/$1/start.o
+cd src/$1/
+for file in *.c; do
+    f=${file%.c}
+    gcc $flagc -c $f.c -o ../../bin/$1/$f.o
+done
+cd ../../
+cp lib/linker.ld bin/$1/linker.ld
+cd bin/$1/
+gcc $flagc $flagl *.o -o $1.bin

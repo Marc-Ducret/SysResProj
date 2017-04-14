@@ -3,6 +3,7 @@
 #include "int.h"
 #include "context.h"
 #include "paging.h"
+#include "multiboot.h"
 
 #define MAX_SIZE_LIST 100
 #define MAX_SIZE_C_LIST 100
@@ -110,6 +111,7 @@ typedef struct syscall_t
 } syscall_t;
 
 state global_state;
+volatile multiboot_info_t *multiboot_info;
 
 void launch();
 state *picoinit();
