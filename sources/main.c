@@ -38,6 +38,7 @@ void init() {
     asm("sti");
     init_disk(0);
     init_fs(0); // init_fs(1) to obtain much more details on the file system !
+    init_root();
     test_dir();
 }
 

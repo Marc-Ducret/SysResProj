@@ -124,7 +124,10 @@ void mkdir(char *path) {
     
     fd_t fd = opendir(dir_name);
     assert(fd >= 0); // No such directory
-
+    
+    // Asserts directory doesn't exist
+    assert(finddir(fd, file) == NULL);
+    
     // Build corresponding entries
     long_file_name_t *entries = build_entries(file_table[fd].start_cluster, file);
 
@@ -462,8 +465,10 @@ void test_dir() {
     kprintf("Testing Directory Calls :\n");
     kprintf("Content of root directory : \n");
     fd_t root = opendir("/");
-    dirent_t *dirent = readdir(root);
-    print_short_dirent(dirent);
+    dirent_t *dirent;
+    while ((dirent = readdir(root))) {
+        print_short_dirent(dirent);
+    }
     closedir(root);
     
     kprintf("\nContent of boot directory : \n");
@@ -496,4 +501,35 @@ void test_dir() {
 
     //kprintf("Cluster %d\n", file_table[fd].start_cluster);
     print_chain(4506);
+}
+
+void init_filename_gen() {
+    // Saves in a file the next 8.3 filename.
+    // TODO Need files 
+}
+
+void init_root() {
+    // Adds . and .. entries to the root directory.
+    
+    fd_t fd = opendir("/");
+    void* res = finddir(fd, CUR_DIR_NAME);
+    closedir(fd);
+    if (res != NULL)  {
+        // These entries already exists
+        return;
+    }
+    
+    u32 cluster = fs.root_cluster;
+    directory_entry_t buffer[2];
+    fill_dir_entry(cluster, buffer, CUR_DIR_NAME);
+    fill_dir_entry(cluster, &buffer[1], PARENT_DIR_NAME);
+    
+    dirent_t dirent;
+    dirent.cluster = cluster;
+    dirent.size = 2;
+   
+    new_entry(cluster, &dirent);
+    kprintf("Cluster %d offset %d size %d\n", dirent.ent_cluster, dirent.ent_offset, dirent.size );
+    fill_entries(dirent.ent_cluster, dirent.ent_offset, dirent.size, buffer);
+    
 }

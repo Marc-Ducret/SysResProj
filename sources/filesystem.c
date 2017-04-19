@@ -164,7 +164,7 @@ void get_short_name(directory_entry_t *dirent, char *buffer) {
 
 void read_cluster(u32 cluster, u8* buffer) {
     // Reads the corresponding cluster.
-    
+    assert(cluster < fs.nb_data_sectors / fs.sectors_per_cluster);
     // We assume that cluster = 0 means root_directory
     if (!cluster) 
         cluster = fs.root_cluster;
@@ -175,10 +175,12 @@ void read_cluster(u32 cluster, u8* buffer) {
 
 void write_cluster(u32 cluster, u8* buffer) {
     // Reads the corresponding cluster.
-    
+    assert(cluster < fs.nb_data_sectors / fs.sectors_per_cluster);
     // We assume that cluster = 0 means root_directory
-    if (!cluster) 
+    if (!cluster) {
+        kprintf("Warning : use of cluster 0 as root cluster.\n");
         cluster = fs.root_cluster;
+    }
     
     u32 sector = fs.first_data_sector + (cluster - 2) * fs.sectors_per_cluster;
     write_sectors(sector, fs.sectors_per_cluster, (u16*) buffer);

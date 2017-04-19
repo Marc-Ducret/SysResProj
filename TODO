@@ -1,19 +1,15 @@
 File system :
 	- Choose clear types and notations (dirent_t, direcotry_entry_t, ..)
 	- Find a way to handle errors and 'exceptions'
-	- Code real functions to get long and short names
 	- Separate file_descr and dir_handler into two tables.
 	- Decide which fields of file_descr_t are useful
-	- Relative paths in opendir
 	- Use a real malloc on some heap without page-fault, or use some pointer arg
 		(in readdir for instance)
 	- Rigorous and clever implementation of basename, dirname and so on.
 	- Duplication of function finddir
-	- Add . and .. entries for root directory.
 	- Remove all special tests for root directory
 	- Unique names !
 	- No reset of 8.3 names
-	- Correctly manage cluster deletion in a chain !
 
 Disk :
 	- Manage 'out of disk' requests

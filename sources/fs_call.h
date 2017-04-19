@@ -31,5 +31,6 @@ void closedir(fd_t fd);
 dirent_t *finddir(fd_t dir, char *name);
 dirent_t *cluster_finddir(fd_t dir, u32 cluster);
 void test_dir();
+void init_root();
 #endif /* FS_CALL_H */
 
