@@ -2,6 +2,7 @@
 #define PRINTING_H
 
 #include "int.h"
+#include "lib.h"
 
 #define COLOR_BLACK 0
 #define COLOR_BLUE 1
@@ -36,5 +37,6 @@ void kprintf(const char* data, ...);
 void clear(u8 bgColor);
 void scrollup();
 void scrolldown();
+char *write_int(char *buffer, int x);
 #endif
 

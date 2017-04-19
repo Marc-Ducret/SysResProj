@@ -98,20 +98,6 @@ list *filter(list *l, int elt) {
     return l;
 }
 
-
-list *append(list *l, int elt) {
-    if (l == NULL) {
-        list *res = malloc_list(sizeof(list));
-        res->hd = elt;
-        res->tl = NULL;
-        return res;
-    }
-
-    l->tl = append(l->tl, elt);
-
-    return l;
-}
-
 c_list* get_recv(state *s, chanid i) {
     c_list* res = s->channels[i].recvs;
     s->channels[i].recvs = res->tl;
@@ -473,7 +459,7 @@ void picotransition(state *s, event ev) {
             //On remet le processus a la fin
             priority p = s->curr_priority;
             pid_t id = s->curr_pid;
-            s->runqueues[p] = append(filter(s->runqueues[p], id), id);
+            s->runqueues[p] = add(id, filter(s->runqueues[p], id));
         }
     }
 

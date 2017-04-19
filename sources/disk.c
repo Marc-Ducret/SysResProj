@@ -215,7 +215,6 @@ void write_sectors(u32 sector, u8 sector_count, void *buffer) {
         
         buffer = ((u16*) buffer) + 256;
     }
-    kprintf("\n");
     outportb(bus->command_port, 0xE7);
     poll(bus);
 }

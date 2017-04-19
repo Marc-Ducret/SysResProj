@@ -13,13 +13,6 @@ u16 make_vgaentry(char c, u8 color) {
     return c16 | color16 << 8;
 }
 
-u32 strlen(const char* str) {
-    u32 ret = 0;
-    while(str[ret] != 0)
-        ret++;
-    return ret;
-}
-
 int terminal_row;
 int terminal_column;
 u8 terminal_color;
@@ -183,6 +176,19 @@ void kprintf(const char* data, ...) {
     terminal_writestring(data);
     
     va_end(args);
+}
+
+char *write_int(char *buffer, int x) {
+    if(x < 0) {
+        *buffer = '-';
+        buffer++;
+        return write_int(buffer, -x);
+    } else {
+        if (x >= 10) 
+            buffer = write_int(buffer, x / 10);
+        *buffer = '0' + (x % 10);
+        return buffer + 1;
+    }
 }
 
 void clear(u8 color) {

@@ -7,11 +7,11 @@
 #include "lib.h"
 #include "memory.h"
 
-typedef struct {
-    u32 cluster;
-    char name[MAX_FILE_NAME];
-    ftype_t type;
-} dirent_t;
+/*
+ * Root directory doesn't have any "." or ".." entries.
+ * Root directory cluster is written as "0" on the disk, so a cluster is 
+ * considered as root cluster when cluster <= root_cluster
+ */
 
 fd_t openfile(char *path, oflags_t flags);
 int close(fd_t fd);

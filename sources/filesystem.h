@@ -8,6 +8,11 @@
 #include "stddef.h"
 #include "stdint.h"
 
+#define END_OF_CHAIN 0x0FFFFFF8
+#define UNUSED_CLUSTER 0x0
+#define UNUSED_ENTRY 0xE5
+#define END_OF_ENTRIES 0x00
+
 typedef struct {
     u8 start_code[3];
     char oem_ident[8];
@@ -109,14 +114,6 @@ typedef struct {
 } fs_t;
 
 fs_t fs;
-void init_fs(int show);
-void load_mbr(int show);
-void read_cluster(u32 cluster, u8* buffer);
-void read_dir_cluster(u32 cluster);
-void get_short_name(directory_entry_t *dirent, char *buffer);
-void get_long_name(long_file_name_t* lfn, char *buffer);
-u32 get_next_cluster(u32 cluster);
-u32 get_cluster(directory_entry_t *dirent);
 
 #define MAX_FILE_NAME 64
 #define MAX_NB_FILE 256
@@ -150,6 +147,7 @@ typedef struct {
 
 typedef struct {
     u32 curr_cluster;   // Where the next entry will be read
+    u32 prev_cluster;
     u32 curr_offset;    // Where the next entry will be read
     u32 start_cluster;  // Where the first entry can be read
 } dir_handler_t;
@@ -163,7 +161,7 @@ typedef struct {
     };
 } ft_entry_t;
 
-typedef u32 fd_t;
+typedef int fd_t;
 
 ft_entry_t file_table[MAX_NB_FILE];
 
@@ -173,6 +171,31 @@ void free_fd(fd_t fd);
 typedef enum {
     SEEK_SET, SEEK_CUR, SEEK_END
 } seek_cmd_t;
+
+typedef struct {
+    u32 cluster;
+    u32 ent_offset;
+    u32 ent_cluster;
+    u32 ent_prev_cluster;
+    char name[MAX_FILE_NAME];
+    ftype_t type;
+    u32 size;
+} dirent_t;
+
+void init_fs(int show);
+void load_mbr(int show);
+void read_cluster(u32 cluster, u8* buffer);
+void write_cluster(u32 cluster, u8 *buffer);
+void read_dir_cluster(u32 cluster);
+void get_short_name(directory_entry_t *dirent, char *buffer);
+void get_long_name(long_file_name_t* lfn, char *buffer);
+void set_long_name(long_file_name_t* lfn, char *buffer);
+u32 get_next_cluster(u32 cluster);
+u32 get_cluster(directory_entry_t *dirent);
+u32 new_cluster();
+void free_cluster(u32 cluster, u32 prev_cluster);
+void new_entry(u32 cluster, dirent_t *dirent); // Fills the entry position fields
+void free_entry(dirent_t *dirent); // frees corresponding entries
 
 #endif /* FILESYSTEM_H */
 

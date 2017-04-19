@@ -9,3 +9,14 @@ File system :
 		(in readdir for instance)
 	- Rigorous and clever implementation of basename, dirname and so on.
 	- Duplication of function finddir
+	- Add . and .. entries for root directory.
+	- Remove all special tests for root directory
+	- Unique names !
+	- No reset of 8.3 names
+	- Correctly manage cluster deletion in a chain !
+
+Disk :
+	- Manage 'out of disk' requests
+
+Time management :
+	- Access time (http://wiki.osdev.org/CMOS)

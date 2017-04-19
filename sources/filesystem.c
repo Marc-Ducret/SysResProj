@@ -141,10 +141,25 @@ void get_long_name(long_file_name_t* lfn, char *buffer) {
     }
 }
 
+void set_long_name(long_file_name_t* lfn, char *buffer) {
+    // TODO Manage the two bytes characters !
+    for(int i = 0; i < 5 ; ++i){
+        *(((char*) lfn->first5) + 2*i) = buffer[i];
+    }
+    for(int i = 0 ; i < 6 ; ++i){
+        *(((char*) lfn->next6) + 2*i) = buffer[i+5];
+    }
+    for(int i = 0 ; i < 2; ++i){
+        *(((char*) lfn->final2) + 2*i) = buffer[i+11];
+    }
+}
+
 void get_short_name(directory_entry_t *dirent, char *buffer) {
     // TODO Do it more properly.
     memcpy(buffer, dirent->file_name, 11);
     buffer[11] = 0;
+    for (u32 i = 10; buffer[i] == ' '; i--)
+        buffer[i] = 0;
 }
 
 void read_cluster(u32 cluster, u8* buffer) {
@@ -158,6 +173,17 @@ void read_cluster(u32 cluster, u8* buffer) {
     read_sectors(sector, fs.sectors_per_cluster, (u16*) buffer);
 }
 
+void write_cluster(u32 cluster, u8* buffer) {
+    // Reads the corresponding cluster.
+    
+    // We assume that cluster = 0 means root_directory
+    if (!cluster) 
+        cluster = fs.root_cluster;
+    
+    u32 sector = fs.first_data_sector + (cluster - 2) * fs.sectors_per_cluster;
+    write_sectors(sector, fs.sectors_per_cluster, (u16*) buffer);
+}
+
 u32 get_next_cluster(u32 cluster) {
     // If we want to avoid redundant readings in FAT table
     // This reads the whole sector and could save it temporarily.
@@ -168,7 +194,17 @@ u32 get_next_cluster(u32 cluster) {
     // return buffer[offset];
     u32 next;
     read_address(fs.fat_sector * fs.sector_size + 4 * cluster, 4, (u8*) &next);
-    return next;
+    return next & 0x0FFFFFFF;
+}
+
+void set_next_cluster(u32 cluster, u32 next_cluster) {
+    // Sets the FAT entry of cluster to next_cluster
+    u32 old_cluster;
+    u32 offset = fs.fat_sector * fs.sector_size + 4 * cluster;
+    read_address(offset, 4, (u8*) &old_cluster);
+    next_cluster &= 0x0FFFFFFF;
+    next_cluster |= old_cluster & 0xF0000000;
+    write_address(offset, 4, (u8*) &next_cluster);
 }
 
 u32 get_cluster(directory_entry_t *dirent) {
@@ -230,4 +266,145 @@ fd_t new_fd() {
 
 void free_fd(fd_t fd) {
     file_table[fd].type = F_UNUSED;
+}
+
+u32 new_cluster() {
+    static u32 next_free_cluster = 0;
+    u8 buffer[fs.cluster_size];
+    memset(buffer, 0, fs.cluster_size);
+    
+    for (u32 i = next_free_cluster; i < fs.nb_clusters; i++) {
+        if (get_next_cluster(i) == UNUSED_CLUSTER) {
+            next_free_cluster = i + 1;
+            // Marks the cluster as used (end of chain).
+            set_next_cluster(i, END_OF_CHAIN);
+            write_cluster(i, buffer);
+            return i;
+        }
+    }
+    
+    for (u32 i = 0; i < next_free_cluster; i++) {
+        if (get_next_cluster(i) == UNUSED_CLUSTER) {
+            next_free_cluster = i + 1;
+            // Marks the cluster as used (end of chain).
+            set_next_cluster(i, END_OF_CHAIN);
+            write_cluster(i, buffer);
+            return i;
+        }
+    }
+    
+    // No more free clusters left
+    assert(0);
+    return -1;
+}
+
+void free_cluster(u32 cluster, u32 prev_cluster) {
+    // Removes cluster from the cluster chain without breaking it.
+    // If cluster doesn't have any previous cluster, then prev_cluster = 0.
+    if (prev_cluster != 0) {
+        // We must link prev_cluster to the next one still existing in chain.
+        set_next_cluster(prev_cluster, get_next_cluster(cluster));
+    }
+    // Frees cluster by marking it UNUSED.
+    set_next_cluster(cluster, UNUSED_CLUSTER);
+}
+
+void new_entry(u32 cluster, dirent_t *dirent) {
+    // Finds size consecutive free entries in cluster chain starting at cluster.
+    // Fills in the ent_offset and ent_cluster fields of dirent parameter.
+    u8 content[fs.cluster_size];
+    read_cluster(cluster, content);
+    kprintf("Searching in cluster %d\n", cluster);
+    u32 start = 0;
+    u32 size = dirent->size;
+    for (; content[start] != END_OF_ENTRIES && content[start] != UNUSED_ENTRY;
+         start += 32); 
+    
+    while (start <= fs.cluster_size - size * 32) {
+        // Finds the first used entry after start.
+        u32 end = start;
+        while (content[end] == END_OF_ENTRIES || content[end] == UNUSED_ENTRY) {
+            end += 32;
+            kprintf("0");
+            if (end - start >= size * 32) {
+                // Enough place !
+                dirent->ent_offset = start;
+                dirent->ent_cluster = cluster;
+                return;
+            }
+        }
+        start = end + 32; 
+        kprintf("1");
+    }
+    kprintf("Not enough place in cluster %d\n", cluster);
+    // Not enough place in this cluster. We have to move to next one.
+    u32 next_cluster = get_next_cluster(cluster);
+    kprintf("Hello choice : next cluster %d\n", next_cluster);
+    if (next_cluster < END_OF_CHAIN) {
+        kprintf("Going to cluster %x\n", next_cluster);
+        return new_entry(next_cluster, dirent);
+    }
+    
+    // No more cluster in the chain. Must create a new one, link it, and fill
+    // in the gap with unused entries.
+    while (start < fs.cluster_size) {
+        if (content[start] == END_OF_ENTRIES)
+            content[start] = UNUSED_ENTRY;
+        start++;
+    }
+    write_cluster(cluster, content);
+    next_cluster = new_cluster();
+    kprintf("Just created cluster %d\n", next_cluster);
+    set_next_cluster(cluster, next_cluster);
+    kprintf("Next cluster 1 : %d, and 2 : %d\n", get_next_cluster(cluster), get_next_cluster(next_cluster));
+    dirent->ent_cluster = next_cluster;
+    dirent->ent_offset = 0;
+}
+
+void free_entry(dirent_t *dirent) {
+    u32 offset = dirent->ent_offset;
+    u32 cluster = dirent->ent_cluster;
+    u32 size = dirent->size;
+    u32 prev_cluster = dirent->ent_prev_cluster;
+    
+    u8 content[fs.cluster_size];
+    read_cluster(cluster, content);
+    
+    // Checks if this entry is the last of its cluster.
+    int is_last = 1;
+    for (u32 i = offset + size * 32; i < fs.cluster_size; i += 32) {
+        if (content[i] == END_OF_ENTRIES)
+            break;
+        if (content[i] != UNUSED_ENTRY) {
+            is_last = 0;
+            break;
+        }
+    }
+    
+    int is_first = 1;
+    for (u32 i = 0; i < offset; i += 32) {
+        if (content[i] != UNUSED_ENTRY) {
+            is_first = 0;
+            break;
+        }
+    }
+    
+    if (is_first && is_last) {
+        free_cluster(cluster, prev_cluster);
+        return;
+    }
+    else if (get_next_cluster(cluster) == END_OF_CHAIN) {
+        // We have to extend the END_OF_ENTRIES
+        for (u32 i = offset + (size - 1) * 32; content[i] == UNUSED_ENTRY; i -= 32) {
+            content[i] = END_OF_ENTRIES;
+        }
+    }
+    else {
+        // We only need to replace the deleted entries by UNUSED_ENTRY
+        for (u32 i = 0; i < size; i++)
+            content[offset + 32 * i] = UNUSED_ENTRY;
+    }
+    
+    // Writes the changes on the disk.
+    write_cluster(cluster, content);
 }

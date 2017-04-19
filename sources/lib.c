@@ -32,6 +32,13 @@ void strCopy(char *src, char* dest) {
     *dest = 0;
 }
 
+u32 strlen(const char* str) {
+    u32 ret = 0;
+    while(str[ret] != 0)
+        ret++;
+    return ret;
+}
+
 void assert(int condition) {
     if (!condition) {
         kprintf("Assertion Failure.\n");
