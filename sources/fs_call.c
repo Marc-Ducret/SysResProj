@@ -6,6 +6,10 @@ long_file_name_t static_longnames[MAX_FILE_NAME / 13 + 2];
 directory_entry_t static_entry;
 fd_t cwd; // Current working directory
 
+// TODO
+int errno = 0; // Global variable with error code
+int usermod = 0; // Global variable with rights of current processs
+
 void print_short_dirent(dirent_t *dirent) {
     kprintf("%s %s at offset %d, %d entries;\n", 
             (dirent->type == DIR) ? "Directory" : "File",
@@ -14,11 +18,114 @@ void print_short_dirent(dirent_t *dirent) {
             dirent->size);
 }
 
-fd_t openfile(char *path, oflags_t flags);
-int close(fd_t fd);
+fd_t openfile_ent(dirent_t *dirent, oflags_t flags) {
+    // Checks it isn't a directory
+    if (dirent->type != FILE) {
+        errno = 4;
+        return -1;
+    }
+    
+    // Checks the rights
+    if (dirent->attributes.rd_only && flags.write) {
+        // No right to write.
+        errno = 4; 
+        return -1;
+    }
+    if (dirent->attributes.system && usermod && flags.write) {
+        // No rights to modify.
+        errno = 4;
+        return -1;
+    }
+    
+    fd_t fd = new_fd();
+    if (fd < 0) // TODO Too much opened files, is errno already set ?
+        return -1;
+    
+    strCopy(dirent->name, file_table[fd].name);
+    
+    file_table[fd].type = FILE;
+    file_table[fd].global_offset = 0;
+    file_table[fd].curr_offset = 0;
+    file_table[fd].start_cluster = dirent->cluster;
+    file_table[fd].curr_cluster = dirent->cluster;
+    file_table[fd].mode = flags; // TODO struct ?
+    //file_table[fd].file; // TODO Main infos from directory entry, like size
+    // TODO o_flags ! (o_truncate -> size)
+    
+    return fd;
+}
+
+fd_t openfile(char *path, oflags_t flags) {
+    char *dir_n = dirname(path);
+    char *name = basename(path);
+    
+    // TODO malloc and this will be normally clean
+    char file_name[MAX_FILE_NAME];
+    strCopy(name, file_name);
+    
+    fd_t dir = opendir(dir_n);
+    if (dir < 0) {
+        errno = 4; // No such directory
+        return -1;
+    }
+    
+    dirent_t *file = findfile(dir, file_name);
+    
+    if (file == NULL) {
+        // No such file.
+        if (errno == 4) {
+            // It is a directory ! TODO
+            errno = 4;
+            return -1;
+        }
+        else if (flags.create) {
+            // Creates the file TODO
+            int res = create_entries(dir, file_name, FILE);
+            if (res < 0)
+                return -1;
+            // TODO Checks results
+        }
+        else {
+            // No such file, no O_CREATE, fails. TODO
+            errno = 4;
+            return -1;
+        }
+    }
+    return openfile_ent(file, flags);
+}
+
+int close(fd_t fd) {
+    if (file_table[fd].type != FILE) {
+        // No such file
+        kprintf("Are you sure you're allowed to close directories with close ?\n");
+        errno = 4;
+        return -1;
+    }      
+    free_fd(fd);
+    return 0;
+}
+
 int read(fd_t fd, void *buffer, int offset, int length);
+// TODO Think about updating curr_offset and curr_cluster ! and read of 0 holes
 int write(fd_t fd, void *buffer, int offset, int length);
-int seek(fd_t fd, seek_cmd_t seek_command, int offset);
+// TODO Think about updating pending blocks ! and increasing size
+
+int seek(fd_t fd, seek_cmd_t seek_command, int offset) {
+    if (seek_command == SEEK_CUR)
+        offset += file_table[fd].global_offset;
+    if (seek_command == SEEK_END)
+        offset += file_table[fd].size;
+    
+    if (offset < 0) {
+        // Wrong offset
+        errno = 4;
+        return -1;
+    }
+    
+    file_table[fd].global_offset = offset; // TODO Set some dirty bit here !
+    // We can do this by replacing curr_offset with global_curr_offset
+    // Then curr_offset will become an older version of global_offset 
+}
 
 void fill_entries(u32 cluster, u32 offset, u32 size, void *entries) {
     // Copy the filename entries and final entry at offset from cluster.
@@ -33,10 +140,10 @@ void fill_entries(u32 cluster, u32 offset, u32 size, void *entries) {
     write_cluster(cluster, content);
 }
 
-void fill_dir_entry(u32 cluster, directory_entry_t *dirent, char *name) {
-    dirent->attributes.dir = 1;
-    dirent->attributes.rd_only = 0;
-    dirent->attributes.system = 0;
+void fill_dir_entry(u32 cluster, directory_entry_t *dirent, char *name, ftype_t type) {
+    dirent->attributes.dir = type == DIR ? 1 : 0;
+    dirent->attributes.rd_only = 0; // TODO Find a way to set it if wanted
+    dirent->attributes.system = 0; // TODO Find a way to set it if wanted
     dirent->attributes.hidden = 0;
     dirent->attributes.archive = 1; // Dirty ?
     dirent->cluster_high = cluster >> 16;
@@ -60,10 +167,10 @@ char *get_fresh_name() {
     return buffer;
 }
 
-void *build_entries(u32 parent_cluster, char *name) {
+void *build_entries(u32 parent_cluster, char *name, ftype_t type) {
     // Builds the several long name entries to put in the father directory for 
-    // the new directory.
-    // Also builds the final entry
+    // the new file or directory.
+    // Also builds the final entry.
     
     char buffer[MAX_FILE_NAME];
     memset(buffer, 0, MAX_FILE_NAME);
@@ -97,39 +204,32 @@ void *build_entries(u32 parent_cluster, char *name) {
     // Asks for a new cluster
     u32 fresh_cluster = new_cluster();
     
-    // Fills in the base links (parent and current directory)
     u8 content[fs.cluster_size];
     memset(content, 0, fs.cluster_size);
-    fill_dir_entry(fresh_cluster, (directory_entry_t *) content, CUR_DIR_NAME);
-    fill_dir_entry(parent_cluster, (directory_entry_t *) (&content[32]), PARENT_DIR_NAME);
-    kprintf("Parent cluster %d\n", parent_cluster);
-    kprintf("Fresh cluster %d\n", fresh_cluster);
+    if (type == DIR) {
+        // Fills in the base links (parent and current directory) in case of dir.
+        fill_dir_entry(fresh_cluster, (directory_entry_t *) content, CUR_DIR_NAME, DIR);
+        fill_dir_entry(parent_cluster, (directory_entry_t *) (&content[32]), PARENT_DIR_NAME, DIR);
+        kprintf("Parent cluster %d\n", parent_cluster);
+        kprintf("Fresh cluster %d\n", fresh_cluster);
+    }
     write_cluster(fresh_cluster, content);
 
     // Creates final entry
     directory_entry_t *dirent = (directory_entry_t *) &(static_longnames[nb]);
     // TODO Add time things..
-    fill_dir_entry(fresh_cluster, dirent, fresh_name);
+    fill_dir_entry(fresh_cluster, dirent, fresh_name, type);
 
     return static_longnames;
 }
 
-void mkdir(char *path) {
-    char *dir_name = dirname(path);
-    char *file_name = basename(path);
+int create_entries(fd_t dir, char *name, ftype_t type) {
     char file[MAX_FILE_NAME];
-    assert(strlen(file_name) < MAX_FILE_NAME);
-    
-    strCopy(file_name, file);
-    
-    fd_t fd = opendir(dir_name);
-    assert(fd >= 0); // No such directory
-    
-    // Asserts directory doesn't exist
-    assert(finddir(fd, file) == NULL);
+    assert(strlen(name) <= MAX_FILE_NAME);
+    strCopy(name, file);
     
     // Build corresponding entries
-    long_file_name_t *entries = build_entries(file_table[fd].start_cluster, file);
+    long_file_name_t *entries = build_entries(file_table[dir].start_cluster, file, type);
 
     // Computes the size of full entry
     u32 size = 0;
@@ -154,7 +254,7 @@ void mkdir(char *path) {
     print_short_dirent(dirent_p);
     
     // Allocates place for these entries
-    u32 cluster = file_table[fd].start_cluster;
+    u32 cluster = file_table[dir].start_cluster;
     new_entry(cluster, dirent_p);
     u32 offset = dirent_p->ent_offset;
     cluster = dirent_p->ent_cluster;
@@ -162,6 +262,24 @@ void mkdir(char *path) {
     kprintf("Allocated %d entries at cluster %d and offset %d\n", size, cluster, offset);
     // Fills in these entries on the disk
     fill_entries(cluster, offset, size, entries);
+    return 0;
+}
+
+void mkdir(char *path) {
+    char *dir_name = dirname(path);
+    char *file_name = basename(path);
+    
+    assert(strlen(file_name) < MAX_FILE_NAME);
+    char file[MAX_FILE_NAME];
+    strCopy(file_name, file);
+
+    fd_t fd = opendir(dir_name);
+    assert(fd >= 0); // No such directory
+    
+    // Asserts directory doesn't exist
+    assert(finddir(fd, file) == NULL);
+    
+    create_entries(fd, file, DIR);
 }
 
 void rmdir(char *path) {
@@ -374,7 +492,8 @@ dirent_t *readdir(fd_t fd) {
                 dirent_p->ent_cluster = cluster;
                 dirent_p->size = size;
                 dirent_p->ent_prev_cluster = prev_cluster;
-                
+                dirent_p->attributes = dirent->attributes;
+
                 if (name + MAX_FILE_NAME - 1 == name_index) {
                     // Not a long filename
                     get_short_name(dirent, name);
@@ -413,14 +532,42 @@ void closedir(fd_t fd) {
     free_fd(fd);
 }
 
-dirent_t *finddir(fd_t dir, char *name) {
-    // Find the directory entry corresponding to directory name.
+dirent_t *findent(fd_t dir, char *name, ftype_t type) {
+    // Find the entry with specified name and type in directory dir.
+    // Returns NULL if no such entry.
     dirent_t *dirent;
     while ((dirent = readdir(dir))) {
         if (strEqual(dirent->name, name)) {
             // Rewinds to avoid side effects.
             rewinddir(dir);
-            if (dirent->type == DIR)
+            if (dirent->type == type)
+                return dirent;
+            //assert(0);
+            return NULL;    // This is not a directory.
+        }
+    }
+    // Rewinds to avoid side effects.
+    rewinddir(dir);
+    //assert(0);
+    return NULL;    // Entry doesn't exist.
+}
+
+dirent_t *finddir(fd_t dir, char *name) {
+    return findent(dir, name, DIR);
+}
+
+dirent_t *findfile(fd_t dir, char *name) {
+    return findent(dir, name, FILE);
+}
+
+dirent_t *cluster_findent(fd_t dir, u32 cluster, ftype_t type) {
+    // Find the directory entry corresponding to directory name.
+    dirent_t *dirent;
+    while ((dirent = readdir(dir))) {
+        if (dirent->cluster == cluster) {
+            // Rewinds to avoid side effects.
+            rewinddir(dir);
+            if (dirent->type == type)
                 return dirent;
             //assert(0);
             return NULL;    // This is not a directory.
@@ -433,22 +580,11 @@ dirent_t *finddir(fd_t dir, char *name) {
 }
 
 dirent_t *cluster_finddir(fd_t dir, u32 cluster) {
-    // Find the directory entry corresponding to directory name.
-    dirent_t *dirent;
-    while ((dirent = readdir(dir))) {
-        if (dirent->cluster == cluster) {
-            // Rewinds to avoid side effects.
-            rewinddir(dir);
-            if (dirent->type == DIR)
-                return dirent;
-            //assert(0);
-            return NULL;    // This is not a directory.
-        }
-    }
-    // Rewinds to avoid side effects.
-    rewinddir(dir);
-    //assert(0);
-    return NULL;    // Entry doesn't exist.
+    return cluster_findent(dir, cluster, DIR);
+}
+
+dirent_t *cluster_findfile(fd_t dir, u32 cluster) {
+    return cluster_findent(dir, cluster, FILE);
 }
 
 void print_chain(u32 cluster) {
@@ -501,6 +637,10 @@ void test_dir() {
 
     //kprintf("Cluster %d\n", file_table[fd].start_cluster);
     print_chain(4506);
+    oflags_t flags;
+    flags.create = 1;
+    flags.read = 1;
+    flags.write = 1;
 }
 
 void init_filename_gen() {
@@ -521,8 +661,8 @@ void init_root() {
     
     u32 cluster = fs.root_cluster;
     directory_entry_t buffer[2];
-    fill_dir_entry(cluster, buffer, CUR_DIR_NAME);
-    fill_dir_entry(cluster, &buffer[1], PARENT_DIR_NAME);
+    fill_dir_entry(cluster, buffer, CUR_DIR_NAME, DIR);
+    fill_dir_entry(cluster, &buffer[1], PARENT_DIR_NAME, DIR);
     
     dirent_t dirent;
     dirent.cluster = cluster;

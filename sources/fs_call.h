@@ -30,6 +30,8 @@ void rewinddir(fd_t fd);
 void closedir(fd_t fd);
 dirent_t *finddir(fd_t dir, char *name);
 dirent_t *cluster_finddir(fd_t dir, u32 cluster);
+dirent_t *findfile(fd_t dir, char *name);
+int create_entries(fd_t dir, char *name, ftype_t type);
 void test_dir();
 void init_root();
 #endif /* FS_CALL_H */

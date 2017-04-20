@@ -138,23 +138,21 @@ typedef enum {
 } ftype_t;
 
 typedef struct {
-    u32 offset;
+    u32 global_offset;
     oflags_t mode;
-    directory_entry_t file;
-    u32 name_cluster;      // Start of the name (may be a long name) (TODO)
-    u32 name_offset;       // Start of the name (may be a long name) (TODO)
+    u32 size;
 } __attribute__ ((packed)) file_descr_t;
 
 typedef struct {
-    u32 curr_cluster;   // Where the next entry will be read
     u32 prev_cluster;
-    u32 curr_offset;    // Where the next entry will be read
-    u32 start_cluster;  // Where the first entry can be read
 } dir_handler_t;
 
 typedef struct {
     ftype_t type;
     char name[MAX_FILE_NAME];
+    u32 start_cluster;
+    u32 curr_cluster;
+    u32 curr_offset;
     union {
         dir_handler_t;
         file_descr_t;
@@ -180,6 +178,7 @@ typedef struct {
     char name[MAX_FILE_NAME];
     ftype_t type;
     u32 size;
+    attributes_t attributes;
 } dirent_t;
 
 void init_fs(int show);

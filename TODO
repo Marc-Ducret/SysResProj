@@ -2,7 +2,8 @@ File system :
 	- Choose clear types and notations (dirent_t, direcotry_entry_t, ..)
 	- Find a way to handle errors and 'exceptions'
 	- Separate file_descr and dir_handler into two tables.
-	- Decide which fields of file_descr_t are useful
+	- Decide which fields of file_descr_t are useful, and complete it in openfile
+	- Rename field 'size' of dirent_t, and add real size field
 	- Use a real malloc on some heap without page-fault, or use some pointer arg
 		(in readdir for instance)
 	- Rigorous and clever implementation of basename, dirname and so on.

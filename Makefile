@@ -32,7 +32,7 @@ build/main.o
 
 all: build/os.bin
 
-.PHONEY: all clean iso run-qemu-disk
+.PHONY: all clean iso run-qemu-disk
 
 build/os.bin: $(OBJS) sources/linker.ld
 	$(CC) -T sources/linker.ld -o $@ $(CFLAGS) $(OBJS) $(LIBS)
