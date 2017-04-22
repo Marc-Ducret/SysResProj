@@ -13,6 +13,9 @@
 #define UNUSED_ENTRY 0xE5
 #define END_OF_ENTRIES 0x00
 
+// TODO
+int errno; // Global variable with error code
+
 typedef struct {
     u8 start_code[3];
     char oem_ident[8];
@@ -138,7 +141,8 @@ typedef enum {
 } ftype_t;
 
 typedef struct {
-    u32 global_offset;
+    u32 global_offset; // New (and not next) global offset
+    u32 old_offset; // Old (and current) global offset
     oflags_t mode;
     u32 size;
 } __attribute__ ((packed)) file_descr_t;
@@ -153,6 +157,9 @@ typedef struct {
     u32 start_cluster;
     u32 curr_cluster;
     u32 curr_offset;
+    u32 ent_cluster;
+    u32 ent_offset;
+    u32 ent_size;
     union {
         dir_handler_t;
         file_descr_t;
@@ -177,7 +184,8 @@ typedef struct {
     u32 ent_prev_cluster;
     char name[MAX_FILE_NAME];
     ftype_t type;
-    u32 size;
+    u32 ent_size;   // Number of directory entries used by the file / directory.
+    u32 size;       // Size of the file (0 for directories).
     attributes_t attributes;
 } dirent_t;
 
@@ -190,11 +198,15 @@ void get_short_name(directory_entry_t *dirent, char *buffer);
 void get_long_name(long_file_name_t* lfn, char *buffer);
 void set_long_name(long_file_name_t* lfn, char *buffer);
 u32 get_next_cluster(u32 cluster);
+void set_next_cluster(u32 cluster, u32 next_cluster);
 u32 get_cluster(directory_entry_t *dirent);
 u32 new_cluster();
 void free_cluster(u32 cluster, u32 prev_cluster);
+void free_cluster_chain(u32 start_cluster);
+void reset_cluster(u32 cluster);
 void new_entry(u32 cluster, dirent_t *dirent); // Fills the entry position fields
 void free_entry(dirent_t *dirent); // frees corresponding entries
+u32 insert_new_cluster(u32 prev, u32 next);
 
 #endif /* FILESYSTEM_H */
 

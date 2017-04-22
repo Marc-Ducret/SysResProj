@@ -8,4 +8,7 @@ void strCopy(char *src, char* dest);
 u32 strlen(const char* str);
 void assert(int condition);
 int min(int a, int b);
+int max(int a, int b);
+u32 umax(u32 a, u32 b);
+u32 umin(u32 a, u32 b);
 #endif

@@ -15,8 +15,8 @@
 
 fd_t openfile(char *path, oflags_t flags);
 int close(fd_t fd);
-int read(fd_t fd, void *buffer, int offset, int length);
-int write(fd_t fd, void *buffer, int offset, int length);
+int read(fd_t fd, void *buffer, int length);
+int write(fd_t fd, void *buffer, int length);
 int seek(fd_t fd, seek_cmd_t seek_command, int offset);
 
 void mkdir(char *path);
@@ -31,7 +31,9 @@ void closedir(fd_t fd);
 dirent_t *finddir(fd_t dir, char *name);
 dirent_t *cluster_finddir(fd_t dir, u32 cluster);
 dirent_t *findfile(fd_t dir, char *name);
+dirent_t *findent(fd_t dir, char *name, ftype_t type);
 int create_entries(fd_t dir, char *name, ftype_t type);
+void set_size(fd_t fd, u32 size);
 void test_dir();
 void init_root();
 #endif /* FS_CALL_H */

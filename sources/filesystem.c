@@ -311,6 +311,34 @@ void free_cluster(u32 cluster, u32 prev_cluster) {
     set_next_cluster(cluster, UNUSED_CLUSTER);
 }
 
+void free_cluster_chain(u32 cluster) {
+    // Removes all the chain starting at cluster.
+    u32 next_cluster;
+    while (cluster < END_OF_CHAIN) {
+        next_cluster = get_next_cluster(cluster);
+        free_cluster(cluster, 0);
+        cluster = next_cluster;
+    }
+}
+
+u32 insert_new_cluster(u32 prev, u32 next) {
+    // Inserts a new cluster between prev and next clusters.
+    u32 new = new_cluster();
+    if (new == 0)
+        return 0;
+    
+    set_next_cluster(prev, new);
+    set_next_cluster(new, next);
+    return new;
+}
+
+void reset_cluster(u32 cluster) {
+    // Sets this cluster to 0.
+    u8 buffer[fs.cluster_size];
+    memset(buffer, 0, fs.cluster_size);
+    write_cluster(cluster, buffer);
+}
+
 void new_entry(u32 cluster, dirent_t *dirent) {
     // Finds size consecutive free entries in cluster chain starting at cluster.
     // Fills in the ent_offset and ent_cluster fields of dirent parameter.
@@ -318,7 +346,7 @@ void new_entry(u32 cluster, dirent_t *dirent) {
     read_cluster(cluster, content);
     kprintf("Searching in cluster %d\n", cluster);
     u32 start = 0;
-    u32 size = dirent->size;
+    u32 size = dirent->ent_size;
     for (; content[start] != END_OF_ENTRIES && content[start] != UNUSED_ENTRY;
          start += 32); 
     
@@ -366,7 +394,7 @@ void new_entry(u32 cluster, dirent_t *dirent) {
 void free_entry(dirent_t *dirent) {
     u32 offset = dirent->ent_offset;
     u32 cluster = dirent->ent_cluster;
-    u32 size = dirent->size;
+    u32 size = dirent->ent_size;
     u32 prev_cluster = dirent->ent_prev_cluster;
     
     u8 content[fs.cluster_size];

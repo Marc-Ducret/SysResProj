@@ -11,6 +11,7 @@ File system :
 	- Remove all special tests for root directory
 	- Unique names !
 	- No reset of 8.3 names
+	- Nice function to safely find and open a file ?
 
 Disk :
 	- Manage 'out of disk' requests

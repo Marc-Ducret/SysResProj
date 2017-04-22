@@ -7,7 +7,6 @@ directory_entry_t static_entry;
 fd_t cwd; // Current working directory
 
 // TODO
-int errno = 0; // Global variable with error code
 int usermod = 0; // Global variable with rights of current processs
 
 void print_short_dirent(dirent_t *dirent) {
@@ -15,7 +14,7 @@ void print_short_dirent(dirent_t *dirent) {
             (dirent->type == DIR) ? "Directory" : "File",
             dirent->name,
             dirent->ent_offset,
-            dirent->size);
+            dirent->ent_size);
 }
 
 fd_t openfile_ent(dirent_t *dirent, oflags_t flags) {
@@ -36,6 +35,7 @@ fd_t openfile_ent(dirent_t *dirent, oflags_t flags) {
         errno = 4;
         return -1;
     }
+    // TODO Decide whether TRUNC and no WRITE must be an error ?
     
     fd_t fd = new_fd();
     if (fd < 0) // TODO Too much opened files, is errno already set ?
@@ -45,13 +45,24 @@ fd_t openfile_ent(dirent_t *dirent, oflags_t flags) {
     
     file_table[fd].type = FILE;
     file_table[fd].global_offset = 0;
+    file_table[fd].old_offset = 0;
     file_table[fd].curr_offset = 0;
     file_table[fd].start_cluster = dirent->cluster;
     file_table[fd].curr_cluster = dirent->cluster;
-    file_table[fd].mode = flags; // TODO struct ?
-    //file_table[fd].file; // TODO Main infos from directory entry, like size
-    // TODO o_flags ! (o_truncate -> size)
+    file_table[fd].ent_cluster = dirent->ent_cluster;
+    file_table[fd].ent_offset = dirent->ent_offset;
+    file_table[fd].ent_size = dirent->ent_size;
+    file_table[fd].mode = flags;
+    file_table[fd].size = dirent->size;
     
+    if (flags.trunc && flags.write) {
+        // Truncates the file
+        u32 cluster = file_table[fd].start_cluster;
+        set_size(fd, 0);
+        free_cluster_chain(get_next_cluster(cluster));
+        reset_cluster(cluster);
+        set_next_cluster(cluster, END_OF_CHAIN);
+    }
     return fd;
 }
 
@@ -84,6 +95,12 @@ fd_t openfile(char *path, oflags_t flags) {
             if (res < 0)
                 return -1;
             // TODO Checks results
+            file = findfile(dir, file_name);
+            if (file == NULL) {
+                kprintf("Failed to find this file, even after creation.\n");
+                errno = 4;
+                return -1;
+            }
         }
         else {
             // No such file, no O_CREATE, fails. TODO
@@ -105,10 +122,228 @@ int close(fd_t fd) {
     return 0;
 }
 
-int read(fd_t fd, void *buffer, int offset, int length);
+int really_seek(fd_t fd, int write) {
+    // Updates position of cursor
+    // If the new position is outside the file and write is True, extends the
+    // file. Otherwise, if write is false, does nothing.
+    ft_entry_t *f = &file_table[fd];
+    if (f->global_offset == f->old_offset ||
+       (f->global_offset >= f->size && !write)) {
+        return 0;
+    }
+    kprintf("Starting positions : cluster %d at offset %d, old_offset %d\n",
+            f->curr_cluster, f->curr_offset, f->old_offset);
+    u32 cluster, offset, target_offset;
+    // We have to move towards the right location, and extend if needed.
+    target_offset = f->global_offset;
+    if (f->global_offset > f->old_offset) {
+        cluster = f->curr_cluster;
+        offset = f->old_offset - f->curr_offset;
+        kprintf("Are the offsets equal ? %d\n", f->curr_offset == f->old_offset % fs.cluster_size);
+    }
+    else {
+        cluster = f->start_cluster;
+        offset = 0;
+    }
+    u32 prev_cluster;
+    while (target_offset - offset >= fs.cluster_size) {
+        prev_cluster = cluster;
+        cluster = get_next_cluster(cluster);
+        if (cluster >= END_OF_CHAIN) {
+            // End of file
+            if (write) {
+                // Extends file
+                cluster = insert_new_cluster(prev_cluster, END_OF_CHAIN);
+                assert(cluster);
+            }
+            else {
+                // Corrupted file (size doesn't correspond.)
+                errno = 4;
+                return -1;
+            }
+        }
+        offset += fs.cluster_size;
+    }
+    f->old_offset = target_offset;
+    f->curr_cluster = cluster;
+    f->curr_offset = target_offset - offset;
+    set_size(fd, umax(f->size, target_offset));
+    
+    kprintf("Ending positions : cluster %d at offset %d, old_offset %d\n",
+            f->curr_cluster, f->curr_offset, f->old_offset);
+    return 0;
+}
+
+int read(fd_t fd, void *buffer, int length) {
+    ft_entry_t *f = &file_table[fd];
+    assert(length >= 0);
+    // TODO u32 length ?
+    // Checks the mode allows reading.
+    if (!f->mode.read) {
+        // No read mode
+        kprintf("No read mode allowed !\n");
+        errno = 4;
+        return -1;
+    }
+    // Places correctly the reading head.
+    if (really_seek(fd, 0) == -1) {
+        kprintf("Failed to seek !\n");
+        return -1;
+    }
+    // Checks if offset is past the end of file.
+    if (f->global_offset >= f->size)
+        return 0;
+    kprintf("Is the global_offset equal to old_offset ? %d\n", f->global_offset == f->old_offset);
+    // Otherwise reads the asked length.
+    u32 done = 0;
+    u32 remaining = umin(length, f->size - f->global_offset);
+    u8 content[fs.cluster_size];
+    u32 cluster = f->curr_cluster;
+    u32 offset = f->curr_offset;
+    u32 nb;
+    kprintf("Trying to read %d bytes from offset %d at cluster %d in size %d\n",
+            remaining, offset, cluster, f->size);
+    while (remaining > 0) {
+        kprintf("Cluster %d\n", cluster);
+        assert(cluster < END_OF_CHAIN);
+        read_cluster(cluster, content); // TODO assert fine
+        nb = umin(remaining, fs.cluster_size - offset);
+        kprintf("Have just read %d bytes from %d to %d\n", nb, offset, offset+nb);
+        memcpy(buffer, content + offset, nb);
+        remaining -= nb;
+        done += nb;
+        buffer += nb;
+        offset = offset + nb;
+        if (offset + nb == fs.cluster_size) {
+            cluster = get_next_cluster(cluster);
+            offset = 0;
+        }
+    }
+    kprintf("Finished at offset %d in cluster %d\n", offset, cluster);
+    // TODO Check that arriving in END_OF_CHAIN cluster isn't important.
+    f->curr_cluster = cluster;
+    f->curr_offset = offset;
+    f->global_offset += done;
+    f->old_offset += done;
+    return done;
+}
+
+void set_size(fd_t fd, u32 size) {
+    // Sets the size of file fd.
+    u8 content[fs.cluster_size];
+    u32 cluster = file_table[fd].ent_cluster;
+    u32 offset = file_table[fd].ent_offset + 32 * (file_table[fd].ent_size - 1);
+    read_cluster(cluster, content);
+    directory_entry_t *dirent = (directory_entry_t *) &content[offset];
+    dirent->file_size = size;
+    write_cluster(cluster, content);
+    file_table[fd].size = size;
+}
+
 // TODO Think about updating curr_offset and curr_cluster ! and read of 0 holes
-int write(fd_t fd, void *buffer, int offset, int length);
-// TODO Think about updating pending blocks ! and increasing size
+int write(fd_t fd, void *buffer, int length) {
+    assert(length >= 0);
+    
+    ft_entry_t *f = &file_table[fd];
+    // Checks the mode allows writing.
+    if (!f->mode.write) {
+        // No writing mode
+        errno = 4;
+        return -1;
+    }
+    kprintf("Starting offset %d\n", f->old_offset);
+
+    // Places correctly writing head.
+    // In case of O_APPEND, places the head at enf of file.
+    if (file_table[fd].mode.append) {
+        kprintf("Append mode, old_offset is %d\n", file_table[fd].old_offset);
+        file_table[fd].global_offset = file_table[fd].size;
+    }
+    if (really_seek(fd, 1) == -1)
+        return -1;
+    
+    // Otherwise writes the asked length.
+    u32 written = 0;
+    u32 remaining = length;
+    u8 content[fs.cluster_size];
+    u32 cluster = f->curr_cluster;
+    u32 prev_cluster = 0;
+    u32 offset = f->curr_offset;
+    u32 nb;
+    kprintf("Trying to write %d bytes from offset %d at cluster %d in size %d\n",
+            remaining, offset, cluster, f->size);
+ 
+    while (remaining > 0) {
+        kprintf("Cluster %d\n", cluster);
+        if (cluster >= END_OF_CHAIN) {
+            cluster = insert_new_cluster(prev_cluster, END_OF_CHAIN);
+            assert(cluster);
+        }
+        nb = umin(remaining, fs.cluster_size - offset);
+
+        if (nb < fs.cluster_size)
+            read_cluster(cluster, content); // TODO assert fine
+        
+        memcpy(content + offset, buffer, nb);
+        write_cluster(cluster, content);
+        kprintf("Have just written %d bytes\n", nb);
+        remaining -= nb;
+        written += nb;
+        buffer += nb;
+        offset += nb;
+        if (offset == fs.cluster_size) {
+            offset = 0;
+            prev_cluster = cluster;
+            cluster = get_next_cluster(cluster);
+        }
+    }
+    kprintf("Finished writing at offset %d in cluster %d\n", offset, cluster);
+    // TODO Check that arriving in END_OF_CHAIN cluster isn't important.
+    f->curr_cluster = cluster;
+    f->curr_offset = offset;
+    f->global_offset += written;
+    f->old_offset += written;
+    set_size(fd, umax(f->size, f->global_offset));
+    kprintf("Final offset %d\n", f->curr_offset);
+    return written;
+}
+
+int remove(char *path) {
+    // Removes the specified file.
+    char *dir_n = dirname(path);
+    char *name = basename(path);
+    
+    // TODO malloc and this will be normally clean
+    char file_name[MAX_FILE_NAME];
+    strCopy(name, file_name);
+    
+    fd_t dir = opendir(dir_n);
+    
+    if (dir < 0) {
+        // No such file.
+        errno = 4;
+        return -1;
+    }
+    dirent_t *dirent = findent(dir, file_name, FILE);
+    if (dirent == NULL) {
+        if (errno == 4) // Not a file !
+            errno = 8;
+        else
+            errno = 27; // No such file
+        return -1;
+    }
+    if (dirent->attributes.system && usermod) {
+        // No such permission
+        errno = 4;
+        return -1;
+    }
+    // Deletes the entry
+    free_entry(dirent);
+    closedir(dir);
+    // Deletes the content of file
+    free_cluster_chain(dirent->cluster);
+    return 0;
+}
 
 int seek(fd_t fd, seek_cmd_t seek_command, int offset) {
     if (seek_command == SEEK_CUR)
@@ -122,9 +357,58 @@ int seek(fd_t fd, seek_cmd_t seek_command, int offset) {
         return -1;
     }
     
-    file_table[fd].global_offset = offset; // TODO Set some dirty bit here !
-    // We can do this by replacing curr_offset with global_curr_offset
-    // Then curr_offset will become an older version of global_offset 
+    file_table[fd].global_offset = offset;
+    return offset;
+}
+
+int copyfile(char *old_path, char *new_path) {
+    // Copies the first file toward second place.
+    oflags_t flags;
+    flags.read = 1;
+    flags.write = 0;
+    
+    fd_t a = openfile(old_path, flags);
+    if (a < 0) {
+        // Errno may be set
+        return -1;
+    }
+    
+    flags.write = 1;
+    flags.read = 0;
+    flags.create = 1;
+    flags.trunc = 1; // Erases the target ? TODO
+    // TODO Check that both files have same parameters (system, ..)
+    fd_t b = openfile(new_path, flags);
+    if (b < 0) {
+        // Errno may be set
+        return -1;
+    }
+    
+    // We just have to copy the content of a in b.
+    u8 buffer[fs.cluster_size];
+    
+    int nb = read(a, buffer, fs.cluster_size);
+    while (nb > 0) {
+        write(b, buffer, nb);
+        nb = read(a, buffer, fs.cluster_size);
+    }
+    
+    return 0;
+}
+
+int rename(char *old_path, char *new_path) {
+    int res = copyfile(old_path, new_path);
+    if (res == -1) {
+        // errno may be set
+        return -1;
+    }
+    res = remove(old_path);
+    if (res == -1) {
+        // Big problem : copied but not removed other !
+        // Should check at start the rights and so on to be sure !
+        return -1;
+    }
+    return 0;
 }
 
 void fill_entries(u32 cluster, u32 offset, u32 size, void *entries) {
@@ -246,10 +530,10 @@ int create_entries(fd_t dir, char *name, ftype_t type) {
     
     directory_entry_t *dirent = (directory_entry_t *) (&entries[size-1]);
     dirent_t *dirent_p = &static_dirent; // TODO malloc!
-    dirent_p->size = size;
+    dirent_p->ent_size = size;
     dirent_p->type = dirent->attributes.dir ? DIR : FILE;
     dirent_p->cluster = get_cluster(dirent);
-    get_short_name(dirent, test);
+    //get_short_name(dirent, test);
     strCopy(test, dirent_p->name);
     print_short_dirent(dirent_p);
     
@@ -310,14 +594,7 @@ void rmdir(char *path) {
     closedir(parent);
     kprintf("Closed directories \n");
     // Removes the content of directory.
-    u32 cluster = file_table[dir].start_cluster;
-    u32 next_cluster;
-    while (cluster < END_OF_CHAIN) {
-        kprintf("Cluster %d\n", cluster);
-        next_cluster = get_next_cluster(cluster);
-        free_cluster(cluster, 0);
-        cluster = next_cluster;
-    }
+    free_cluster_chain(dirent->cluster);
 }
 
 void chdir(char *path) {
@@ -428,7 +705,9 @@ fd_t opendir_ent(dirent_t *dirent) {
     file_table[fd].curr_cluster = file_table[fd].start_cluster;
     file_table[fd].curr_offset = 0;
     file_table[fd].prev_cluster = 0;
-    
+    file_table[fd].ent_cluster = dirent->ent_cluster;
+    file_table[fd].ent_offset = dirent->ent_offset;
+    file_table[fd].ent_size = dirent->ent_size;
     return fd;
 }
 
@@ -490,10 +769,11 @@ dirent_t *readdir(fd_t fd) {
                 dirent_p->cluster = get_cluster(dirent);
                 dirent_p->ent_offset = i - 32 * (size - 1);
                 dirent_p->ent_cluster = cluster;
-                dirent_p->size = size;
+                dirent_p->ent_size = size;
                 dirent_p->ent_prev_cluster = prev_cluster;
                 dirent_p->attributes = dirent->attributes;
-
+                dirent_p->size = dirent->file_size;
+                
                 if (name + MAX_FILE_NAME - 1 == name_index) {
                     // Not a long filename
                     get_short_name(dirent, name);
@@ -638,9 +918,28 @@ void test_dir() {
     //kprintf("Cluster %d\n", file_table[fd].start_cluster);
     print_chain(4506);
     oflags_t flags;
+    flags.append = 1;
     flags.create = 1;
     flags.read = 1;
     flags.write = 1;
+    //flags.trunc = 1;
+    fd_t file = openfile("testfile", flags);
+    char buffer[500];
+    strCopy("Hello world ! I'm not happy", buffer);
+    kprintf("Wrote %d bytes\n", write(file, buffer, 511));
+    //file_table[file].size = 200;
+    memset(buffer, 0, 500);
+    seek(file, SEEK_SET, 0);
+    kprintf("Read : %d\n", read(file, buffer, 201));
+    kprintf("Content : %s\n", buffer);
+    copyfile("testfile", "testfile_copy");
+    remove("testfile");
+    rewinddir(fonts);
+    while ((dirent = readdir(fonts))) {
+        print_short_dirent(dirent);
+    }
+    kprintf("Read : %d\n", read(openfile("testfile_copy", flags), buffer, 201));
+    kprintf("COntent :%s\n", buffer);
 }
 
 void init_filename_gen() {
@@ -669,7 +968,7 @@ void init_root() {
     dirent.size = 2;
    
     new_entry(cluster, &dirent);
-    kprintf("Cluster %d offset %d size %d\n", dirent.ent_cluster, dirent.ent_offset, dirent.size );
-    fill_entries(dirent.ent_cluster, dirent.ent_offset, dirent.size, buffer);
+    kprintf("Cluster %d offset %d size %d\n", dirent.ent_cluster, dirent.ent_offset, dirent.ent_size );
+    fill_entries(dirent.ent_cluster, dirent.ent_offset, dirent.ent_size, buffer);
     
 }
