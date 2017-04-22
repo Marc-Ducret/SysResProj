@@ -212,6 +212,8 @@ u8 page_fault(context_t* context) {
         kprintf("reserved ");
     kprintf(") id=%d at %x\n", id, faulting_address);
     
+    if(faulting_address > 0x40000000) asm("hlt");
+    
     if(!present) {
         if(current_page_directory == identity_pd) 
             map_page(get_page(faulting_address, 1, current_page_directory), faulting_address, 0, 1);

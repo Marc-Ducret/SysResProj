@@ -421,14 +421,9 @@ void reorder(state *s) {
         while (rq != NULL) {
             if (s->processes[rq->hd].state.state == RUNNABLE) {//&& s->processes[rq->hd].slices_left > 0 ?
                 next_pid = rq->hd;
-                //kprintf("switch to process %d\n", next_pid);
-                *((u16*) 0xB8006) = 0x0C30 + next_pid;
-                (*((u16*) 0xB8004))++;
                 s->processes[next_pid].slices_left = MAX_TIME_SLICES;
                 s->curr_pid = next_pid;
                 s->curr_priority = p;
-                //copy_context(&(s->processes[next_pid].saved_context), s->ctx);
-                //memcpy(&s->ctx->stack, &(s->processes[next_pid].saved_context.stack), sizeof(stack_state_t));
                 user_pd = global_state.processes[next_pid].page_directory;
                 user_esp = global_state.processes[next_pid].saved_context.regs.esp - 0x2C;
                 return;
@@ -507,7 +502,6 @@ void picosyscall(context_t *ctx) {
 u32 did_init = 0;
 
 void picotimer(context_t *ctx) {
-    *((u16*)0xB800A + global_state.curr_pid) = 0x0C30 + (ctx->stack.eip % 10);
     // Calls the picotransition with current registers pointing regs.
     global_state.ctx = ctx;
     if(!did_init) {
@@ -523,9 +517,8 @@ void writ(u8 *addr) {
     addr[3] = 0x80; addr[4] = 0x0B; addr[5] = 0x00; 
 }
 
-void start_process(int pid, int parent) {
+void start_process(int pid, int parent) { //TODO load somehow
     *((u16*) 0xB8000) = 0x0C30;
-    kprintf("Starting process %d\n", pid);
     process *p = &global_state.processes[pid];
     p->parent_id = parent;
     p->state.state = RUNNABLE;
@@ -533,17 +526,17 @@ void start_process(int pid, int parent) {
     p->state.ch_list = NULL;
     u8 *user_code;
     if(pid) {
-        kprintf("mods_addr %x, mods_count %x\n", multiboot_info->mods_addr, multiboot_info->mods_count);
-        user_code = (u8*) multiboot_info->mods_addr;
-        asm("hlt");
+        user_code = kmalloc_a(0x3000);
+        memset(user_code, 0xF4, 0x3000);
+        //for(int i = 0; i < 0x2; i ++) writ(user_code + 0x6 * i);
     } else {
-        user_code = kmalloc_a(0x1000);
-        memset(user_code, 0xF4, 0x1000);
-        //writ(user_code);
-        //writ(user_code + 0x6);
-        //writ(user_code + 0x6);
-        for(int i = 0; i < 0x103; i ++) writ(user_code + 0xc * i);
+        user_code = kmalloc_a(0x3000);
+        memset(user_code, 0xF4, 0x3000);
+        user_code[0] = 0x90;
+        user_code[1] = 0x90;
+        for(int i = 0; i < 0x103; i ++) writ(2 + user_code + 0x7 * i);
     }
+    kprintf("Starting process %d (code = %x) [%x]\n", pid, user_code, *(u32*)user_code);
     p->page_directory = init_user_page_dir((u32) user_code, 0x1000);
     copy_context(global_state.ctx, &p->saved_context);
     p->saved_context.stack.eip = USER_CODE_VIRTUAL;
@@ -585,7 +578,6 @@ state *picoinit() {
     start_process(0, 0);
     start_process(1, 1);
     s->curr_pid = 0;
-    //init_registers(s->ctx->regs);
     kprintf("Init kernel\n");
     return s;
 }
