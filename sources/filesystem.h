@@ -7,6 +7,7 @@
 #include "lib.h"
 #include "stddef.h"
 #include "stdint.h"
+#include "error.h"
 
 #define END_OF_CHAIN 0x0FFFFFF8
 #define UNUSED_CLUSTER 0x0
@@ -14,7 +15,7 @@
 #define END_OF_ENTRIES 0x00
 
 // TODO
-int errno; // Global variable with error code
+error_t errno; // Global variable with error code
 
 typedef struct {
     u8 start_code[3];
