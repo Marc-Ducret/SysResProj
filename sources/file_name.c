@@ -58,12 +58,10 @@ char *nextdirname(char *path, char** res_pointer) {
     if (*p) {
         *res_pointer = path;
         *p = 0;
-        //strCopy(p + 1, static_filename);
         return p + 1;
     }
     else {
         // No directory separator.
-        //strCopy("", static_filename);
         *res_pointer = path;
         return p;
     }

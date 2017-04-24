@@ -33,7 +33,7 @@ dirent_t *cluster_finddir(fd_t dir, u32 cluster);
 dirent_t *findfile(fd_t dir, char *name);
 dirent_t *findent(fd_t dir, char *name, ftype_t type);
 int create_entries(fd_t dir, char *name, ftype_t type, u8 mode);
-void set_size(fd_t fd, u32 size);
+void set_size(fd_t fd, size_t size);
 void test_dir();
 void init_root();
 #endif /* FS_CALL_H */

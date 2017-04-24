@@ -262,7 +262,7 @@ fd_t new_fd() {
     }
     
     // No more free entries left.
-    assert(0);
+    errno = EMFILE;
     return -1;
 }
 

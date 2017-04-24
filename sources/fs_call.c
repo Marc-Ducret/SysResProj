@@ -20,25 +20,21 @@ void print_short_dirent(dirent_t *dirent) {
 fd_t openfile_ent(dirent_t *dirent, oflags_t flags) {
     // Checks it isn't a directory
     if (dirent->type != FILE) {
-        errno = 4;
+        errno = EISDIR;
         return -1;
     }
-    
+    int system = dirent->attributes.system;
+    int rdonly = dirent->attributes.rdonly;
     // Checks the rights
-    if (dirent->attributes.rd_only && (flags && O_WRONLY)) {
+    if ((flags && O_WRONLY) && ((usermod && (system || rdonly))
+            || (system && rdonly))) {
         // No right to write.
-        errno = 4; 
+        errno = EACCES; 
         return -1;
     }
-    if (dirent->attributes.system && usermod && (flags & O_WRONLY)) {
-        // No rights to modify.
-        errno = 4;
-        return -1;
-    }
-    // TODO Decide whether TRUNC and no WRITE must be an error ?
     
     fd_t fd = new_fd();
-    if (fd < 0) // TODO Too much opened files, is errno already set ?
+    if (fd < 0)
         return -1;
     
     strCopy(dirent->name, file_table[fd].name);
@@ -68,16 +64,22 @@ fd_t openfile_ent(dirent_t *dirent, oflags_t flags) {
 }
 
 fd_t openfile(char *path, oflags_t flags) {
+    if (strlen(path) >= MAX_PATH_NAME) {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
     char *dir_n = dirname(path);
     char *name = basename(path);
-    
+    if (strlen(name) >= ENAMETOOLONG) {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
     // TODO malloc and this will be normally clean
     char file_name[MAX_FILE_NAME];
     strCopy(name, file_name);
     
     fd_t dir = opendir(dir_n);
-    if (dir < 0) {
-        errno = 4; // No such directory
+    if (dir < 0) { // No such directory
         return -1;
     }
     
@@ -85,27 +87,32 @@ fd_t openfile(char *path, oflags_t flags) {
     
     if (file == NULL) {
         // No such file.
-        if (errno == 4) {
-            // It is a directory ! TODO
-            errno = 4;
+        if (errno == EISDIR) {
+            // It is a directory !
             return -1;
         }
         else if (flags & O_CREAT) {
+            int system = file_table[dir].mode & SYSTEM;
+            int rdonly = file_table[dir].mode & RDONLY;
+            if ((usermod && (system || rdonly)) || (system && rdonly)) {
+                errno = EACCES;
+                return -1;
+            }
             // Creates the file TODO
             int res = create_entries(dir, file_name, FILE, flags & O_CMODE);
             if (res < 0)
                 return -1;
-            // TODO Checks results
+            
             file = findfile(dir, file_name);
             if (file == NULL) {
-                kprintf("Failed to find this file, even after creation.\n");
-                errno = 4;
+                fprintf(stderr, "Failed to find this file, even after creation.\n");
+                errno = ECORRF;
                 return -1;
             }
         }
         else {
-            // No such file, no O_CREATE, fails. TODO
-            errno = 4;
+            // No such file, no O_CREATE, fails.
+            errno = ENOENT;
             return -1;
         }
     }
@@ -250,7 +257,7 @@ ssize_t read(fd_t fd, void *buffer, size_t length) {
     return done;
 }
 
-void set_size(fd_t fd, u32 size) {
+void set_size(fd_t fd, size_t size) {
     // Sets the size of file fd.
     u8 content[fs.cluster_size];
     u32 cluster = file_table[fd].ent_cluster;
