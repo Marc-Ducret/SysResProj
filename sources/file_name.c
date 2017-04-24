@@ -50,23 +50,21 @@ char *dirname(char *path) {
 
 char *nextdirname(char *path, char** res_pointer) {
     // Splits the path into the first directory name, and the remaining path.
-    // Returns a pointer to remaining path
+    // Returns a pointer to remaining path.
     // Uses res_pointer to put the pointer towards the first directory name.
-    // TODO with malloc 
-    
-    strCopy(path, static_dirname);
-    char *p = static_dirname;
+    // WARNING : this uses the arg string to store result !
+    char *p = path;
     for (; *p && (*p != DIR_SEP); p++) {}
     if (*p) {
-        *res_pointer = static_dirname;
+        *res_pointer = path;
         *p = 0;
-        strCopy(p + 1, static_filename);
-        return static_filename;
+        //strCopy(p + 1, static_filename);
+        return p + 1;
     }
     else {
         // No directory separator.
-        strCopy("", static_filename);
-        *res_pointer = static_dirname;
+        //strCopy("", static_filename);
+        *res_pointer = path;
         return p;
     }
 }

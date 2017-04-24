@@ -723,7 +723,13 @@ char *getcwd() {
 fd_t opendir(char *path) {
     fd_t fd;
     dirent_t *dirent_p;
-    
+    if (strlen(path) >= MAX_PATH_NAME) {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+    char buffer[MAX_PATH_NAME];
+    strCopy(path, buffer);
+    path = buffer;
     // Initialisation : open the source directory.
     if (*path == DIR_SEP) {
         dirent_t dirent;
@@ -732,7 +738,7 @@ fd_t opendir(char *path) {
         dirent.name[1] = 0;
         dirent.type = DIR;
         dirent.ent_cluster = fs.root_cluster;
-        dirent.ent_offset = 64;
+        dirent.ent_offset = 64; // TODO May not be true
         dirent.ent_prev_cluster = 0;
         dirent.mode = SYSTEM;
         dirent.size = 0;
@@ -749,7 +755,7 @@ fd_t opendir(char *path) {
     }
     if (fd == -1)
         return -1;
-    //char nextdir[MAX_FILE_NAME];
+    
     char *nextdir;
     // Now, follows the path until end of it.
     while (*path) {
@@ -767,6 +773,8 @@ fd_t opendir(char *path) {
         // Close current directory and opens nextdir.
         closedir(fd);
         fd = opendir_ent(dirent_p);
+        if (fd == -1)
+            return -1;
         
         for (; *path == DIR_SEP; path++) {} // Removes all following separators
         }
