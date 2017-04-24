@@ -32,20 +32,19 @@ char *dirname(char *path) {
     for (; *p; p++);
     p--;
     for (; *p == DIR_SEP; p--);
-    kprintf("p = %d\n", p - static_dirname);
     *(p + 1) = 0;
-    kprintf("%s\n", static_dirname);
     for (; (p >= static_dirname) && (*p != DIR_SEP); p--) {}
     
     if (p < static_dirname) {
         // No DIR_SEP.
-        kprintf("No directory separator in dirname call on %s\n", path);
         strCopy(CUR_DIR_NAME, static_dirname);
     }
-    else {
-        *p = 0;
+    else if (p > static_dirname) { 
+        *p = 0; // Keeps the part at the right of this separator.
     }
-    kprintf("static_dirname %s\n", static_dirname);
+    else {
+        *(p+1) = 0; // This separator means root directory !
+    }
     return static_dirname;
 }
 

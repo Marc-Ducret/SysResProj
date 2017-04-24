@@ -22,6 +22,8 @@ build/partition.o \
 build/filesystem.o \
 build/file_name.o \
 build/fs_call.o \
+build/stream.o \
+build/error.o \
 build/keycode.o \
 build/keyboard.o \
 build/shell.o \

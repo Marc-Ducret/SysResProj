@@ -1,21 +1,15 @@
 #ifndef FILESYSTEM_H
 #define FILESYSTEM_H
 #include "int.h"
-#include "disk.h"
-#include "printing.h"
-#include "partition.h"
+
 #include "lib.h"
 #include "stddef.h"
 #include "stdint.h"
-#include "error.h"
 
 #define END_OF_CHAIN 0x0FFFFFF8
 #define UNUSED_CLUSTER 0x0
 #define UNUSED_ENTRY 0xE5
 #define END_OF_ENTRIES 0x00
-
-// TODO
-error_t errno; // Global variable with error code
 
 typedef struct {
     u8 start_code[3];
@@ -122,20 +116,25 @@ fs_t fs;
 #define MAX_FILE_NAME 64
 #define MAX_NB_FILE 256
 #define MAX_PATH_NAME 1024
-#define O_RDONLY 1
-#define O_WRONLY 2
-#define O_CREAT  4
-#define O_APPEND 8
-#define O_TRUNC  16
+#define O_CRDONLY 1
+#define O_CSYSTEM 2
+#define O_RDONLY 4
+#define O_WRONLY 8
+#define O_CREAT  16
+#define O_APPEND 32
+#define O_TRUNC  64
+#define O_RDWR 12
+#define O_CMODE 3
+
+typedef u8 oflags_t;
 
 typedef struct {
-    int read : 1;
-    int write : 1;
-    int create : 1;
-    int append : 1; // Not supported
-    int trunc : 1;  // Not supported
-    int unused : 3;
-} __attribute__ ((packed)) oflags_t;
+    int system : 1;
+    int rdonly : 1;
+} __attribute__ ((packed)) mode_t;
+
+#define RDONLY 1
+#define SYSTEM 1
 
 typedef enum {
     F_UNUSED, FILE, DIR
@@ -144,7 +143,7 @@ typedef enum {
 typedef struct {
     u32 global_offset; // New (and not next) global offset
     u32 old_offset; // Old (and current) global offset
-    oflags_t mode;
+    oflags_t flags;
     u32 size;
 } __attribute__ ((packed)) file_descr_t;
 
@@ -161,6 +160,7 @@ typedef struct {
     u32 ent_cluster;
     u32 ent_offset;
     u32 ent_size;
+    u8 mode;
     union {
         dir_handler_t;
         file_descr_t;
@@ -185,6 +185,7 @@ typedef struct {
     u32 ent_prev_cluster;
     char name[MAX_FILE_NAME];
     ftype_t type;
+    u8 mode;
     u32 ent_size;   // Number of directory entries used by the file / directory.
     u32 size;       // Size of the file (0 for directories).
     attributes_t attributes;
@@ -205,9 +206,18 @@ u32 new_cluster();
 void free_cluster(u32 cluster, u32 prev_cluster);
 void free_cluster_chain(u32 start_cluster);
 void reset_cluster(u32 cluster);
-void new_entry(u32 cluster, dirent_t *dirent); // Fills the entry position fields
+int new_entry(u32 cluster, dirent_t *dirent); // Fills the entry position fields
 void free_entry(dirent_t *dirent); // frees corresponding entries
 u32 insert_new_cluster(u32 prev, u32 next);
 
+typedef struct {
+    u32 size;   // Max size
+    u32 index;  // Next free index
+    u8 *buffer; // Address of the buffer
+    fd_t file;  // File descriptor linked to stream
+} stream_t;
+
+#include "disk.h"
+#include "partition.h"
 #endif /* FILESYSTEM_H */
 

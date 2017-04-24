@@ -12,9 +12,18 @@ File system :
 	- Unique names !
 	- No reset of 8.3 names
 	- Nice function to safely find and open a file ?
+	- Directories Improvement : open them as streams ?
+	- While checking a fd, must we check if not too big ?
 
 Disk :
 	- Manage 'out of disk' requests
+	- Manage errors happening when writing / reading (currently not supposed to fail)
+	- Return END_OF_CHAIN instead of 0 in case of failure ?
 
 Time management :
 	- Access time (http://wiki.osdev.org/CMOS)
+
+Global organisation :
+	- Folders ?
+	- Manage includes !
+	- Separate user and kernel code ?

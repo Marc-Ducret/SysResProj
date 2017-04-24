@@ -3,7 +3,7 @@
 
 #include "int.h"
 #include "lib.h"
-
+#include "stream.h"
 #define COLOR_BLACK 0
 #define COLOR_BLUE 1
 #define COLOR_GREEN 2
@@ -33,7 +33,9 @@ void terminal_putentryat(char c, u8 color, u32 x, u32 y);
 void putchar(char c);
 void erase();
 void putint(int i);
+void gputint(int i, stream_t *stream);
 void kprintf(const char* data, ...);
+void fprintf(stream_t *stream, const char* data, ...);
 void clear(u8 bgColor);
 void scrollup();
 void scrolldown();

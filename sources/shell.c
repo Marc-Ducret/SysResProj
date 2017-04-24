@@ -31,7 +31,8 @@ void execCmd() {
     } else if(strEqual(cmd, "newlaunch")) {
         new_launch();
     } else if(strEqual(cmd, "mkdir")) {
-        mkdir("test1");
+        u8 mode = 0;
+        mkdir("test1", mode);
     } else if(strEqual(cmd, "rmdir")) {
         rmdir("test1");
     }

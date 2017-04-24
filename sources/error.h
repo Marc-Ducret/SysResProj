@@ -1,6 +1,15 @@
 #ifndef ERROR_H
 #define ERROR_H
+#include <stddef.h>
+#include "int.h"
+#include "stream.h"
+
+#define DEFAULT_STDERR_PATH "/error/stderr"
+#define DEFAULT_STDERR_DIR "/error/"
+#define NB_ERR 71
+
 typedef enum {
+    ECLEAN,     //No error, default value
     E2BIG,	//Argument list too long
     EACCES,	//Permission denied
     EAGAIN,	//Resource temporarily unavailable; try again
@@ -69,7 +78,15 @@ typedef enum {
     EHOSTUNREACH,	//No route to host
     ELOOP,	//Too many levels of symbolic links
     EOVERFLOW,	//File size or position not representable
+    ECORRF,     // Corrupted or not consistant file
     EUNKNOWNERR,	//Unknown error
 } error_t;
+
+char *error_msg[NB_ERR];
+error_t errno; // Global variable with error code
+stream_t *stderr;
+int init_stderr(char *path);
+void perror(char *data);
+char *strerror(error_t errnum);
 #endif /* ERROR_H */
 

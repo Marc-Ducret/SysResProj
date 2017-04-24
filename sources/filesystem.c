@@ -285,7 +285,7 @@ u32 new_cluster() {
         }
     }
     
-    for (u32 i = 0; i < next_free_cluster; i++) {
+    for (u32 i = 2; i < next_free_cluster; i++) {
         if (get_next_cluster(i) == UNUSED_CLUSTER) {
             next_free_cluster = i + 1;
             // Marks the cluster as used (end of chain).
@@ -296,8 +296,8 @@ u32 new_cluster() {
     }
     
     // No more free clusters left
-    assert(0);
-    return -1;
+    errno = ENOSPC;
+    return 0;
 }
 
 void free_cluster(u32 cluster, u32 prev_cluster) {
@@ -339,7 +339,7 @@ void reset_cluster(u32 cluster) {
     write_cluster(cluster, buffer);
 }
 
-void new_entry(u32 cluster, dirent_t *dirent) {
+int new_entry(u32 cluster, dirent_t *dirent) {
     // Finds size consecutive free entries in cluster chain starting at cluster.
     // Fills in the ent_offset and ent_cluster fields of dirent parameter.
     u8 content[fs.cluster_size];
@@ -349,7 +349,7 @@ void new_entry(u32 cluster, dirent_t *dirent) {
     u32 size = dirent->ent_size;
     for (; content[start] != END_OF_ENTRIES && content[start] != UNUSED_ENTRY;
          start += 32); 
-    
+    kprintf("Everything is occupied until offset %d\n", start);
     while (start <= fs.cluster_size - size * 32) {
         // Finds the first used entry after start.
         u32 end = start;
@@ -360,7 +360,15 @@ void new_entry(u32 cluster, dirent_t *dirent) {
                 // Enough place !
                 dirent->ent_offset = start;
                 dirent->ent_cluster = cluster;
-                return;
+                if (content[end] == END_OF_ENTRIES &&
+                   (end + 32 < fs.cluster_size) &&
+                   (content[end + 32] != END_OF_ENTRIES)) {
+                    // To avoid reading garbage.
+                    kprintf("Erasing garbage\n");
+                    content[end+32] = END_OF_ENTRIES;
+                    write_cluster(cluster, content);
+                } 
+                return 0;
             }
         }
         start = end + 32; 
@@ -389,6 +397,7 @@ void new_entry(u32 cluster, dirent_t *dirent) {
     kprintf("Next cluster 1 : %d, and 2 : %d\n", get_next_cluster(cluster), get_next_cluster(next_cluster));
     dirent->ent_cluster = next_cluster;
     dirent->ent_offset = 0;
+    return 0;
 }
 
 void free_entry(dirent_t *dirent) {

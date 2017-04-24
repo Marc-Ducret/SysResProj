@@ -1,7 +1,6 @@
 #ifndef DISK_H
 #define DISK_H
 #include "int.h"
-#include "printing.h"
 #include <stddef.h>
 #include "io.h"
 #include "lib.h"
@@ -43,5 +42,7 @@ void read_sectors(u32 sector, u8 sector_count, void* buffer);
 void read_address(u32 address, u32 length, void* buffer);
 void write_sectors(u32 sector, u8 sector_count, void* buffer);
 void write_address(u32 address, u32 length, void* buffer);
+
+#include "printing.h"
 #endif /* DISK_H */
 

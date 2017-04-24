@@ -14,6 +14,7 @@
 #include "filesystem.h"
 #include "partition.h"
 #include "fs_call.h"
+#include "stream.h"
 
 void dieSlowly() {
     clear(make_color(COLOR_LIGHT_GREEN, COLOR_LIGHT_GREEN));
@@ -35,11 +36,12 @@ void init() {
     init_paging(0x100000);
     context_t ctx;
     picoinit(&ctx);
-    asm("sti");
     init_disk(0);
     init_fs(0); // init_fs(1) to obtain much more details on the file system !
     init_root();
+    init_stderr(NULL);
     test_dir();
+    asm("sti");
 }
 
 void kmain() {
