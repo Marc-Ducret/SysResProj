@@ -137,10 +137,7 @@ int gputchar(char c, stream_t *stream) {
 
 void gputint(int i, stream_t *stream) {
     if(i < 0) {
-        if (stream == NULL)
-            gputchar('-', stream);
-        else
-            
+        gputchar('-', stream);
         gputint(-i, stream);
     } else {
         if(i >= 10) gputint(i / 10, stream);

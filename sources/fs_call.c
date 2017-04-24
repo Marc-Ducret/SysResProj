@@ -5,7 +5,7 @@ u32 static_path_offset = 0;
 long_file_name_t static_longnames[MAX_FILE_NAME / 13 + 2];
 directory_entry_t static_entry;
 fd_t cwd; // Current working directory
-
+dirent_t root_dirent;
 // TODO
 int usermod = 0; // Global variable with rights of current processs
 
@@ -90,7 +90,7 @@ fd_t openfile(char *path, oflags_t flags) {
             errno = 4;
             return -1;
         }
-        else if ((flags & O_CREAT)) {
+        else if (flags & O_CREAT) {
             // Creates the file TODO
             int res = create_entries(dir, file_name, FILE, flags & O_CMODE);
             if (res < 0)
@@ -603,6 +603,7 @@ int mkdir(char *path, u8 mode) {
     // Asserts directory doesn't exist
     if (finddir(fd, file) != NULL) {
         closedir(fd);
+        errno = EEXIST;
         return -1;
     }
     if (create_entries(fd, file, DIR, mode) == -1) {
@@ -733,19 +734,7 @@ fd_t opendir(char *path) {
     // Initialisation : open the source directory.
     if (*path == DIR_SEP) {
         dirent_t dirent;
-        dirent.cluster = fs.root_cluster;
-        dirent.name[0] = '/';
-        dirent.name[1] = 0;
-        dirent.type = DIR;
-        dirent.ent_cluster = fs.root_cluster;
-        dirent.ent_offset = 64; // TODO May not be true
-        dirent.ent_prev_cluster = 0;
-        dirent.mode = SYSTEM;
-        dirent.size = 0;
-        dirent.ent_size = 1;
-        dirent.attributes.dir = 1;
-        dirent.attributes.system = 1;
-
+        dirent = root_dirent;
         fd = opendir_ent(&dirent); // Opens root directory.
         for (; *path == DIR_SEP; path++) {} // Removes all starting separators
     }
@@ -1049,6 +1038,7 @@ void test_dir() {
     kprintf("Errno : %s\n", strerror(errno));
     fprintf(NULL, "Content : (* %s *)\n", buffer);
     kprintf("Error %d : %s\n", 42, strerror(42));
+    kprintf("stderr %d\n", stderr);
 }
 
 void init_filename_gen() {
@@ -1058,6 +1048,18 @@ void init_filename_gen() {
 
 void init_root() {
     // Adds . and .. entries to the root directory.
+    dirent_t *dirent = &root_dirent;
+    dirent->cluster = fs.root_cluster;
+    dirent->name[0] = '/';
+    dirent->name[1] = 0;
+    dirent->type = DIR;
+    dirent->ent_cluster = fs.root_cluster;
+    dirent->ent_prev_cluster = 0;
+    dirent->mode = SYSTEM;
+    dirent->size = 0;
+    dirent->ent_size = 1;
+    dirent->attributes.dir = 1;
+    dirent->attributes.system = 1;
     
     fd_t fd = opendir("/");
     void* res = finddir(fd, CUR_DIR_NAME);
@@ -1073,12 +1075,13 @@ void init_root() {
     fill_dir_entry(cluster, buffer, CUR_DIR_NAME, DIR, mode);
     fill_dir_entry(cluster, &buffer[1], PARENT_DIR_NAME, DIR, mode);
     
-    dirent_t dirent;
-    dirent.cluster = cluster;
-    dirent.ent_size = 2;
+    dirent_t tmpent;
+    tmpent.cluster = cluster;
+    tmpent.ent_size = 2;
    
-    new_entry(cluster, &dirent);
-    kprintf("Cluster %d offset %d size %d\n", dirent.ent_cluster, dirent.ent_offset, dirent.ent_size );
-    fill_entries(dirent.ent_cluster, dirent.ent_offset, dirent.ent_size, buffer);
+    new_entry(cluster, &tmpent);
+    kprintf("Cluster %d offset %d size %d\n", tmpent.ent_cluster, tmpent.ent_offset, 2);
+    fill_entries(tmpent.ent_cluster, tmpent.ent_offset, 2, buffer);
     
+    dirent->ent_offset = tmpent.ent_offset;
 }

@@ -38,7 +38,7 @@ void init() {
     init_disk(0);
     init_fs(0); // init_fs(1) to obtain much more details on the file system !
     init_root();
-    init_stderr(NULL);
+    kprintf("Starting stderr result : %d\n", init_stderr(NULL));
     test_dir();
 }
 

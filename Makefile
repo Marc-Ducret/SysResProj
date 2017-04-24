@@ -113,4 +113,4 @@ save_img:
 load_img:
 	cp resources/disk.img build/disk.img
 
-update_img: load_img build/os.iso load_dev mount cp_iso_to_img umount unload_dev
+update_img: build/os.iso load_dev mount cp_iso_to_img umount unload_dev

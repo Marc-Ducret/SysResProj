@@ -89,6 +89,8 @@ int init_stderr(char *path) { // TODO Really place this here ?
             // Failed to create such directory. (maybe handle with finddir ?)
             if (errno != EEXIST) {
                 // There wasn't already such a directory -> Nope !
+                kprintf("Sorry\n");
+                for(;;);
                 return -1;
             }
         }
