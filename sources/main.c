@@ -40,13 +40,13 @@ void init() {
     init_root();
     init_stderr(NULL);
     test_dir();
-    //asm("sti");
+    asm("sti");
 }
 
 void kmain(multiboot_info_t *mbinfo) {
     multiboot_info = mbinfo;
     init();
-    //asm("sti");
+    asm("sti");
     for(;;) asm("hlt");
     //shell();
     dieSlowly();
