@@ -495,7 +495,7 @@ void picotimer(context_t *ctx) {
         picoinit();
         return;
     }
-    picotransition(&global_state, TIMER);
+    //picotransition(&global_state, TIMER);
 }
 
 void writ(u8 *addr) {

@@ -37,6 +37,18 @@ timer\nb:
     pushr
     push %esp
     push $\nb
+    #call irq_handler
+    add $8, %esp
+    popr
+    add $4, %esp
+    sti
+    iret
+    #TODO rm
+    cli
+    push $0
+    pushr
+    push %esp
+    push $\nb
     call irq_handler
     mov user_pd, %eax
     add $0x1000, %eax
