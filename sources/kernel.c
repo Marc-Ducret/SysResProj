@@ -466,7 +466,7 @@ void picotransition(state *s, event ev) {
                 //On remet le processus a la fin
                 priority p = s->curr_priority;
                 pid_t id = s->curr_pid;
-                s->runqueues[p] = add(filter(s->runqueues[p], id), id);
+                s->runqueues[p] = add(id, filter(s->runqueues[p], id));
             }
         } else {
             reorder_req = 1;
@@ -530,7 +530,7 @@ void start_process(int pid, int parent) { //TODO load somehow
     memcpy((void *) stack_phys + 0x1000 - sizeof(context_t), &p->saved_context, sizeof(context_t));
     user_esp = USER_STACK_VIRTUAL + 0x1000 - sizeof(context_t) - 0x8;
     user_pd = p->page_directory;
-    global_state.runqueues[MAX_PRIORITY] = add(global_state.runqueues[MAX_PRIORITY], pid);
+    global_state.runqueues[MAX_PRIORITY] = add(pid, global_state.runqueues[MAX_PRIORITY]);
 }
 
 void load_context(context_t ctx) {
