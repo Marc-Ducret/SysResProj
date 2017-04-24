@@ -100,20 +100,6 @@ list *filter(list *l, int elt) {
     return l;
 }
 
-
-list *append(list *l, int elt) {
-    if (l == NULL) {
-        list *res = malloc_list(sizeof(list));
-        res->hd = elt;
-        res->tl = NULL;
-        return res;
-    }
-
-    l->tl = append(l->tl, elt);
-
-    return l;
-}
-
 c_list* get_recv(state *s, chanid i) {
     c_list* res = s->channels[i].recvs;
     s->channels[i].recvs = res->tl;

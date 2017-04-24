@@ -30,6 +30,11 @@ void execCmd() {
         launch();
     } else if(strEqual(cmd, "newlaunch")) {
         new_launch();
+    } else if(strEqual(cmd, "mkdir")) {
+        u8 mode = 0;
+        mkdir("test1", mode);
+    } else if(strEqual(cmd, "rmdir")) {
+        rmdir("test1");
     }
     else kprintf("Unknown command (%s)\n", cmd);
     while(pos > 0)

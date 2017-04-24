@@ -4,7 +4,7 @@
 #include "keyboard.h"
 #include "kernel.h"
 #include "paging.h"
-
+#include "disk.h"
 void test() {
     putchar('.');
 }
@@ -62,11 +62,24 @@ void irq_handler(u32 id, context_t *ctx) {
     if (id == 0) { // Timer
         picotimer(ctx);
     }
-    if(id == 1) { // Keyboard
-        //while ((inportb(0x64) & 0x01) == 0);
-        //provideKeyEvent(inportb(0x60));
+    else if(id == 1) { // Keyboard
+        while ((inportb(0x64) & 0x01) == 0);
+        provideKeyEvent(inportb(0x60));
     }
-    
+    else if (id == 14) { // HDD
+        //kprintf("HDD Interrupt\n");
+    }
+    else if (id == 7) {
+        // Strange IRQ happening (with bochs, not QEMU).
+        // It seems like if no one on Internet could figure out why.
+        outportb(0x20, 0x0B);
+        u8 irr = inportb(0x20);
+        if (!irr)
+            return;
+    }
+    else {
+        kprintf("Received an IRQ with id %d.\n", id);
+    }
     // Informs the PIC we are done with this IRQ
     outportb(0x20,0x20);
     

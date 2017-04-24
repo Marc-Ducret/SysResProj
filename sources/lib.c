@@ -23,3 +23,42 @@ int strEqual(char *strA, char *strB) {
     }
     return 0;
 }
+
+void strCopy(char *src, char* dest) {
+    while (*src) {
+        *dest ++ = *src ++;
+    }
+    *dest = 0;
+}
+
+u32 strlen(const char* str) {
+    u32 ret = 0;
+    while(str[ret] != 0)
+        ret++;
+    return ret;
+}
+
+void assert(int condition) {
+    if (!condition) {
+        kprintf("Assertion Failure.\n");
+        for (;;) {
+            asm("hlt");
+        }
+    }
+}
+
+int min(int a, int b) {
+    return a < b ? a : b;
+}
+
+int max(int a, int b) {
+    return a < b ? b : a;
+}
+
+u32 umax(u32 a, u32 b) {
+    return a < b ? b : a;
+}
+
+u32 umin(u32 a, u32 b) {
+    return a < b ? a : b;
+}

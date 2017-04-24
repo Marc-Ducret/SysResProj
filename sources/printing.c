@@ -13,13 +13,6 @@ u16 make_vgaentry(char c, u8 color) {
     return c16 | color16 << 8;
 }
 
-u32 strlen(const char* str) {
-    u32 ret = 0;
-    while(str[ret] != 0)
-        ret++;
-    return ret;
-}
-
 int terminal_row;
 int terminal_column;
 u8 terminal_color;
@@ -72,6 +65,37 @@ void load_from_scroll() {
     updatecursor();
 }
 
+void erase() {
+    terminal_column--;
+    if(terminal_column < 0) {
+        terminal_row--;
+        terminal_column = VGA_WIDTH-1;
+        if(terminal_row < 0) terminal_row = 0;
+    }
+    terminal_putentryat(' ', terminal_color, terminal_column, terminal_row);
+    updatecursor();
+}
+
+void clear(u8 color) {
+    for(int x = 0; x < VGA_WIDTH; x ++)
+        for(int y = 0; y < VGA_HEIGHT; y ++)
+            terminal_putentryat(' ', color, x, y);
+    terminal_row = terminal_column = 0;
+    updatecursor();
+    max_scroll = 0;
+    scroll = 0;
+}
+
+void scrolldown() {
+    if(--scroll < 0) scroll = 0;
+    else load_from_scroll();
+}
+
+void scrollup() {
+    if(++scroll > max_scroll) scroll = max_scroll;
+    else load_from_scroll();
+}
+
 void putchar(char c) {
     if (c == '\n') {
         while (terminal_column < VGA_WIDTH) {
@@ -102,47 +126,53 @@ void putchar(char c) {
     }    
 }
 
-void erase() {
-    terminal_column--;
-    if(terminal_column < 0) {
-        terminal_row--;
-        terminal_column = VGA_WIDTH-1;
-        if(terminal_row < 0) terminal_row = 0;
+int gputchar(char c, stream_t *stream) {
+    int res = 0;
+    if (stream == NULL)
+        putchar(c);
+    else
+        res = stream_putchar(c, stream);
+    return res;
+}
+
+void gputint(int i, stream_t *stream) {
+    if(i < 0) {
+        if (stream == NULL)
+            gputchar('-', stream);
+        else
+            
+        gputint(-i, stream);
+    } else {
+        if(i >= 10) gputint(i / 10, stream);
+        gputchar('0' + (i % 10), stream);
     }
-    terminal_putentryat(' ', terminal_color, terminal_column, terminal_row);
-    updatecursor();
 }
 
 void putint(int i) {
-    if(i < 0) {
-        putchar('-');
-        putint(-i);
-    } else {
-        if(i >= 10) putint(i / 10);
-        putchar('0' + (i % 10));
-    }
+    gputint(i, NULL);
+}
+
+void gputint_hex(u32 i, stream_t *stream) {
+    if(i >= 16) gputint_hex(i >> 4, stream);
+    u32 number = i % 16;
+    gputchar((number < 10) ? ('0' + number) : ('A' + number - 10), stream);
 }
 
 void putint_hex(u32 i) {
-    if(i >= 16) putint_hex(i >> 4);
-    u32 number = i % 16;
-    putchar((number < 10) ? ('0' + number) : ('A' + number - 10));
+    gputint(i, NULL);
 }
 
-void terminal_writestring(const char* data) {
-    u32 datalen = strlen(data);
+void gprint_string(char *s, stream_t *stream) {
+    u32 datalen = strlen(s);
     for ( u32 i = 0; i < datalen; i++ )
-        putchar(data[i]);
+        gputchar(s[i], stream);
 }
 
 void print_string(char *s) {
-    terminal_writestring(s);
+    gprint_string(s, NULL);
 }
 
-void kprintf(const char* data, ...) {
-    va_list args;
-    va_start(args, data);
-    
+void vkprintf(stream_t *stream, const char* data, va_list args) {    
     char c = *data;
     while (c != 0) {
         if (c == '%') {
@@ -154,50 +184,61 @@ void kprintf(const char* data, ...) {
             switch (c) {
                 case 'd':
                     nb = va_arg(args, int);
-                    putint(nb);
+                    gputint(nb, stream);
                     break;
                 
                 case 's':
                     s = va_arg(args, char*);
-                    print_string(s);
+                    gprint_string(s, stream);
                     break;
                 
                 case 'x':
+                    gprint_string("0x", stream);
+                
+                case 'h':
                     nb = va_arg(args, unsigned int);
-                    kprintf("0x");
-                    putint_hex(nb);
-
+                    gputint_hex(nb, stream);
+                    break;
+                
                 default:
                     break;
             }
         } else {
-            putchar(c);
+            gputchar(c, stream);
         }
         
         data ++;
         c = *data;
-    }
-    terminal_writestring(data);
-    
+    }    
     va_end(args);
 }
 
-void clear(u8 color) {
-    for(int x = 0; x < VGA_WIDTH; x ++)
-        for(int y = 0; y < VGA_HEIGHT; y ++)
-            terminal_putentryat(' ', color, x, y);
-    terminal_row = terminal_column = 0;
-    updatecursor();
-    max_scroll = 0;
-    scroll = 0;
+void kprintf(const char* data, ...) {
+    va_list args;
+    va_start(args, data);
+    vkprintf(NULL, data, args);
+    va_end(args);
 }
 
-void scrolldown() {
-    if(--scroll < 0) scroll = 0;
-    else load_from_scroll();
+void fprintf(stream_t *stream, const char *data, ...) {
+    //putchar('x');
+    va_list args;
+    va_start(args, data);
+    //vkprintf(NULL, data, args);
+    vkprintf(stream, data, args);
+    va_end(args);
+    //putchar('y');
 }
 
-void scrollup() {
-    if(++scroll > max_scroll) scroll = max_scroll;
-    else load_from_scroll();
+char *write_int(char *buffer, int x) {
+    if(x < 0) {
+        *buffer = '-';
+        buffer++;
+        return write_int(buffer, -x);
+    } else {
+        if (x >= 10) 
+            buffer = write_int(buffer, x / 10);
+        *buffer = '0' + (x % 10);
+        return buffer + 1;
+    }
 }
