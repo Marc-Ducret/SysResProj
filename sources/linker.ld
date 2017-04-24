@@ -7,37 +7,29 @@ OUTPUT_FORMAT("elf32-i386")
    kernel image. */
 SECTIONS
 {
-	/* First put the multiboot header, as it is required to be put very early
-	   early in the image or the bootloader won't recognize the file format.
-	   Next we'll put the .text section. */
-	. = 0x1500;
+	. = 0x00001100;
 
-	.text BLOCK(4K) : ALIGN(4K)
+	.text ALIGN(0x1000) :
 	{
 		*(.multiboot);
-		*(.text);
+	    *(.text);
 	}
 
-	/* Read-only data. */
-	.rodata BLOCK(4K) : ALIGN(4K)
+	.rodata ALIGN(0x1000) :
 	{
 		*(.rodata);
 	}
 
-	/* Read-write data (initialized) */
-	.data BLOCK(4K) : ALIGN(4K)
+	.data ALIGN(0x1000) :
 	{
 		*(.data);
 	}
 
-	/* Read-write data (uninitialized) and stack */
-	.bss BLOCK(4K) : ALIGN(4K)
+	.bss ALIGN(0x1000) :
 	{
 		*(COMMON);
 		*(.bss);
 		*(.bootstrap_stack);
 	}
 	end = .;
-	/* The compiler may produce other sections, put them in the proper place in
-	   in this file, if you'd like to include them in the final kernel. */
 }

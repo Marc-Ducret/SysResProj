@@ -4,6 +4,8 @@
 #include "printing.h"
 #include "kernel.h"
 #include "lib.h"
+#include "memory.h"
+#include "paging.h"
 
 static const int CONSTANTE = 42;
 //Variable que dans ce fichier la
@@ -146,6 +148,9 @@ c_list *add_recv(pid_t i, priority p, c_list* l) {
     return l;
 }
 
+volatile u32 user_esp;
+volatile page_directory_t *user_pd;
+volatile multiboot_info_t *multiboot_info;
 
 void copy_context(context_t *src, context_t *dst) {
     memcpy(dst, src, sizeof(context_t));
@@ -403,10 +408,10 @@ void reorder(state *s) {
             if (s->processes[rq->hd].state.state == RUNNABLE) {//&& s->processes[rq->hd].slices_left > 0 ?
                 next_pid = rq->hd;
                 s->processes[next_pid].slices_left = MAX_TIME_SLICES;
-                copy_context(&(s->processes[next_pid].saved_context), s->ctx);
                 s->curr_pid = next_pid;
                 s->curr_priority = p;
-
+                user_pd = global_state.processes[next_pid].page_directory;
+                user_esp = global_state.processes[next_pid].saved_context.regs.esp - 0x2C;
                 return;
             }
             rq = rq->tl;
@@ -414,11 +419,12 @@ void reorder(state *s) {
 
     }
     kprintf("No process to run...\n");
+    asm("hlt");
     return;
 }
 
 void picotransition(state *s, event ev) {
-    copy_context(s->ctx, &(s->processes[s->curr_pid].saved_context));
+    if(s->curr_pid >= 0) copy_context(s->ctx, &(s->processes[s->curr_pid].saved_context));
     int reorder_req = 0;
     if (ev == SYSCALL) {
         syscall_t sc = decode(s);
@@ -453,16 +459,21 @@ void picotransition(state *s, event ev) {
             break;
         }
     } else {
-        s->processes[s->curr_pid].slices_left --;
-        if (s->processes[s->curr_pid].slices_left == 0) {
+        if(s->curr_pid >= 0) {
+            if (--s->processes[s->curr_pid].slices_left <= 0) {
+                s->processes[s->curr_pid].slices_left = 0;
+                reorder_req = 1;
+                //On remet le processus a la fin
+                priority p = s->curr_priority;
+                pid_t id = s->curr_pid;
+                s->runqueues[p] = add(id, filter(s->runqueues[p], id));
+            }
+        } else {
             reorder_req = 1;
-            //On remet le processus a la fin
-            priority p = s->curr_priority;
-            pid_t id = s->curr_pid;
-            s->runqueues[p] = add(id, filter(s->runqueues[p], id));
         }
     }
-
+    
+    user_esp = global_state.processes[s->curr_pid].saved_context.regs.esp - 0x2C;
     if (reorder_req) {
         reorder(s);
     }
@@ -474,17 +485,62 @@ void picosyscall(context_t *ctx) {
     picotransition(&global_state, SYSCALL);
 }
 
+u32 did_init = 0;
+
 void picotimer(context_t *ctx) {
     // Calls the picotransition with current registers pointing regs.
     global_state.ctx = ctx;
-    picotransition(&global_state, TIMER);
+    if(!did_init) {
+        did_init = 1;
+        picoinit();
+        return;
+    }
+    //picotransition(&global_state, TIMER);
 }
 
-state *picoinit(context_t *ctx) {
+void writ(u8 *addr) {
+    addr[0] = 0xFF; addr[1] = 0x05; addr[2] = 0x00;
+    addr[3] = 0x80; addr[4] = 0x0B; addr[5] = 0x00; 
+}
+
+void start_process(int pid, int parent) { //TODO load somehow
+    *((u16*) 0xB8000) = 0x0C30;
+    process *p = &global_state.processes[pid];
+    p->parent_id = parent;
+    p->state.state = RUNNABLE;
+    p->slices_left = 0;
+    p->state.ch_list = NULL;
+    u8 *user_code;
+    if(pid) {
+        user_code = kmalloc_a(0x3000);
+        memset(user_code, 0xF4, 0x3000);
+        //for(int i = 0; i < 0x2; i ++) writ(user_code + 0x6 * i);
+    } else {
+        user_code = kmalloc_a(0x3000);
+        memset(user_code, 0xF4, 0x3000);
+        user_code[0] = 0x90;
+        user_code[1] = 0x90;
+        for(int i = 0; i < 0x103; i ++) writ(2 + user_code + 0x7 * i);
+    }
+    kprintf("Starting process %d (code = %x) [%x]\n", pid, user_code, *(u32*)user_code);
+    p->page_directory = init_user_page_dir((u32) user_code, 0x1000);
+    copy_context(global_state.ctx, &p->saved_context);
+    p->saved_context.stack.eip = USER_CODE_VIRTUAL;
+    u32 stack_phys = get_page(USER_STACK_VIRTUAL, 0, p->page_directory)->frame << 12;
+    memcpy((void *) stack_phys + 0x1000 - sizeof(context_t), &p->saved_context, sizeof(context_t));
+    user_esp = USER_STACK_VIRTUAL + 0x1000 - sizeof(context_t) - 0x8;
+    user_pd = p->page_directory;
+    global_state.runqueues[MAX_PRIORITY] = add(pid, global_state.runqueues[MAX_PRIORITY]);
+}
+
+void load_context(context_t ctx) {
+    copy_context(&global_state.processes[global_state.curr_pid].saved_context, &ctx);
+}
+
+state *picoinit() {
     state *s = &global_state;
-    s->curr_pid = 1;
+    s->curr_pid = -1;
     s->curr_priority = MAX_PRIORITY;
-    s->ctx = ctx;
     
     int i;
     for (i = 0; i < NUM_CHANNELS; i++) {
@@ -496,40 +552,18 @@ state *picoinit(context_t *ctx) {
     }
 
     for (i = 0; i < NUM_PROCESSES; i++) {
-        if (i == 0) {
-            s->processes[i].parent_id = 0;
-            s->processes[i].state.state = RUNNABLE;
-            s->processes[i].slices_left = MAX_TIME_SLICES;
-            s->processes[i].state.ch_list = NULL;
-        } else if (i == 1) {
-            s->processes[i].parent_id = 1;
-            s->processes[i].state.state = RUNNABLE;
-            s->processes[i].slices_left = MAX_TIME_SLICES;
-            s->processes[i].state.ch_list = NULL;
-        } else {
-            s->processes[i].parent_id = 0;
-            s->processes[i].state.state = FREE;
-            s->processes[i].slices_left = 0;
-            s->processes[i].state.ch_list = NULL;
-        }
-
-        int j;
-        for (j = 0; j < NUM_REGISTERS; j++) {
-            //init_registers(&(s->processes[i].saved_context)); TODO useless?? fct add process...
-        }
+        s->processes[i].parent_id = 0;
+        s->processes[i].state.state = FREE;
+        s->processes[i].slices_left = 0;
+        s->processes[i].state.ch_list = NULL;
     }
 
     for (i = 0; i <= MAX_PRIORITY; i++) {
-        if (i == MAX_PRIORITY) {
-            s->runqueues[i] = add(1, NULL);
-        } else if (i == 0) {
-            s->runqueues[i] = add(0, NULL);
-        } else {
-            s->runqueues[i] = NULL;
-        }
+        s->runqueues[i] = NULL;
     }
-
-    //init_registers(s->ctx->regs);
+    start_process(0, 0);
+    start_process(1, 1);
+    s->curr_pid = 0;
     kprintf("Init kernel\n");
     return s;
 }

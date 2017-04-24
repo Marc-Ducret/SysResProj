@@ -1,5 +1,6 @@
 #include "int.h"
 #include "printing.h"
+
 void *memcpy(void *dst, void *src, u32 n) {
     u8 *p = dst;
     while(n--)
@@ -9,10 +10,8 @@ void *memcpy(void *dst, void *src, u32 n) {
 
 void memset(void *dst, u8 src, u32 len) {
     // Copy len times src from the address dst.
-    while (len>0) {
-        *(u8*)dst = src;
-        dst++;
-        len--;
+    while (len--) {
+        *(u8*)dst++ = src;
     }
 }
 

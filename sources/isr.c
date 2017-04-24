@@ -14,24 +14,25 @@ void schedule() {
 }
 
 void print_reg(registers_t *x) {
-    kprintf("Registres : eax %d, ebx %d, ecx %d, edx %d, esp %d, \
-                         ebp %d, esi %d, edi %d.\n",
+    kprintf("Registres : eax %x, ebx %x, ecx %x, edx %x, esp %x, \
+                         ebp %x, esi %x, edi %x.\n",
             x->eax, x->ebx, x->ecx, x->edx, x->esp, x->ebp, x->esi, x->edi);
+}
+
+void print_stack(stack_state_t *x) {
+    kprintf("ss %x, esp %x, eflags %x, cs %x, eip %x\n", 
+        x->ss, x->useresp, x->eflags, x->cs, x->eip);
 }
 
 void syscall(u32 id, context_t *context) {
     registers_t *regs = &(context->regs);
-    //stack_state_t *stack = &(context->stack);
+    stack_state_t *stack = &(context->stack);
     
     kprintf("Caught syscall %d \n", id);
     print_reg(regs);
+    print_stack(stack);
     
     picosyscall(context);
-    
-}
-
-void print_stack(stack_state_t *x) {
-    kprintf("ss %d, eip %d\n", x->ss, x->eip);
 }
 
 void isr_handler(u32 id, context_t *context) {
@@ -39,22 +40,28 @@ void isr_handler(u32 id, context_t *context) {
     registers_t *regs = &(context->regs);
     stack_state_t *stack = &(context->stack);
     
-    kprintf("Caught interruption %d, error code %d\n", id, context->err_code);
-    print_reg(regs);
-    print_stack(stack);
+    u8 print = 1;
+    u8 die = 0;
     
     if (id == 13) {
         kprintf("General Protection Fault, must die.");
-        asm("hlt");
+        die = 1;
+    } else if (id == 14) {
+        if(page_fault(context)) die = 1;
+        else print = 0;
     }
-    else if (id == 14) {
-        page_fault(context);
+    if(print) {
+        kprintf("Caught interruption %d, error code %d\n", id, context->err_code);
+        print_reg(regs);
+        print_stack(stack);
     }
+    if(die) asm("hlt");
 }
 
-void irq_handler(u32 id, context_t *context) {
+void irq_handler(u32 id, context_t *ctx) {
+    *((u16*)0xB8002 + id) = 0x0d30 + id;
     if (id == 0) { // Timer
-        picotimer(context);
+        picotimer(ctx);
     }
     else if(id == 1) { // Keyboard
         while ((inportb(0x64) & 0x01) == 0);

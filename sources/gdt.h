@@ -108,7 +108,7 @@ extern void isr29();
 extern void isr30();
 extern void isr31();
 
-extern void irq0();
+extern void timer0();
 extern void irq1();
 extern void irq2();
 extern void irq3();
