@@ -6,6 +6,7 @@
 #include "lib.h"
 #include "memory.h"
 #include "paging.h"
+#include "fs_call.h"
 
 static const int CONSTANTE = 42;
 //Variable que dans ce fichier la
@@ -81,6 +82,17 @@ list* add(int hd, list* tl) {
     res->tl = tl;
 
     return res;
+}
+
+list* add_end(int hd, list* l) {
+    if(l == NULL) {
+        list *res = malloc_list();
+        res->hd = hd;
+        res->tl = NULL; 
+        return res;
+    }
+    l->tl = add_end(hd, l->tl);
+    return l;
 }
 
 list *filter(list *l, int elt) {
@@ -466,7 +478,7 @@ void picotransition(state *s, event ev) {
                 //On remet le processus a la fin
                 priority p = s->curr_priority;
                 pid_t id = s->curr_pid;
-                s->runqueues[p] = add(id, filter(s->runqueues[p], id));
+                s->runqueues[p] = add_end(id, filter(s->runqueues[p], id));
             }
         } else {
             reorder_req = 1;
@@ -477,6 +489,10 @@ void picotransition(state *s, event ev) {
     if (reorder_req) {
         reorder(s);
     }
+}
+
+void focus_next_process() {
+    global_state.focus = (global_state.focus + 1) % 2;
 }
 
 void picosyscall(context_t *ctx) {
@@ -495,7 +511,8 @@ void picotimer(context_t *ctx) {
         picoinit();
         return;
     }
-    //picotransition(&global_state, TIMER);
+    if(global_state.curr_pid == global_state.focus) memcpy((void*) 0xB8000, (void*) 0x88000000, 0x1000);
+    picotransition(&global_state, TIMER);
 }
 
 void writ(u8 *addr) {
@@ -503,8 +520,7 @@ void writ(u8 *addr) {
     addr[3] = 0x80; addr[4] = 0x0B; addr[5] = 0x00; 
 }
 
-void start_process(int pid, int parent) { //TODO load somehow
-    *((u16*) 0xB8000) = 0x0C30;
+void start_process(int pid, int parent) {
     process *p = &global_state.processes[pid];
     p->parent_id = parent;
     p->state.state = RUNNABLE;
@@ -513,14 +529,12 @@ void start_process(int pid, int parent) { //TODO load somehow
     u8 *user_code;
     if(pid) {
         user_code = kmalloc_a(0x3000);
-        memset(user_code, 0xF4, 0x3000);
-        //for(int i = 0; i < 0x2; i ++) writ(user_code + 0x6 * i);
+        fd_t file = openfile("/p.bin", O_RDONLY);
+        read(file, user_code, 0x3000);
     } else {
         user_code = kmalloc_a(0x3000);
-        memset(user_code, 0xF4, 0x3000);
-        user_code[0] = 0x90;
-        user_code[1] = 0x90;
-        for(int i = 0; i < 0x103; i ++) writ(2 + user_code + 0x7 * i);
+        fd_t file = openfile("/p2.bin", O_RDONLY);
+        read(file, user_code, 0x3000);
     }
     kprintf("Starting process %d (code = %x) [%x]\n", pid, user_code, *(u32*)user_code);
     p->page_directory = init_user_page_dir((u32) user_code, 0x1000);

@@ -1,4 +1,6 @@
 #include "io.h"
+#include "keycode.h"
+#include "kernel.h"
 
 #define BUFFER_SIZE 1024
 
@@ -10,7 +12,8 @@ int keyboardState() {
 }
 
 void provideKeyEvent(int event) {
-    eventBuffer[eventCursor++] = event;
+    if(event < 128 && event == KEY_TAB) focus_next_process();
+    else eventBuffer[eventCursor++] = event;
 }
 
 int nextKeyEvent() {

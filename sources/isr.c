@@ -59,7 +59,6 @@ void isr_handler(u32 id, context_t *context) {
 }
 
 void irq_handler(u32 id, context_t *ctx) {
-    *((u16*)0xB8002 + id) = 0x0d30 + id;
     if (id == 0) { // Timer
         picotimer(ctx);
     }

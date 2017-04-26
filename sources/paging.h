@@ -4,8 +4,9 @@
 #include "int.h"
 #include "context.h"
 
-#define USER_CODE_VIRTUAL  0x40000000
-#define USER_STACK_VIRTUAL 0x80000000
+#define USER_CODE_VIRTUAL   0x40000000
+#define USER_STACK_VIRTUAL  0x80000000
+#define USER_SCREEN_VIRTUAL 0x88000000
 
 
 typedef struct pde

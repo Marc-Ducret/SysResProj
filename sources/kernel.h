@@ -12,11 +12,11 @@
 #define NUM_PROCESSES 32
 #define NUM_CHANNELS 128
 #define NUM_REGISTERS 5
+#define NUM_HANDLES 32
 
 typedef int pid_t;
 typedef int chanid;
 typedef int value;
-//typedef int interrupt;
 typedef int priority;
 
 typedef struct list list;
@@ -85,6 +85,7 @@ typedef struct channel_state
 typedef struct state state;
 struct state {
     pid_t curr_pid;
+    pid_t focus;
     priority curr_priority;
     context_t *ctx;
     process processes[NUM_PROCESSES];
@@ -115,6 +116,7 @@ volatile multiboot_info_t *multiboot_info;
 
 void launch();
 state *picoinit();
+void focus_next_process();
 void picosyscall(context_t *);
 void picotimer(context_t *);
 void picotransition(state *s, event ev);;

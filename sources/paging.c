@@ -180,6 +180,7 @@ page_directory_t *init_user_page_dir(u32 user_code_addr, u32 user_code_len) {
     for(u32 i = 0; i < user_code_len; i += 0x1000)
         map_page(get_page(USER_CODE_VIRTUAL + i, 1, pd), user_code_addr + i, 0, 0); //CODE
     map_page(get_page(USER_STACK_VIRTUAL, 1, pd), 0, 0, 1); //STACK
+    map_page(get_page(USER_SCREEN_VIRTUAL, 1, pd), 0, 0, 1); //SCREEN
     return pd;
 }
 
