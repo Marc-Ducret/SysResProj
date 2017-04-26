@@ -6,7 +6,7 @@
 
 #define DEFAULT_STDERR_PATH "/error/stderr"
 #define DEFAULT_STDERR_DIR "/error/"
-#define NB_ERR 71
+#define NB_ERR 72
 
 typedef enum {
     ECLEAN,     //No error, default value
@@ -79,6 +79,7 @@ typedef enum {
     ELOOP,	//Too many levels of symbolic links
     EOVERFLOW,	//File size or position not representable
     ECORRF,     // Corrupted or not consistant file
+    EBADPERM,   // Bad permission for file
     EUNKNOWNERR,	//Unknown error
 } error_t;
 

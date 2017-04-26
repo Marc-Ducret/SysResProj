@@ -39,6 +39,7 @@ void init() {
     init_fs(0); // init_fs(1) to obtain much more details on the file system !
     init_root();
     init_stderr(NULL);
+    init_filename_gen();
     test_dir();
 }
 
@@ -47,5 +48,6 @@ void kmain(multiboot_info_t *mbinfo) {
     init();
     asm("sti");
     shell();
+    save_filename_gen();
     dieSlowly();
 }

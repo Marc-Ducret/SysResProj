@@ -173,6 +173,7 @@ ft_entry_t file_table[MAX_NB_FILE];
 
 fd_t new_fd();
 void free_fd(fd_t fd);
+int check_fd(fd_t fd, ftype_t type);
 
 typedef enum {
     SEEK_SET, SEEK_CUR, SEEK_END

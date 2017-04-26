@@ -2,7 +2,7 @@
 AS:=as -am --32
 CC:=gcc
 
-CFLAGS:=-ffreestanding -O2 -Wall -Wextra -nostdlib -nostartfiles -nodefaultlibs -m32 -fplan9-extensions
+CFLAGS:=-ffreestanding -O2 -Wall -Werror -Wextra -nostdlib -nostartfiles -nodefaultlibs -m32 -fplan9-extensions
 CPPFLAGS:= -std=gnu99
 LIBS:= #-lgcc
 
@@ -113,4 +113,4 @@ save_img:
 load_img:
 	cp resources/disk.img build/disk.img
 
-update_img: load_img build/os.iso load_dev mount cp_iso_to_img umount unload_dev
+update_img: build/os.iso load_dev mount cp_iso_to_img umount unload_dev

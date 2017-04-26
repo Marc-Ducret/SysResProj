@@ -5,7 +5,7 @@ u32 static_path_offset = 0;
 long_file_name_t static_longnames[MAX_FILE_NAME / 13 + 2];
 directory_entry_t static_entry;
 fd_t cwd; // Current working directory
-
+dirent_t root_dirent;
 // TODO
 int usermod = 0; // Global variable with rights of current processs
 
@@ -20,25 +20,21 @@ void print_short_dirent(dirent_t *dirent) {
 fd_t openfile_ent(dirent_t *dirent, oflags_t flags) {
     // Checks it isn't a directory
     if (dirent->type != FILE) {
-        errno = 4;
+        errno = EISDIR;
         return -1;
     }
-    
+    int system = dirent->attributes.system;
+    int rdonly = dirent->attributes.rd_only;
     // Checks the rights
-    if (dirent->attributes.rd_only && (flags && O_WRONLY)) {
+    if ((flags & O_WRONLY) && ((usermod && (system || rdonly))
+            || (system && rdonly))) {
         // No right to write.
-        errno = 4; 
+        errno = EACCES; 
         return -1;
     }
-    if (dirent->attributes.system && usermod && (flags & O_WRONLY)) {
-        // No rights to modify.
-        errno = 4;
-        return -1;
-    }
-    // TODO Decide whether TRUNC and no WRITE must be an error ?
     
     fd_t fd = new_fd();
-    if (fd < 0) // TODO Too much opened files, is errno already set ?
+    if (fd < 0)
         return -1;
     
     strCopy(dirent->name, file_table[fd].name);
@@ -68,16 +64,22 @@ fd_t openfile_ent(dirent_t *dirent, oflags_t flags) {
 }
 
 fd_t openfile(char *path, oflags_t flags) {
+    if (strlen(path) >= MAX_PATH_NAME) {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
     char *dir_n = dirname(path);
     char *name = basename(path);
-    
+    if (strlen(name) >= ENAMETOOLONG) {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
     // TODO malloc and this will be normally clean
     char file_name[MAX_FILE_NAME];
     strCopy(name, file_name);
     
     fd_t dir = opendir(dir_n);
-    if (dir < 0) {
-        errno = 4; // No such directory
+    if (dir < 0) { // No such directory
         return -1;
     }
     
@@ -85,27 +87,38 @@ fd_t openfile(char *path, oflags_t flags) {
     
     if (file == NULL) {
         // No such file.
-        if (errno == 4) {
-            // It is a directory ! TODO
-            errno = 4;
+        if (errno == EISDIR) {
+            // It is a directory !
             return -1;
         }
-        else if ((flags & O_CREAT)) {
-            // Creates the file TODO
+        else if (flags & O_CREAT) {
+            int system = file_table[dir].mode & SYSTEM;
+            //int rdonly = file_table[dir].mode & RDONLY;
+            //if ((usermod && (system || rdonly)) || (system && rdonly)) {
+            if (usermod && system) {
+                errno = EACCES;
+                return -1;
+            }
+            if (usermod && (flags & O_CSYSTEM)) {
+                // Can't create a file with higher permissions than user !
+                errno = EBADPERM;
+                return -1;
+            }
+            // Creates the file
             int res = create_entries(dir, file_name, FILE, flags & O_CMODE);
             if (res < 0)
                 return -1;
-            // TODO Checks results
+            
             file = findfile(dir, file_name);
             if (file == NULL) {
-                kprintf("Failed to find this file, even after creation.\n");
-                errno = 4;
+                fprintf(stderr, "Failed to find this file, even after creation.\n");
+                errno = ECORRF;
                 return -1;
             }
         }
         else {
-            // No such file, no O_CREATE, fails. TODO
-            errno = 4;
+            // No such file, no O_CREATE, fails.
+            errno = ENOENT;
             return -1;
         }
     }
@@ -113,12 +126,8 @@ fd_t openfile(char *path, oflags_t flags) {
 }
 
 int close(fd_t fd) {
-    if (file_table[fd].type != FILE) {
-        // No such file
-        kprintf("Are you sure you're allowed to close directories with close ?\n");
-        errno = 4;
-        return -1;
-    }      
+    if (check_fd(fd, FILE) == -1)
+        return -1;  
     free_fd(fd);
     return 0;
 }
@@ -127,6 +136,9 @@ int really_seek(fd_t fd, int write) {
     // Updates position of cursor
     // If the new position is outside the file : if write is True, extends the
     // file. Otherwise, if write is false, does nothing.
+    if (check_fd(fd, FILE) == -1)
+        return -1;
+    
     ft_entry_t *f = &file_table[fd];
     if (f->curr_cluster >= END_OF_CHAIN) {
         // If current true position is outside the file. 
@@ -182,16 +194,15 @@ int really_seek(fd_t fd, int write) {
 }
 
 ssize_t read(fd_t fd, void *buffer, size_t length) {
+    if (check_fd(fd, FILE) == -1)
+        return -1;
+    
     ft_entry_t *f = &file_table[fd];
 
     // Checks the mode allows reading.
-    if (f->type == F_UNUSED || !(f->flags & O_RDONLY)) {
-        // Invalid file descriptor, or no read allowed
+    if (!(f->flags & O_RDONLY)) {
+        // No read allowed
         errno = EBADF;
-        return -1;
-    }
-    if (f->type == DIR) {
-        errno = EISDIR;
         return -1;
     }
     // Places correctly the reading head.
@@ -250,7 +261,7 @@ ssize_t read(fd_t fd, void *buffer, size_t length) {
     return done;
 }
 
-void set_size(fd_t fd, u32 size) {
+void set_size(fd_t fd, size_t size) {
     // Sets the size of file fd.
     u8 content[fs.cluster_size];
     u32 cluster = file_table[fd].ent_cluster;
@@ -266,15 +277,13 @@ void set_size(fd_t fd, u32 size) {
 ssize_t write(fd_t fd, void *buffer, size_t length) {
     // Tries to write lenght bytes from buffer to file fd.
     // Returns the number of bytes written, or -1 in case of failure.
+    if (check_fd(fd, FILE) == -1)
+        return -1;
     ft_entry_t *f = &file_table[fd];
     // Checks the mode allows writing.
-    if (f->type == F_UNUSED || !(f->flags & O_WRONLY)) {
+    if (!(f->flags & O_WRONLY)) {
         // Invalid file descriptor, or no write allowed
         errno = EBADF;
-        return -1;
-    }
-    if (f->type == DIR) {
-        errno = EISDIR;
         return -1;
     }
     //fprintf(stderr, "Starting offset %d\n", f->old_offset);
@@ -351,6 +360,10 @@ ssize_t write(fd_t fd, void *buffer, size_t length) {
 
 int remove(char *path) {
     // Removes the specified file.
+    if (strlen(path) >= MAX_PATH_NAME) {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
     char *dir_n = dirname(path);
     char *name = basename(path);
     
@@ -359,23 +372,18 @@ int remove(char *path) {
     strCopy(name, file_name);
     
     fd_t dir = opendir(dir_n);
-    
     if (dir < 0) {
         // No such file.
-        errno = 4;
         return -1;
     }
     dirent_t *dirent = findent(dir, file_name, FILE);
     if (dirent == NULL) {
-        if (errno == 4) // Not a file !
-            errno = 8;
-        else
-            errno = 27; // No such file
+        // No such file, or it is a directory
         return -1;
     }
     if (dirent->attributes.system && usermod) {
         // No such permission
-        errno = 4;
+        errno = EACCES;
         return -1;
     }
     // Deletes the entry
@@ -387,61 +395,93 @@ int remove(char *path) {
 }
 
 int seek(fd_t fd, seek_cmd_t seek_command, int offset) {
-    if (seek_command == SEEK_CUR)
-        offset += file_table[fd].global_offset;
-    if (seek_command == SEEK_END)
-        offset += file_table[fd].size;
+    // Not really safe with unsigned to signed casts.
+    // But we don't expect 4GB files.
+    if (check_fd(fd, FILE) == -1)
+        return -1;
     
+    if (seek_command == SEEK_CUR)
+        offset += (int) file_table[fd].global_offset;
+    if (seek_command == SEEK_END)
+        offset += (int) file_table[fd].size;
+
     if (offset < 0) {
         // Wrong offset
-        errno = 4;
+        errno = EINVAL;
         return -1;
     }
     
-    file_table[fd].global_offset = offset;
+    file_table[fd].global_offset = (u32) offset;
     return offset;
 }
 
 int copyfile(char *old_path, char *new_path) {
-    // Copies the first file toward second place.
-    oflags_t flags = O_RDONLY;
+    // Copies the first file toward second place.    
+    fd_t old = openfile(old_path, O_RDONLY);
+    if (old < 0)
+        return -1;
     
-    fd_t a = openfile(old_path, flags);
-    if (a < 0) {
-        // Errno may be set
+    // Checks that target doesn't exist.
+    fd_t new = openfile(new_path, O_RDONLY);
+    if (new >= 0) {
+        close(old);
+        errno = EEXIST;
+        return -1;
+    }
+    else if (errno != ENOENT) {
+        close(old);
         return -1;
     }
     
-    flags = O_WRONLY | O_CREAT | O_TRUNC; // Erases the target ? TODO
-    // TODO Check that both files have same parameters (system, ..)
-    fd_t b = openfile(new_path, flags);
-    if (b < 0) {
-        // Errno may be set
+    // Tries to open the new file with same rights.
+    oflags_t flags = O_WRONLY | O_CREAT | O_TRUNC;
+    if (file_table[old].mode & SYSTEM)
+        flags |= O_CSYSTEM;
+    if (file_table[old].mode & RDONLY)
+        flags |= O_CRDONLY;
+    new = openfile(new_path, flags);
+    if (new < 0) {
+        close(old);
         return -1;
     }
-    
     // We just have to copy the content of a in b.
     u8 buffer[fs.cluster_size];
     
-    int nb = read(a, buffer, fs.cluster_size);
-    while (nb > 0) {
-        write(b, buffer, nb);
-        nb = read(a, buffer, fs.cluster_size);
+    int err = 0;
+    int nb = read(old, buffer, fs.cluster_size);
+    err = (nb == -1);
+    while (!err && nb > 0) {
+        if (write(new, buffer, nb) == -1)
+            break;
+        nb = read(old, buffer, fs.cluster_size);
+        err = (nb == -1);
     }
-    
+    if (err) {
+        // An error has occured. We delete the new file.
+        err = errno;
+        close(old);
+        close(new);
+        if (remove(new_path) == -1) {
+            fprintf(stderr, "Partial copy of file was created, and couldn't be removed.");
+            return -1;
+        }
+    }
+    close(old);
+    close(new);
     return 0;
 }
 
 int rename(char *old_path, char *new_path) {
+    // This uses copyfile function, so it is very unefficient.
     int res = copyfile(old_path, new_path);
-    if (res == -1) {
-        // errno may be set
+    if (res == -1)
         return -1;
-    }
+    
     res = remove(old_path);
     if (res == -1) {
         // Big problem : copied but not removed other !
         // Should check at start the rights and so on to be sure !
+        fprintf(stderr, "Created the new file, but couldn't remove the old one.");
         return -1;
     }
     return 0;
@@ -479,14 +519,16 @@ void fill_dir_entry(u32 cluster, directory_entry_t *dirent, char *name, ftype_t 
 }
 
 char static_fresh_name[12]; // TODO
+int next_name_id = 0;
 char *get_fresh_name() {
-    static int count = 0;
+    int count = next_name_id;
     if (count >= 10000000) // May not happen
         count = 0;
     char *buffer = static_fresh_name;
     *buffer = 'f';
     write_int(buffer+1, count);
     count++;
+    next_name_id = count;
     return buffer;
 }
 
@@ -551,6 +593,9 @@ void *build_entries(fd_t parent_dir, char *name, ftype_t type, u8 mode) {
 }
 
 int create_entries(fd_t dir, char *name, ftype_t type, u8 mode) {
+    if (check_fd(dir, DIR) == -1)
+        return -1;
+    
     if (strlen(name) >= MAX_FILE_NAME) {
         errno = ENAMETOOLONG;
         return -1;
@@ -596,13 +641,23 @@ int mkdir(char *path, u8 mode) {
     }
     char file[MAX_FILE_NAME];
     strCopy(file_name, file);
+    
+    if (usermod && (mode & SYSTEM)) {
+        errno = EBADPERM;
+        return -1;
+    }
     fprintf(stderr, "Creating directory %s at %s\n", file, dir_name);
     fd_t fd = opendir(dir_name);
     if (fd < 0)
         return -1;
+    if ((file_table[fd].mode & SYSTEM) && usermod) {
+        errno = EACCES;
+        return -1;
+    }
     // Asserts directory doesn't exist
     if (finddir(fd, file) != NULL) {
         closedir(fd);
+        errno = EEXIST;
         return -1;
     }
     if (create_entries(fd, file, DIR, mode) == -1) {
@@ -650,7 +705,7 @@ int rmdir(char *path) {
     fd_t parent = opendir(name); // Opens the parent directory
     if (parent < 0)
         return -1;
-    if (file_table[parent].mode && usermod) {
+    if ((file_table[parent].mode & SYSTEM) && usermod) {
         closedir(parent);
         errno = EACCES;
         return -1;
@@ -676,7 +731,10 @@ int rmdir(char *path) {
 
 int chdir(char *path) {
     fd_t fd = opendir(path);
-    closedir(cwd);
+    if (fd == -1)
+        return -1;
+    if (closedir(cwd) == -1)
+        return -1;
     cwd = fd;
     return 0;
 }
@@ -691,27 +749,43 @@ char *getcwd() {
     
     // Disjunction between root and non root directories
     u32 cl = file_table[cwd].start_cluster;
-    strCopy((cl == fs.root_cluster) ? "" : CUR_DIR_NAME, path);
+    if (cl <= fs.root_cluster) {
+        res[res_index] = ROOT_NAME;
+        return res + res_index;
+    }
+    strCopy(CUR_DIR_NAME, path);
     fd_t fd = opendir(path);
-
+    if (fd == -1)
+        return NULL;
+    
     fd_t parent;
     dirent_t *dirent;
     while (file_table[fd].start_cluster > fs.root_cluster) {
         concat(path, PARENT_DIR_NAME);
         parent = opendir(path); // Opens the parent directory
-        
+        if (parent == -1) {
+            closedir(fd);
+            return NULL;
+        }
         // Finds the directory entry corresponding to fd.
         dirent = cluster_finddir(parent, file_table[fd].start_cluster);
         closedir(fd); // Closes fd
-        
+        if (dirent == NULL) {
+            closedir(parent);
+            return NULL;
+        }
         fd = parent;
         u32 length = strlen(dirent->name);
-        assert(res_index >= length + 1);
+        if (length + 1 > res_index) {
+            closedir(fd);
+            errno = ENAMETOOLONG;
+            return NULL;
+        }
         strCopy(dirent->name, res + res_index - length);
         res[res_index] = DIR_SEP;
         res_index -= length + 1;
     }
-    
+    closedir(fd);
     // fd corresponds to the root.
     res[res_index] = ROOT_NAME;
     
@@ -733,19 +807,7 @@ fd_t opendir(char *path) {
     // Initialisation : open the source directory.
     if (*path == DIR_SEP) {
         dirent_t dirent;
-        dirent.cluster = fs.root_cluster;
-        dirent.name[0] = '/';
-        dirent.name[1] = 0;
-        dirent.type = DIR;
-        dirent.ent_cluster = fs.root_cluster;
-        dirent.ent_offset = 64; // TODO May not be true
-        dirent.ent_prev_cluster = 0;
-        dirent.mode = SYSTEM;
-        dirent.size = 0;
-        dirent.ent_size = 1;
-        dirent.attributes.dir = 1;
-        dirent.attributes.system = 1;
-
+        dirent = root_dirent;
         fd = opendir_ent(&dirent); // Opens root directory.
         for (; *path == DIR_SEP; path++) {} // Removes all starting separators
     }
@@ -807,7 +869,8 @@ fd_t opendir_ent(dirent_t *dirent) {
 dirent_t *readdir(fd_t fd) {
     // Reads the next entry of the directory.
     // If there is no such entry, returns NULL.
-    assert(file_table[fd].type == DIR);
+    if (check_fd(fd, DIR) == -1)
+        return NULL;
     
     u32 cluster = file_table[fd].curr_cluster;
     u32 prev_cluster = file_table[fd].prev_cluster;
@@ -832,6 +895,7 @@ dirent_t *readdir(fd_t fd) {
                 file_table[fd].curr_cluster = cluster;
                 file_table[fd].curr_offset = i;
                 file_table[fd].prev_cluster = prev_cluster;
+                errno = ENOENT;
                 return NULL;
             }
             if (buffer[i] == 0xE5) {
@@ -857,6 +921,8 @@ dirent_t *readdir(fd_t fd) {
                 
                 size ++;
                 //dirent_t *dirent_p = kmalloc(sizeof(dirent_t)); // TODO !
+                // if (dirent_p == NULL)
+                //      return -1;
                 dirent_t *dirent_p = &static_dirent; // TODO !
                 dirent_p->type = dirent->attributes.dir ? DIR : FILE;
                 dirent_p->cluster = get_cluster(dirent);
@@ -893,19 +959,25 @@ dirent_t *readdir(fd_t fd) {
     file_table[fd].curr_offset = fs.cluster_size;
     file_table[fd].prev_cluster = prev_cluster;
     
+    if (next_cluster == UNUSED_CLUSTER)
+        errno = ECORRF;
+    else
+        errno = ENOENT;
     return NULL;
 }
 
-void rewinddir(fd_t fd) {
+int rewinddir(fd_t fd) {
+    if (check_fd(fd, DIR) == -1)
+        return -1;
     file_table[fd].curr_cluster = file_table[fd].start_cluster;
     file_table[fd].curr_offset = 0;
     file_table[fd].prev_cluster = 0;
+    return 0;
 }
 
 int closedir(fd_t fd) {
-    if (fd < 0 || fd >= MAX_NB_FILE || file_table[fd].type != DIR) {
+    if (check_fd(fd, DIR) == -1) {
         // No such directory, or bad fd.
-        errno = EBADF;
         return -1;
     }
     free_fd(fd);
@@ -915,6 +987,9 @@ int closedir(fd_t fd) {
 dirent_t *findent(fd_t dir, char *name, ftype_t type) {
     // Find the entry with specified name and type in directory dir.
     // Returns NULL if no such entry.
+    if (check_fd(dir, DIR) == -1)
+        return NULL;
+    
     dirent_t *dirent;
     while ((dirent = readdir(dir))) { // Check results ?
         if (strEqual(dirent->name, name)) {
@@ -942,20 +1017,23 @@ dirent_t *findfile(fd_t dir, char *name) {
 
 dirent_t *cluster_findent(fd_t dir, u32 cluster, ftype_t type) {
     // Find the directory entry corresponding to directory name.
+    if (check_fd(dir, DIR) == -1)
+        return NULL;
+    
     dirent_t *dirent;
-    while ((dirent = readdir(dir))) {
+    while ((dirent = readdir(dir))) { // Check results ?
         if (dirent->cluster == cluster) {
             // Rewinds to avoid side effects.
             rewinddir(dir);
             if (dirent->type == type)
                 return dirent;
-            //assert(0);
+            errno = (type == DIR) ? ENOTDIR : EISDIR;
             return NULL;    // This is not a directory.
         }
     }
     // Rewinds to avoid side effects.
     rewinddir(dir);
-    //assert(0);
+    errno = ENOENT;
     return NULL;    // Entry doesn't exist.
 }
 
@@ -1027,15 +1105,21 @@ void test_dir() {
     seek(file, SEEK_SET, 0);
     kprintf("Read : %d\n", read(file, buffer, 201));
     kprintf("Content : %s\n", buffer);
-    copyfile("testfile", "testfile_copy");
+    kprintf("Size : %d\n", file_table[file].size);
+    kprintf("Copy succeeded ? %d\n", copyfile("testfile", "testfile_copy"));
+    kprintf("Errir : %s\n", strerror(errno));
     remove("testfile");
     rewinddir(fonts);
     while ((dirent = readdir(fonts))) {
         print_short_dirent(dirent);
     }
-    kprintf("Read : %d\n", read(openfile("testfile_copy", flags), buffer, 201));
+    kprintf("Ready to read the copy :\n");
+    fd_t testfd = openfile("testfile_copy", flags);
+    kprintf("Fd %d\n", testfd);
+    kprintf("Size : %d\n", file_table[testfd].size);
+    kprintf("Read : %d\n", read(testfd, buffer, 201));
     kprintf("COntent :%s\n", buffer);
-    
+    remove("testfile_copy");
     rewinddir(root);
     while ((dirent = readdir(root))) {
         print_short_dirent(dirent);
@@ -1049,36 +1133,85 @@ void test_dir() {
     kprintf("Errno : %s\n", strerror(errno));
     fprintf(NULL, "Content : (* %s *)\n", buffer);
     kprintf("Error %d : %s\n", 42, strerror(42));
+    kprintf("stderr %d\n", stderr);
+    kprintf("Next filename id : %d\n", next_name_id);
 }
 
-void init_filename_gen() {
+int init_filename_gen() {
     // Saves in a file the next 8.3 filename.
-    // TODO Need files 
+    fd_t names = openfile("/boot/filenames", O_CREAT | O_RDWR);
+    if (names == -1) {
+        kprintf("Failed to init 8.3 names file.\n");
+        return -1;
+    }
+    if (file_table[names].size != 0) {
+        int id;
+        if (read(names, (u8*) &id, 4) == -1) {
+            kprintf("Failed to read 8.3 names file.\n");
+            next_name_id = 0;
+        }
+        else {
+            next_name_id = id;
+        }
+    }
+    close(names);
+    kprintf("8.3 filenames initialised.\n");
+    return 0;
 }
 
-void init_root() {
-    // Adds . and .. entries to the root directory.
+int save_filename_gen() {
+    fd_t names = openfile("/boot/filenames", O_CREAT | O_RDWR);
+    int id = next_name_id;
+    if (write(names, (u8*) &id, 4) == -1) {
+        kprintf("Failed to save new filename id.\n");
+        return -1;
+    }
+    kprintf("8.3 filenames successfully saved.\n");
+    return 0;
+}
+
+int init_root() {
+    // Adds . and .. entries to the root directory and initialises root_dirent.
+    dirent_t *dirent = &root_dirent;
+    dirent->cluster = fs.root_cluster;
+    dirent->name[0] = '/';
+    dirent->name[1] = 0;
+    dirent->type = DIR;
+    dirent->ent_cluster = fs.root_cluster;
+    dirent->ent_prev_cluster = 0;
+    dirent->mode = SYSTEM;
+    dirent->size = 0;
+    dirent->ent_size = 1;
+    dirent->attributes.dir = 1;
+    dirent->attributes.system = 1;
     
     fd_t fd = opendir("/");
+    if (fd == -1) {
+        kprintf("Failed to open root directory.\n");
+        return -1;
+    }
+    cwd = fd;
     void* res = finddir(fd, CUR_DIR_NAME);
-    closedir(fd);
     if (res != NULL)  {
         // These entries already exists
-        return;
+        return 0;
     }
     
     u32 cluster = fs.root_cluster;
     directory_entry_t buffer[2];
-    u8 mode = RDONLY;
+    u8 mode = SYSTEM | RDONLY;
     fill_dir_entry(cluster, buffer, CUR_DIR_NAME, DIR, mode);
     fill_dir_entry(cluster, &buffer[1], PARENT_DIR_NAME, DIR, mode);
     
-    dirent_t dirent;
-    dirent.cluster = cluster;
-    dirent.ent_size = 2;
+    dirent_t tmpent;
+    tmpent.cluster = cluster;
+    tmpent.ent_size = 2;
    
-    new_entry(cluster, &dirent);
-    kprintf("Cluster %d offset %d size %d\n", dirent.ent_cluster, dirent.ent_offset, dirent.ent_size );
-    fill_entries(dirent.ent_cluster, dirent.ent_offset, dirent.ent_size, buffer);
+    if (new_entry(cluster, &tmpent) == -1)
+        return -1;
     
+    kprintf("Cluster %d offset %d size %d\n", tmpent.ent_cluster, tmpent.ent_offset, 2);
+    fill_entries(tmpent.ent_cluster, tmpent.ent_offset, 2, buffer);
+    dirent->ent_offset = tmpent.ent_offset;
+    return 0;
 }

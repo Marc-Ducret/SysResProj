@@ -13,7 +13,8 @@ File system :
 	- No reset of 8.3 names
 	- Nice function to safely find and open a file ?
 	- Directories Improvement : open them as streams ?
-	- While checking a fd, must we check if not too big ?
+	- Add some malloc and free instead of 'buffer', but this will make unsafe a lot of currently safe functions !
+	- Change the error cluster 0 in some other value ? (because it's root)
 
 Disk :
 	- Manage 'out of disk' requests
