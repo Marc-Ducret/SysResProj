@@ -13,7 +13,7 @@
  * considered as root cluster when cluster <= root_cluster
  */
 
-fd_t openfile(char *path, oflags_t flags);
+fd_t fopen(char *path, oflags_t flags);
 int close(fd_t fd);
 ssize_t read(fd_t fd, void *buffer, size_t length);
 ssize_t write(fd_t fd, void *buffer, size_t length);

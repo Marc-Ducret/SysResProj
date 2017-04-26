@@ -196,7 +196,6 @@ void init_fs(int show);
 void load_mbr(int show);
 void read_cluster(u32 cluster, u8* buffer);
 void write_cluster(u32 cluster, u8 *buffer);
-void read_dir_cluster(u32 cluster);
 void get_short_name(directory_entry_t *dirent, char *buffer);
 void get_long_name(long_file_name_t* lfn, char *buffer);
 void set_long_name(long_file_name_t* lfn, char *buffer);

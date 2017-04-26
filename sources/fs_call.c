@@ -17,7 +17,7 @@ void print_short_dirent(dirent_t *dirent) {
             dirent->ent_size);
 }
 
-fd_t openfile_ent(dirent_t *dirent, oflags_t flags) {
+fd_t fopen_ent(dirent_t *dirent, oflags_t flags) {
     // Checks it isn't a directory
     if (dirent->type != FILE) {
         errno = EISDIR;
@@ -63,7 +63,7 @@ fd_t openfile_ent(dirent_t *dirent, oflags_t flags) {
     return fd;
 }
 
-fd_t openfile(char *path, oflags_t flags) {
+fd_t fopen(char *path, oflags_t flags) {
     if (strlen(path) >= MAX_PATH_NAME) {
         errno = ENAMETOOLONG;
         return -1;
@@ -122,7 +122,7 @@ fd_t openfile(char *path, oflags_t flags) {
             return -1;
         }
     }
-    return openfile_ent(file, flags);
+    return fopen_ent(file, flags);
 }
 
 int close(fd_t fd) {
@@ -417,12 +417,12 @@ int seek(fd_t fd, seek_cmd_t seek_command, int offset) {
 
 int copyfile(char *old_path, char *new_path) {
     // Copies the first file toward second place.    
-    fd_t old = openfile(old_path, O_RDONLY);
+    fd_t old = fopen(old_path, O_RDONLY);
     if (old < 0)
         return -1;
     
     // Checks that target doesn't exist.
-    fd_t new = openfile(new_path, O_RDONLY);
+    fd_t new = fopen(new_path, O_RDONLY);
     if (new >= 0) {
         close(old);
         errno = EEXIST;
@@ -439,7 +439,7 @@ int copyfile(char *old_path, char *new_path) {
         flags |= O_CSYSTEM;
     if (file_table[old].mode & RDONLY)
         flags |= O_CRDONLY;
-    new = openfile(new_path, flags);
+    new = fopen(new_path, flags);
     if (new < 0) {
         close(old);
         return -1;
@@ -1096,7 +1096,7 @@ void test_dir() {
     print_chain(4506);
     oflags_t flags = O_APPEND | O_CREAT | O_RDWR;
     //flags.trunc = 1;
-    fd_t file = openfile("testfile", flags);
+    fd_t file = fopen("testfile", flags);
     char buffer[500];
     strCopy("Hello world ! I'm not happy", buffer);
     kprintf("Wrote %d bytes\n", write(file, buffer, 511));
@@ -1114,7 +1114,7 @@ void test_dir() {
         print_short_dirent(dirent);
     }
     kprintf("Ready to read the copy :\n");
-    fd_t testfd = openfile("testfile_copy", flags);
+    fd_t testfd = fopen("testfile_copy", flags);
     kprintf("Fd %d\n", testfd);
     kprintf("Size : %d\n", file_table[testfd].size);
     kprintf("Read : %d\n", read(testfd, buffer, 201));
@@ -1128,7 +1128,7 @@ void test_dir() {
     //init_stderr(NULL);
     fprintf(stderr, "I'm finally debugging normally !\n");
     flush(stderr);
-    fd_t err = openfile("/error/stderr", flags);
+    fd_t err = fopen("/error/stderr", flags);
     kprintf("Read %d from error \n", read(err, buffer, 400));
     kprintf("Errno : %s\n", strerror(errno));
     fprintf(NULL, "Content : (* %s *)\n", buffer);
@@ -1139,7 +1139,7 @@ void test_dir() {
 
 int init_filename_gen() {
     // Saves in a file the next 8.3 filename.
-    fd_t names = openfile("/boot/filenames", O_CREAT | O_RDWR);
+    fd_t names = fopen("/boot/filenames", O_CREAT | O_RDWR);
     if (names == -1) {
         kprintf("Failed to init 8.3 names file.\n");
         return -1;
@@ -1160,7 +1160,7 @@ int init_filename_gen() {
 }
 
 int save_filename_gen() {
-    fd_t names = openfile("/boot/filenames", O_CREAT | O_RDWR);
+    fd_t names = fopen("/boot/filenames", O_CREAT | O_RDWR);
     int id = next_name_id;
     if (write(names, (u8*) &id, 4) == -1) {
         kprintf("Failed to save new filename id.\n");
