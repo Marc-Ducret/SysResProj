@@ -37,7 +37,6 @@ timer\nb:
     pushr
     push %esp
     push $\nb
-    call irq_handler
     add $8, %esp
     popr
     add $4, %esp
