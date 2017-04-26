@@ -6,7 +6,7 @@ void memset(void *dst, u8 src, u32 len);
 int strEqual(char *strA, char *strB);
 void strCopy(char *src, char* dest);
 u32 strlen(const char* str);
-void assert(int condition);
+void assert(int condition, char *msg);
 int min(int a, int b);
 int max(int a, int b);
 u32 umax(u32 a, u32 b);

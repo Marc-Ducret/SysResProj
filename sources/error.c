@@ -75,7 +75,8 @@ void init_error_msg() {
     error_msg[67] = "Too many levels of symbolic links";
     error_msg[68] = "File size or position not representable";
     error_msg[69] = "Corrupted or not consistant file";
-    error_msg[70] = "Unknown error";
+    error_msg[70] = "Bad permission. Can't create file with system permission.";
+    error_msg[71] = "Unknown error";
 }
 
 int init_stderr(char *path) { // TODO Really place this here ?
@@ -89,18 +90,21 @@ int init_stderr(char *path) { // TODO Really place this here ?
             // Failed to create such directory. (maybe handle with finddir ?)
             if (errno != EEXIST) {
                 // There wasn't already such a directory -> Nope !
-                kprintf("Sorry\n");
-                for(;;);
+                kprintf("Failed to initialise stderr.\n");
                 return -1;
             }
         }
         stderr = create_stream(DEFAULT_STDERR_PATH, stderr_buffer);
-        return (stderr == NULL) ? -1 : 0;
     }
     else {
         stderr = create_stream(path, stderr_buffer);
-        return (stderr == NULL) ? -1 : 0;
     }
+    if (stderr == NULL) {
+        kprintf("Failed to initialise stderr.\n");
+        return -1;
+    }
+    kprintf("stderr initialised.\n");
+    return 0;
 }
 
 void perror(char *data) {

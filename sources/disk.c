@@ -128,7 +128,7 @@ void read_address(u32 address, u32 length, void *buffer) {
     u32 start_offset = address % 512;
     //kprintf("Start sector %d, End_sector %d, Sector_count %d, Start_offset %d\n",
     //        start_sector, end_sector, sector_count, start_offset);
-    assert(sector_count < 256);
+    assert(sector_count < 256, "IO Error : exceeds maximum read size");
 
     // Sends the read command.
     outportb(bus->drive_select, 0xE0 | ((start_sector >> 24) & 0x0F));
@@ -140,7 +140,7 @@ void read_address(u32 address, u32 length, void *buffer) {
     outportb(bus->command_port, 0x20);
     
     // Waits the disk
-    assert(poll(bus));
+    assert(poll(bus), "IO Error");
     
     // Throws the data until the wanted block starts.
     u32 index = 0;
@@ -162,7 +162,7 @@ void read_address(u32 address, u32 length, void *buffer) {
     while (length > 1) {
         // At each new sector, waiting for the disk.
         if (index % 256 == 0)
-            assert(poll(bus));
+            assert(poll(bus), "IO Error");
         
         *((u16*) buffer) = inportw(bus->data_port);
         buffer = ((u16*) buffer) + 1; // Read two new bytes.
@@ -186,15 +186,14 @@ void read_address(u32 address, u32 length, void *buffer) {
     }
     
     // Checking the results.
-    assert(length == 0);
-    assert(index == 256 * sector_count);
+    assert(length == 0, "IO Error");
+    assert(index == 256 * sector_count, "IO Error");
 }
 
 void write_sectors(u32 sector, u8 sector_count, void *buffer) {
     bus *bus = pbus;
 
     // sector_count = 0 means 256
-    assert(sector_count);
     
     outportb(bus->drive_select, 0xE0 | ((sector >> 24) & 0x0F));
     //outportb(bus->error_port, 0x0);
@@ -206,7 +205,7 @@ void write_sectors(u32 sector, u8 sector_count, void *buffer) {
     
     for (int i = 0; i < sector_count; i++) {
         // Waiting for an IRQ, or polling. (Here polling)
-        assert(poll(bus));
+        assert(poll(bus), "IO Error");
         
         // Transfer the data from port to buffer.
         for (int j = 0; j < 256; j++) {
@@ -226,7 +225,7 @@ void write_address(u32 address, u32 length, void *buffer) {
     u32 start_offset = address % 512;
     //kprintf("Start sector %d, End_sector %d, Sector_count %d, Start_offset %d\n",
     //        start_sector, end_sector, sector_count, start_offset);
-    assert(sector_count < 256);
+    assert(sector_count < 256, "IO Error : exceeds maximum write size");
 
     u8 tmp_buffer[512];
     
@@ -261,7 +260,7 @@ void init_disk(int test) {
     kprintf("Initialising Disk \n");
     create_bus();
     software_reset(pbus);
-    assert(disk_identify() == 2); // Asserts that it is an ATA drive.
+    assert(disk_identify() == 2, "Not ATA Drive"); // Asserts that it is an ATA drive.
     outportb(pbus->control_register, 0x0);  // Sets control register to 0.
     
     

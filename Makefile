@@ -2,7 +2,7 @@
 AS:=as -am --32
 CC:=gcc
 
-CFLAGS:=-ffreestanding -O2 -Wall -Wextra -nostdlib -nostartfiles -nodefaultlibs -m32 -fplan9-extensions
+CFLAGS:=-ffreestanding -O2 -Wall -Werror -Wextra -nostdlib -nostartfiles -nodefaultlibs -m32 -fplan9-extensions
 CPPFLAGS:= -std=gnu99
 LIBS:= #-lgcc
 

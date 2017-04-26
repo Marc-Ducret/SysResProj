@@ -38,9 +38,9 @@ u32 strlen(const char* str) {
     return ret;
 }
 
-void assert(int condition) {
+void assert(int condition, char *msg) {
     if (!condition) {
-        kprintf("Assertion Failure.\n");
+        kprintf("Assertion Failure : %s\n", msg);
         for (;;) {
             asm("hlt");
         }
