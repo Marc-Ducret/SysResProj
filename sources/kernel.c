@@ -533,11 +533,11 @@ void start_process(int pid, int parent) {
     u8 *user_code;
     if(pid) {
         user_code = kmalloc_a(0x3000);
-        fd_t file = openfile("/p.bin", O_RDONLY);
+        fd_t file = fopen("/p.bin", O_RDONLY);
         read(file, user_code, 0x3000);
     } else {
         user_code = kmalloc_a(0x3000);
-        fd_t file = openfile("/p2.bin", O_RDONLY);
+        fd_t file = fopen("/p2.bin", O_RDONLY);
         read(file, user_code, 0x3000);
     }
     kprintf("Starting process %d (code = %x) [%x]\n", pid, user_code, *(u32*)user_code);

@@ -3,13 +3,12 @@
 #include <stdint.h>
 #include "printing.h"
 #include "kernel.h"
-
-
+#include "syscall.h"
+#include "int.h"
 /* This file contains all the syscalls seen from the user side.
-   This means that the user is supposed to ahave access to it. */
+   This means that the user is supposed to have access to it. */
 
-// TODO Determiner si il faut sauver les registres avant de mettre les args.
-
+// TODO Déterminer s'il faut indiquer la modification de tous les registres ?
 pid_t kfork(priority prio) {
     kprintf("Requested a fork, with priority %d\n", prio);
     pid_t child;
@@ -140,6 +139,210 @@ chanid knew_channel() {
                 : "%ebx", "esi", "edi");
     return chan;
 }
+
+fd_t kfopen(char *path, oflags_t flags) {
+    fd_t fd;
+    int id = KFOPEN;
+    asm volatile("\
+        movl %1, %%eax \n \
+        movl %2, %%ebx \n \
+        movl %3, %%ecx \n \
+        int $0x80 \n \
+        movl %%eax, %0 \n"
+        : "=m" (fd)
+        : "m" (id), "m" (path), "m" (flags)
+        : "%ebx", "esi", "edi"
+        );
+    return fd;
+}
+
+int kclose(fd_t fd) {
+    int res;
+    int id = KCLOSE;
+    asm volatile("\
+        movl %1, %%eax \n \
+        movl %2, %%ebx \n \
+        int $0x80 \n \
+        movl %%eax, %0 \n"
+        : "=m" (res)
+        : "m" (id), "m" (fd)
+        : "%ebx", "esi", "edi"
+        );
+    return res;
+}
+ssize_t kread(fd_t fd, void *buffer, size_t length) {
+    int id = KREAD;
+    ssize_t res;
+    asm volatile("\
+        movl %1, %%eax \n \
+        movl %2, %%ebx \n \
+        movl %3, %%ecx \n \
+        movl %4, %%esi \n \
+        int $0x80 \n \
+        movl %%eax, %0 \n"
+        : "=m" (res)
+        : "m" (id), "m" (fd), "m" (buffer), "m" (length)
+        : "%ebx", "esi", "edi"
+        );
+    return res;
+}
+
+ssize_t kwrite(fd_t fd, void *buffer, size_t length) {
+    int id = KWRITE;
+    ssize_t res;
+    asm volatile("\
+        movl %1, %%eax \n \
+        movl %2, %%ebx \n \
+        movl %3, %%ecx \n \
+        movl %4, %%esi \n \
+        int $0x80 \n \
+        movl %%eax, %0 \n"
+        : "=m" (res)
+        : "m" (id), "m" (fd), "m" (buffer), "m" (length)
+        : "%ebx", "esi", "edi"
+        );
+    return res;
+}
+
+int kseek(fd_t fd, seek_cmd_t seek_command, int offset) {
+    int id = KSEEK;
+    int res;
+    asm volatile("\
+        movl %1, %%eax \n \
+        movl %2, %%ebx \n \
+        movl %3, %%ecx \n \
+        movl %4, %%esi \n \
+        int $0x80 \n \
+        movl %%eax, %0 \n"
+        : "=m" (res)
+        : "m" (id), "m" (fd), "m" (seek_command), "m" (offset)
+        : "%ebx", "esi", "edi"
+        );
+    return res;
+}
+
+int kmkdir(char *path, u8 mode) {
+    int res;
+    int id = KMKDIR;
+    asm volatile("\
+        movl %1, %%eax \n \
+        movl %2, %%ebx \n \
+        movl %3, %%ecx \n \
+        int $0x80 \n \
+        movl %%eax, %0 \n"
+        : "=m" (res)
+        : "m" (id), "m" (path), "m" (mode)
+        : "%ebx", "esi", "edi"
+        );
+    return res;
+}
+
+int krmdir(char *path) {
+    int res;
+    int id = KRMDIR;
+    asm volatile("\
+        movl %1, %%eax \n \
+        movl %2, %%ebx \n \
+        int $0x80 \n \
+        movl %%eax, %0 \n"
+        : "=m" (res)
+        : "m" (id), "m" (path)
+        : "%ebx", "esi", "edi"
+        );
+    return res;
+}
+int kchdir(char *path) {
+    int res;
+    int id = KCHDIR;
+    asm volatile("\
+        movl %1, %%eax \n \
+        movl %2, %%ebx \n \
+        int $0x80 \n \
+        movl %%eax, %0 \n"
+        : "=m" (res)
+        : "m" (id), "m" (path)
+        : "%ebx", "esi", "edi"
+        );
+    return res;
+}
+
+char *kgetcwd() {
+    char *res;
+    int id = KGETCWD;
+    asm volatile("\
+                movl %0, %%eax \n \
+                int $0x80 \n \
+                movl %%eax, %1"
+                : "=m" (res)
+                : "m" (id)
+                : "%ebx", "esi", "edi");
+    return res;
+}
+
+fd_t kopendir(char *path) {
+    fd_t res;
+    int id = KOPENDIR;
+    asm volatile("\
+        movl %1, %%eax \n \
+        movl %2, %%ebx \n \
+        int $0x80 \n \
+        movl %%eax, %0 \n"
+        : "=m" (res)
+        : "m" (id), "m" (path)
+        : "%ebx", "esi", "edi"
+        );
+    return res;
+}
+
+dirent_t *kreaddir(fd_t fd) {
+    dirent_t *res;
+    int id = KREADDIR;
+    asm volatile("\
+        movl %1, %%eax \n \
+        movl %2, %%ebx \n \
+        int $0x80 \n \
+        movl %%eax, %0 \n"
+        : "=m" (res)
+        : "m" (id), "m" (fd)
+        : "%ebx", "esi", "edi"
+        );
+    return res;
+}
+
+int krewinddir(fd_t fd) {
+    int res;
+    int id = KREWINDDIR;
+    asm volatile("\
+        movl %1, %%eax \n \
+        movl %2, %%ebx \n \
+        int $0x80 \n \
+        movl %%eax, %0 \n"
+        : "=m" (res)
+        : "m" (id), "m" (fd)
+        : "%ebx", "esi", "edi"
+        );
+    return res;
+}
+int kclosedir(fd_t fd) {
+    int res;
+    int id = KCLOSEDIR;
+    asm volatile("\
+        movl %1, %%eax \n \
+        movl %2, %%ebx \n \
+        int $0x80 \n \
+        movl %%eax, %0 \n"
+        : "=m" (res)
+        : "m" (id), "m" (fd)
+        : "%ebx", "esi", "edi"
+        );
+    return res;
+}
+
+/*
+dirent_t *finddir(fd_t dir, char *name);
+dirent_t *findfile(fd_t dir, char *name);
+dirent_t *findent(fd_t dir, char *name, ftype_t type);
+*/
 
 void new_launch() {
     kprintf("Initial state\n");
