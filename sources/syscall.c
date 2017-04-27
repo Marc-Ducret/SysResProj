@@ -270,9 +270,9 @@ char *kgetcwd() {
     char *res;
     int id = KGETCWD;
     asm volatile("\
-                movl %0, %%eax \n \
+                movl %1, %%eax \n \
                 int $0x80 \n \
-                movl %%eax, %1"
+                movl %%eax, %0"
                 : "=m" (res)
                 : "m" (id)
                 : "%ebx", "esi", "edi");
@@ -323,6 +323,7 @@ int krewinddir(fd_t fd) {
         );
     return res;
 }
+
 int kclosedir(fd_t fd) {
     int res;
     int id = KCLOSEDIR;
@@ -343,6 +344,19 @@ dirent_t *finddir(fd_t dir, char *name);
 dirent_t *findfile(fd_t dir, char *name);
 dirent_t *findent(fd_t dir, char *name, ftype_t type);
 */
+
+int kget_key_event() {
+    int res;
+    int id = KGET_KEY_EVENT;
+    asm volatile("\
+                movl %1, %%eax \n \
+                int $0x80 \n \
+                movl %%eax, %0"
+                : "=m" (res)
+                : "m" (id)
+                : "%ebx", "esi", "edi");
+    return res;
+}
 
 void new_launch() {
     kprintf("Initial state\n");

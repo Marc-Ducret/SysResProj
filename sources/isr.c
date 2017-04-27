@@ -25,12 +25,13 @@ void print_stack(stack_state_t *x) {
 }
 
 void syscall(u32 id, context_t *context) {
-    registers_t *regs = &(context->regs);
+    id = id;
+    /*registers_t *regs = &(context->regs);
     stack_state_t *stack = &(context->stack);
     
     kprintf("Caught syscall %d \n", id);
     print_reg(regs);
-    print_stack(stack);
+    print_stack(stack);*/
     
     picosyscall(context);
 }

@@ -34,6 +34,8 @@ chanid knew_channel();
 #define KREWINDDIR 26
 #define KCLOSEDIR 27
 
+#define KGET_KEY_EVENT 40
+
 fd_t kfopen(char *path, oflags_t flags);
 int kclose(fd_t fd);
 ssize_t kread(fd_t fd, void *buffer, size_t length);
@@ -48,6 +50,8 @@ fd_t kopendir(char *path);
 dirent_t *kreaddir(fd_t fd);
 int krewinddir(fd_t fd);
 int kclosedir(fd_t fd);
+
+int k_get_key_event();
 
 void new_launch();
 #endif /* SYSCALL_H */

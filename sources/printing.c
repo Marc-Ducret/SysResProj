@@ -123,7 +123,7 @@ void putchar(char c) {
     if(scroll > 0) {
         scroll = 0;
         load_from_scroll();
-    }    
+    }
 }
 
 int gputchar(char c, stream_t *stream) {

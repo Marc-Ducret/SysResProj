@@ -7,6 +7,7 @@
 #include "memory.h"
 #include "paging.h"
 #include "fs_call.h"
+#include "keyboard.h"
 
 static const int CONSTANTE = 42;
 //Variable que dans ce fichier la
@@ -195,7 +196,7 @@ syscall_t decode(state *s) {
                                       NULL))));
         break;
 
-    case 3:
+    case 3: //USELESS
         res.t = FORK;
         res.priority = s->ctx->regs.ebx;
         res.v2 = s->ctx->regs.ecx;
@@ -209,6 +210,10 @@ syscall_t decode(state *s) {
 
     case 5:
         res.t = WAIT;
+        break;
+
+    case 40:
+        res.t = GET_KEY_EVENT;
         break;
 
     default:
@@ -413,6 +418,11 @@ int picoreceive(state *s, list *ch_list) {
     return 0;
 }
 
+void picoget_key_event(state *s) {
+    if(s->curr_pid == s->focus) s->ctx->regs.eax = nextKeyEvent();
+    else s->ctx->regs.eax = -1;
+}
+
 void reorder(state *s) {
     //On reelit un processus
     pid_t next_pid;
@@ -470,7 +480,12 @@ void picotransition(state *s, event ev) {
         case NEWCHANNEL:
             piconew_channel(s);
             break;
-
+        
+        case GET_KEY_EVENT:
+            picoget_key_event(s);
+            break;
+        
+        
         case INVALID:
             break;
         }
@@ -524,6 +539,8 @@ void writ(u8 *addr) {
     addr[3] = 0x80; addr[4] = 0x0B; addr[5] = 0x00; 
 }
 
+#define CODE_LEN 0x10000
+
 void start_process(int pid, int parent) {
     process *p = &global_state.processes[pid];
     p->parent_id = parent;
@@ -532,20 +549,18 @@ void start_process(int pid, int parent) {
     p->state.ch_list = NULL;
     u8 *user_code;
     if(pid) {
-        user_code = kmalloc_a(0x3000);
+        user_code = kmalloc_a(CODE_LEN);
         fd_t file = fopen("/p.bin", O_RDONLY);
-        read(file, user_code, 0x3000);
+        read(file, user_code, CODE_LEN);
     } else {
-        user_code = kmalloc_a(0x3000);
-        fd_t file = fopen("/p2.bin", O_RDONLY);
-        read(file, user_code, 0x3000);
+        user_code = kmalloc_a(CODE_LEN);
+        fd_t file = fopen("/console.bin", O_RDONLY);
+        read(file, user_code, CODE_LEN);
     }
     kprintf("Starting process %d (code = %x) [%x]\n", pid, user_code, *(u32*)user_code);
-    p->page_directory = init_user_page_dir((u32) user_code, 0x1000);
+    p->page_directory = init_user_page_dir((u32) user_code, CODE_LEN);
     copy_context(global_state.ctx, &p->saved_context);
     p->saved_context.stack.eip = USER_CODE_VIRTUAL;
-    void *stack_phys = get_physical(get_page(USER_STACK_VIRTUAL, 0, p->page_directory));
-    memcpy(stack_phys + 0x1000 - sizeof(context_t), &p->saved_context, sizeof(context_t));
     user_esp = USER_STACK_VIRTUAL + 0x1000 - sizeof(context_t) - 0x8;
     user_pd = p->page_directory;
     global_state.runqueues[MAX_PRIORITY] = add(pid, global_state.runqueues[MAX_PRIORITY]);
