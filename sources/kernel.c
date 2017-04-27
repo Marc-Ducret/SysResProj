@@ -164,6 +164,10 @@ volatile u32 user_esp;
 volatile page_directory_t *user_pd;
 volatile multiboot_info_t *multiboot_info;
 
+state *get_global_state() {
+    return &global_state;
+}
+
 void copy_context(context_t *src, context_t *dst) {
     memcpy(dst, src, sizeof(context_t));
 }
@@ -540,8 +544,8 @@ void start_process(int pid, int parent) {
     p->page_directory = init_user_page_dir((u32) user_code, 0x1000);
     copy_context(global_state.ctx, &p->saved_context);
     p->saved_context.stack.eip = USER_CODE_VIRTUAL;
-    u32 stack_phys = get_page(USER_STACK_VIRTUAL, 0, p->page_directory)->frame << 12;
-    memcpy((void *) stack_phys + 0x1000 - sizeof(context_t), &p->saved_context, sizeof(context_t));
+    void *stack_phys = get_physical(get_page(USER_STACK_VIRTUAL, 0, p->page_directory));
+    memcpy(stack_phys + 0x1000 - sizeof(context_t), &p->saved_context, sizeof(context_t));
     user_esp = USER_STACK_VIRTUAL + 0x1000 - sizeof(context_t) - 0x8;
     user_pd = p->page_directory;
     global_state.runqueues[MAX_PRIORITY] = add(pid, global_state.runqueues[MAX_PRIORITY]);

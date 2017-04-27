@@ -6,7 +6,6 @@
 #include "io.h"
 #include "gdt.h"
 #include "keycode.h"
-#include "shell.h"
 #include "timer.h"
 #include "paging.h"
 #include "lib.h"
@@ -40,14 +39,15 @@ void init() {
     init_root();
     init_stderr(NULL);
     init_filename_gen();
-    test_dir();
+    //test_dir();
 }
 
 void kmain(multiboot_info_t *mbinfo) {
     multiboot_info = mbinfo;
     init();
+    kprintf("I'm out\n");
     asm("sti");
-    shell();
+    for(;;) asm("hlt");
     save_filename_gen();
     dieSlowly();
 }

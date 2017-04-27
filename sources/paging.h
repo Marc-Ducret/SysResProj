@@ -4,9 +4,10 @@
 #include "int.h"
 #include "context.h"
 
-#define USER_CODE_VIRTUAL   0x40000000
-#define USER_STACK_VIRTUAL  0x80000000
-#define USER_SCREEN_VIRTUAL 0x88000000
+#define USER_CODE_VIRTUAL       0x40000000
+#define USER_STACK_VIRTUAL      0x80000000
+#define USER_SCREEN_VIRTUAL     0x88000000
+#define USER_KEYBUFFER_VIRTUAL  0x88001000
 
 
 typedef struct pde
@@ -60,6 +61,7 @@ page_directory_t *init_user_page_dir(u32 user_code, u32 user_code_len);
 void switch_page_directory(page_directory_t *directory);
 void switch_to_default_page_directory();
 page_t *get_page(u32 address, int make, page_directory_t *dir);
+void *get_physical(page_t *page);
 u8 page_fault(context_t* context);
 
 #endif /* PAGING_H */

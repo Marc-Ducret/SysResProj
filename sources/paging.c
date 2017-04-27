@@ -181,7 +181,12 @@ page_directory_t *init_user_page_dir(u32 user_code_addr, u32 user_code_len) {
         map_page(get_page(USER_CODE_VIRTUAL + i, 1, pd), user_code_addr + i, 0, 0); //CODE
     map_page(get_page(USER_STACK_VIRTUAL, 1, pd), 0, 0, 1); //STACK
     map_page(get_page(USER_SCREEN_VIRTUAL, 1, pd), 0, 0, 1); //SCREEN
+    map_page(get_page(USER_KEYBUFFER_VIRTUAL, 1, pd), 0, 0, 1); //KEYBUFFER
     return pd;
+}
+
+void *get_physical(page_t *page) {
+    return (void*) (page->frame << 12);
 }
 
 u8 page_fault(context_t* context) {
