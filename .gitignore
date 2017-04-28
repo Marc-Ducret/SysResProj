@@ -2,4 +2,4 @@ sources/.*
 build/*
 bochslog.txt
 *.dump
-programes/bin/*
+programs/bin/*
