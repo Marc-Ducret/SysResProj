@@ -550,7 +550,7 @@ void start_process(int pid, int parent) {
     u8 *user_code;
     if(pid) {
         user_code = kmalloc_a(CODE_LEN);
-        fd_t file = fopen("/p.bin", O_RDONLY);
+        fd_t file = fopen("/spread.bin", O_RDONLY);
         read(file, user_code, CODE_LEN);
     } else {
         user_code = kmalloc_a(CODE_LEN);
