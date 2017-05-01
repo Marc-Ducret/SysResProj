@@ -28,3 +28,6 @@ Global organisation :
 	- Folders ?
 	- Manage includes !
 	- Separate user and kernel code ?
+
+Syscalls :
+	- Implement kernel side interface !

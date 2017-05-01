@@ -9,6 +9,7 @@
    This means that the user is supposed to have access to it. */
 
 // TODO Déterminer s'il faut indiquer la modification de tous les registres ?
+// Check that no casts are needed (oflags_t, ..)
 pid_t kfork(priority prio) {
     kprintf("Requested a fork, with priority %d\n", prio);
     pid_t child;
