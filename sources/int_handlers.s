@@ -32,16 +32,16 @@ isr\nb:
 .macro timer nb
 .global timer\nb
 timer\nb:
-    cli
-    push $0
-    pushr
-    push %esp
-    push $\nb
-    add $8, %esp
-    popr
-    add $4, %esp
-    sti
-    iret
+    #cli
+    #push $0
+    #pushr
+    #push %esp
+    #push $\nb
+    #add $8, %esp
+    #popr
+    #add $4, %esp
+    #sti
+    #iret
     #TODO rm
     cli
     push $0

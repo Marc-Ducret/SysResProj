@@ -1,23 +1,31 @@
 #include "io.h"
 #include "keycode.h"
 #include "kernel.h"
+#include "paging.h"
 
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 0x800
 
-int eventBuffer[BUFFER_SIZE];
-int eventCursor = 0;
+u8 eventBuffer[BUFFER_SIZE];
+u16 writeCursor = 0;
+u16 readCursor = 0;
 
-int keyboardState() {
+u8 keyboardState() {
     return inportb(0x60);
 }
 
-void provideKeyEvent(int event) {
-    if(event < 128 && event == KEY_TAB) focus_next_process();
-    else eventBuffer[eventCursor++] = event;
+void provideKeyEvent(u8 event) {    
+    if(event < 0x80 && event == KEY_TAB) focus_next_process();
+    else if(writeCursor != (readCursor-1) % BUFFER_SIZE) {
+        eventBuffer[writeCursor] = event;
+        writeCursor = (writeCursor + 1) % BUFFER_SIZE;
+    }  
 }
 
 int nextKeyEvent() {
-    if(eventCursor > 0)
-        return eventBuffer[--eventCursor];
-    return -1;
+    if(readCursor == writeCursor) return -1;
+    else {
+        int event = eventBuffer[readCursor];
+        readCursor = (readCursor + 1) % BUFFER_SIZE;
+        return event;
+    }
 }

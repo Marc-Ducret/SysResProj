@@ -97,7 +97,7 @@ typedef enum event
 { TIMER, SYSCALL } event;
 
 typedef enum sysc_name 
-{ SEND, RECV, FORK, WAIT, EXIT, NEWCHANNEL, INVALID } sysc_name;
+{ SEND, RECV, FORK, WAIT, EXIT, NEWCHANNEL, GET_KEY_EVENT, INVALID } sysc_name;
 
 typedef struct syscall_t 
 {
@@ -121,5 +121,6 @@ void picosyscall(context_t *);
 void picotimer(context_t *);
 void picotransition(state *s, event ev);;
 void log_state(state *s);
+state *get_global_state();
 #endif /* KERNEL_H */
 

@@ -1,14 +1,19 @@
 flagc="-m32 -Wall -nostdlib -nostdinc -fno-builtin -fno-stack-protector -nostartfiles -nodefaultlibs"
 flagl="-T linker.ld"
 echo "Building $1"
-mkdir -p bin/$1
+mkdir -p bin/$1/src
 as -am --32 lib/start.s -o bin/$1/start.o
-cd src/$1/
+cp src/$1/* bin/$1/src/
+cp lib/*.c bin/$1/src/
+cp lib/*.h bin/$1/src/
+cd bin/$1/src/
 for file in *.c; do
     f=${file%.c}
-    gcc $flagc -c $f.c -o ../../bin/$1/$f.o
+    gcc $flagc -c $f.c -o ../$f.o
 done
-cd ../../
+cd ../../../
 cp lib/linker.ld bin/$1/linker.ld
 cd bin/$1/
 gcc $flagc $flagl *.o -o $1.bin
+cd ../../
+cp bin/$1/$1.bin ../build/isodir/$1.bin

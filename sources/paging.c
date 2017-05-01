@@ -3,6 +3,7 @@
 #include "lib.h"
 #include "memory.h"
 #include <stddef.h>
+#include "kernel.h"
 
 // Frames table
 u32 memory_end; // Size of the memory covered by pages
@@ -181,7 +182,12 @@ page_directory_t *init_user_page_dir(u32 user_code_addr, u32 user_code_len) {
         map_page(get_page(USER_CODE_VIRTUAL + i, 1, pd), user_code_addr + i, 0, 0); //CODE
     map_page(get_page(USER_STACK_VIRTUAL, 1, pd), 0, 0, 1); //STACK
     map_page(get_page(USER_SCREEN_VIRTUAL, 1, pd), 0, 0, 1); //SCREEN
+    map_page(get_page(USER_KEYBUFFER_VIRTUAL, 1, pd), 0, 0, 1); //KEYBUFFER
     return pd;
+}
+
+void *get_physical(page_t *page) {
+    return (void*) (page->frame << 12);
 }
 
 u8 page_fault(context_t* context) {
@@ -211,15 +217,14 @@ u8 page_fault(context_t* context) {
         kprintf("user-mode ");
     if (reserved) 
         kprintf("reserved ");
-    kprintf(") id=%d at %x\n", id, faulting_address);
+    kprintf(") id=%d at %x (eip = %x pid = %d)\n", id, faulting_address, 
+                            context->stack.eip, get_global_state()->curr_pid);
     
-    if(faulting_address > 0x40000000) asm("hlt");
-    
-    if(!present) {
+    /*if(!present) {
         if(current_page_directory == identity_pd) 
             map_page(get_page(faulting_address, 1, current_page_directory), faulting_address, 0, 1);
         else 
             alloc_page(get_page(faulting_address, 1, current_page_directory), 0, 1);
-    }
-    return present;
+    }*/
+    return 1;
 }
