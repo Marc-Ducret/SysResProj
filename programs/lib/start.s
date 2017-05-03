@@ -8,5 +8,5 @@ _start:
     nop
     nop
     nop
-	call main
-	jmp _start
+    call main
+    jmp _start

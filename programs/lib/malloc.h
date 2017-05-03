@@ -8,8 +8,7 @@ typedef struct malloc_header malloc_header_t;
 struct malloc_header {
 
     u32 size;
-    malloc_header_t *next_block;
-    
+    malloc_header_t *prev_block, *next_block;
 };
 
 void *malloc(u32 size);
