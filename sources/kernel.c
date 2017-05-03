@@ -1,17 +1,9 @@
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
-#include "printing.h"
 #include "kernel.h"
-#include "lib.h"
-#include "memory.h"
-#include "paging.h"
-#include "fs_call.h"
-#include "keyboard.h"
 
 static const int CONSTANTE = 42;
 //Variable que dans ce fichier la
 //Dans une fonction, elle n'est definie qu'une fois
+syscall_fun_t syscall_fun[NUM_SYSCALLS];
 
 list* malloc_list() {
     static int base = 0;
@@ -262,16 +254,16 @@ syscall_t decode(state *s) {
     return;
 }*/
 
-void picoexit(state *s) {
-    int i = s->curr_pid;
-    s->processes[i].state.state = ZOMBIE;
-    int pere = s->processes[i].parent_id;
+int _exit(state *s) {
+    pid_t pid = s->curr_pid;
+    s->processes[pid].state.state = ZOMBIE;
+    pid_t pere = s->processes[pid].parent_id;
 
     //On trouve les processus fils de celui ci.
-    int j;
+    pid_t j;
     for (j = 0; j < NUM_PROCESSES; j++) {
-        if (s->processes[j].parent_id == i) {
-            s->processes[j].parent_id = 1;
+        if (s->processes[j].parent_id == pid) {
+            s->processes[j].parent_id = 1; // TODO No hardcode of init process
         }
     }
 
@@ -279,28 +271,30 @@ void picoexit(state *s) {
     if (s->processes[pere].state.state == WAITING) {
         //On fait la même chose que dans wait.
         s->processes[pere].state.state = RUNNABLE;
-        s->processes[i].state.state = FREE;
-        registers_t *regs = &(s->processes[i].saved_context.regs);
-        regs->eax = 1;
-        regs->ebx = i;
-        regs->ecx = s->ctx->regs.eax;
+        s->processes[pid].state.state = FREE;
+        registers_t *regs = &(s->processes[pere].saved_context.regs);
+        regs->eax = pid;
+        regs->ebx = 0;
+        regs->ecx = s->ctx->regs.ebx;
     }
 
     //On enlève le processus de sa file
-    s->runqueues[s->curr_priority] = filter(s->runqueues[s->curr_priority], i);
+    s->runqueues[s->curr_priority] = filter(s->runqueues[s->curr_priority], pid);
+    
+    return 1; // Need to reorder
 }
 
-int picowait(state *s) {
-    int i = s->curr_pid;
+int _wait(state *s) {
+    pid_t pid = s->curr_pid;
     int fils = 0;
-    //On trouve un fils zombie
-    int j;
+    // Searchs for a Zombie child
+    pid_t j;
     for (j = 0; j < NUM_PROCESSES; j++) {
-        if (s->processes[j].parent_id == i) {
+        if (s->processes[j].parent_id == pid) {
             fils = 1;
             if (s->processes[j].state.state == ZOMBIE) {
-                s->ctx->regs.eax = 1;
-                s->ctx->regs.ebx = j;
+                s->ctx->regs.eax = j;
+                s->ctx->regs.ebx = 0;
                 s->ctx->regs.ecx = s->processes[j].saved_context.regs.ebx;
                 s->processes[j].state.state = FREE;
                 return 0;
@@ -309,118 +303,180 @@ int picowait(state *s) {
     }
 
     if (fils) {
-        s->processes[i].state.state = WAITING;
+        s->processes[pid].state.state = WAITING;
         return 1;
     }
 
-    s->ctx->regs.eax = 0;
-    return 0;
-}
-
-
-void piconew_channel(state *s) {
-    int i;
-    for (i = 0; i < NUM_CHANNELS; i++) {
-        if (s->channels[i].state == UNUSED) {
-            //On a un channel de libre.
-            //On le met a receivers vide
-            s->channels[i].state = RECEIVER;
-            s->channels[i].recvs = NULL;
-            s->ctx->regs.eax = i;
-            return;
-        }
-    }
     s->ctx->regs.eax = -1;
-    return;
-}
-
-
-int picosend(state *s, chanid i, value v) {
-    pid_t writer = s->curr_pid;
-    channel_state *ch = &(s->channels[i]);
-
-    if (ch->state == UNUSED || ch->state == SENDER) {
-        s->ctx->regs.eax = 0;
-        return 0;
-    }
-
-    //Le canal est valide, on regarde s'il est vide.
-    if (ch->recvs == NULL) {
-        ch->state = SENDER;
-        ch->s_value = v;
-        ch->s_pid = s->curr_pid;
-        ch->s_priority = s->curr_priority;
-        s->processes[writer].state.state = BLOCKEDWRITING;
-        s->processes[writer].state.ch = i;
-        s->ctx->regs.eax = 1;
-        return 1;
-    }
-
-    //Le canal n'est pas vide.
-    c_list *r = get_recv(s, i);
-    pid_t recv = r->pid;
-    priority recv_p = r->priority;
-    free_c_list(r);
-
-    //On remet en etat le proccessus qui a lu la valeur.
-    //On le retire de tous les channels ou il ecoute.
-    list *ch_list = s->processes[recv].state.ch_list;
-    release_recv(s, recv, ch_list);
-
-    s->processes[recv].state.state = RUNNABLE;
-    s->processes[recv].saved_context.regs.eax = 1;
-    s->processes[recv].saved_context.regs.ebx = i;
-    s->processes[recv].saved_context.regs.ecx = v;
-    s->ctx->regs.eax = 1;
-
-    //On ne sait pas trop ce que renvoie cette fonction
-    return recv_p > s->curr_priority;
-}
-
-
-int picoreceive(state *s, list *ch_list) {
-    int valide = 0;
-
-    list *next_ch = ch_list;
-    while (next_ch != NULL) {
-        chanid ch_id = next_ch->hd;
-
-        if (ch_id >= 0 && ch_id < NUM_CHANNELS) {
-            channel_state *ch = &(s->channels[ch_id]);
-            if (ch->state == SENDER) {
-                s->ctx->regs.eax = 1;
-                s->ctx->regs.ebx = ch_id;
-                s->ctx->regs.ecx = ch->s_value;
-                s->processes[ch->s_pid].state.state = RUNNABLE;
-
-
-                ch->state = UNUSED;
-                ch->recvs = NULL;
-                release_recv(s, s->curr_pid, ch_list);
-                return ch->s_priority >= s->curr_priority;
-            } else if (ch->state == RECEIVER) {
-                valide = 1;
-                ch->recvs = add_recv(s->curr_pid, s->curr_priority, ch->recvs);
-            }
-        }
-        next_ch = next_ch->tl;
-
-    }
-
-    if (valide) {
-        s->processes[s->curr_pid].state.state = BLOCKEDREADING;
-        s->processes[s->curr_pid].state.ch_list = ch_list;
-        //s->ctx->regs.eax = 0;
-        return 1;
-    }
-
-    s->ctx->regs.eax = 0;
+    s->ctx->regs.ebx = ECHILD;
     return 0;
 }
 
-void picoget_key_event(state *s) {
-    if(s->curr_pid == s->focus) s->ctx->regs.eax = nextKeyEvent();
-    else s->ctx->regs.eax = -1;
+int _new_channel(state *s) {
+    int chanid = new_channel();
+    s->ctx->regs.eax = chanid;
+    s->ctx->regs.ebx = errno;
+    return 0; // No reorder
+}
+
+int _free_channel(state *s) {
+    int res = free_channel(s->ctx->regs.ebx);
+    s->ctx->regs.eax = res;
+    s->ctx->regs.ebx = errno;
+    return 0; // No reorder
+}
+
+int _send(state *s) {
+    ssize_t len = send(s);
+    s->ctx->regs.eax = len;
+    s->ctx->regs.ebx = errno;
+    return (len >= 0); // Need to reorder if no error
+}
+
+int _wait_channel(state *s) {
+    pid_t sender = wait_channel(s);
+    s->ctx->regs.eax = sender;
+    s->ctx->regs.ebx = errno;
+    // Need to reorder only if there was no error and no sender.
+    return (sender == -1) && (errno == ECLEAN);
+}
+
+int _receive(state *s) {
+    ssize_t len = receive(s);
+    s->ctx->regs.eax = len;
+    s->ctx->regs.ebx = errno;
+    return 0; // No need to reorder
+}
+
+int _fopen(state *s) {
+    char *path = (char *) s->ctx->regs.ebx;
+    oflags_t flags = (oflags_t) s->ctx->regs.ecx;
+    fd_t res = fopen(path, flags);
+    s->ctx->regs.eax = res;
+    s->ctx->regs.ebx = errno;
+    return 0;
+}
+
+int _close(state *s) {
+    fd_t fd = s->ctx->regs.ebx;
+    int res = close(fd);
+    s->ctx->regs.eax = res;
+    s->ctx->regs.ebx = errno;
+    return 0;
+}
+
+int _read(state *s) {
+    fd_t fd = s->ctx->regs.ebx;
+    void *buffer = (void *) s->ctx->regs.ecx;
+    size_t length = (size_t) s->ctx->regs.esi;
+    ssize_t res = read(fd, buffer, length);
+    s->ctx->regs.eax = res;
+    s->ctx->regs.ebx = errno;
+    return 0;
+}
+
+int _write(state *s) {
+    fd_t fd = s->ctx->regs.ebx;
+    void *buffer = (void *) s->ctx->regs.ecx;
+    size_t length = (size_t) s->ctx->regs.esi;
+    ssize_t res = write(fd, buffer, length);
+    s->ctx->regs.eax = res;
+    s->ctx->regs.ebx = errno;
+    return 0;
+}
+
+int _seek(state *s) {
+    fd_t fd = s->ctx->regs.ebx;
+    seek_cmd_t seek_command = (seek_cmd_t) s->ctx->regs.ecx;
+    int offset = s->ctx->regs.esi;
+    int res = seek(fd, seek_command, offset);
+    s->ctx->regs.eax = res;
+    s->ctx->regs.ebx = errno;
+    return 0;
+}
+
+int _mkdir(state *s) {
+    char *path = (char *) s->ctx->regs.ebx;
+    u8 mode = (u8) s->ctx->regs.ecx;
+    int res = mkdir(path, mode);
+    s->ctx->regs.eax = res;
+    s->ctx->regs.ebx = errno;
+    return 0;
+}
+
+int _rmdir(state *s) {
+    char *path = (char *) s->ctx->regs.ebx;
+    int res = rmdir(path);
+    s->ctx->regs.eax = res;
+    s->ctx->regs.ebx = errno;
+    return 0;
+}
+
+int _chdir(state *s) {
+    char *path = (char *) s->ctx->regs.ebx;
+    int res = chdir(path);
+    s->ctx->regs.eax = res;
+    s->ctx->regs.ebx = errno;
+    return 0;
+}
+
+int _getcwd(state *s) {
+    char *res = getcwd();
+    // TODO Allocation in the user side ?
+    res = res;
+    s->ctx->regs.eax = (int) NULL;
+    s->ctx->regs.ebx = EXDEV;
+    return 0;
+}
+
+int _opendir(state *s) {
+    char *path = (char *) s->ctx->regs.ebx;
+    fd_t res = opendir(path);
+    s->ctx->regs.eax = res;
+    s->ctx->regs.ebx = errno;
+    return 0;
+}
+
+int _readdir(state *s) {
+    fd_t fd = s->ctx->regs.ebx;
+    dirent_t *res = readdir(fd); // TODO Reduce the information ? And allocation !
+    s->ctx->regs.eax = (int) res;
+    s->ctx->regs.ebx = errno;
+    return 0;
+}
+
+int _rewinddir(state *s) {
+    fd_t fd = s->ctx->regs.ebx;
+    int res = rewinddir(fd);
+    s->ctx->regs.eax = res;
+    s->ctx->regs.ebx = errno;
+    return 0;
+}
+
+int _closedir(state *s) {
+    fd_t fd = s->ctx->regs.ebx;
+    int res = closedir(fd);
+    s->ctx->regs.eax = res;
+    s->ctx->regs.ebx = errno;
+    return 0;
+    return 0;
+}
+
+int _get_key_event(state *s) {
+    if(s->curr_pid == s->focus) {
+        s->ctx->regs.eax = nextKeyEvent();
+    }
+    else {
+        s->ctx->regs.eax = -1;
+        s->ctx->regs.ebx = ENOFOCUS;
+    }
+    return 0;
+}
+
+int _default_syscall(state *s) {
+    s->ctx->regs.eax = -1;
+    s->ctx->regs.ebx = ENOSYS;
+    return 0;
 }
 
 void reorder(state *s) {
@@ -453,6 +509,15 @@ void picotransition(state *s, event ev) {
     if(s->curr_pid >= 0) copy_context(s->ctx, &(s->processes[s->curr_pid].saved_context));
     int reorder_req = 0;
     if (ev == SYSCALL) {
+        int id = s->ctx->regs.eax;
+        if (id >= 0 && id < NUM_SYSCALLS) {
+            reorder_req = (syscall_fun[id])(s);
+        }
+        else {
+            s->ctx->regs.eax = -1;
+            s->ctx->regs.ebx = ENOSYS;
+        }
+        /*
         syscall_t sc = decode(s);
 
         switch (sc.t) {
@@ -488,7 +553,7 @@ void picotransition(state *s, event ev) {
         
         case INVALID:
             break;
-        }
+        }*/
     } else {
         if(s->curr_pid >= 0) {
             if (--s->processes[s->curr_pid].slices_left <= 0) {
@@ -570,7 +635,40 @@ void load_context(context_t ctx) {
     copy_context(&global_state.processes[global_state.curr_pid].saved_context, &ctx);
 }
 
+void init_syscalls_table(void) {
+    for (int i = 0; i < NUM_SYSCALLS; i++) {
+        syscall_fun[i] = _default_syscall;
+    }
+    
+    syscall_fun[0] = _new_channel;
+    syscall_fun[1] = _send;
+    syscall_fun[2] = _receive;
+    //syscall_fun[3] = _fork;
+    syscall_fun[4] = _exit;
+    syscall_fun[5] = _wait;
+    syscall_fun[6] = _free_channel;
+    syscall_fun[7] = _wait_channel;
+    
+    syscall_fun[10] = _fopen;
+    syscall_fun[11] = _close;
+    syscall_fun[12] = _read;
+    syscall_fun[13] = _write;
+    syscall_fun[14] = _seek;
+    
+    syscall_fun[20] = _mkdir;
+    syscall_fun[21] = _rmdir;
+    syscall_fun[22] = _chdir;
+    syscall_fun[23] = _getcwd;
+    syscall_fun[24] = _opendir;
+    syscall_fun[25] = _readdir;
+    syscall_fun[26] = _rewinddir;
+    syscall_fun[27] = _closedir;
+    
+    syscall_fun[40] = _get_key_event;
+}
+
 state *picoinit() {
+    init_syscalls_table();
     state *s = &global_state;
     s->curr_pid = -1;
     s->curr_priority = MAX_PRIORITY;

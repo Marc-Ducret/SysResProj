@@ -22,7 +22,8 @@ void provideKeyEvent(u8 event) {
 }
 
 int nextKeyEvent() {
-    if(readCursor == writeCursor) return -1;
+    if(readCursor == writeCursor)
+        return -1;
     else {
         int event = eventBuffer[readCursor];
         readCursor = (readCursor + 1) % BUFFER_SIZE;

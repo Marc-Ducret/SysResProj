@@ -13,7 +13,7 @@
 pid_t kfork(priority prio) {
     kprintf("Requested a fork, with priority %d\n", prio);
     pid_t child;
-    int ret_value;
+    int errno;
     
     asm volatile("\
         movl $3, %%eax \n \
@@ -21,20 +21,17 @@ pid_t kfork(priority prio) {
         int $0x80 \n \
         movl %%eax, %0 \n \
         movl %%ebx, %1"
-        : "=m" (ret_value), "=m" (child)
+        : "=m" (child), "=m" (errno)
         : "m" (prio)
         : "%ebx", "esi", "edi"
         );
-    
-    kprintf("Fork returned with code %d, and child %d \n", ret_value, child);
-    if (!ret_value)
-        return -1;
-
+    kprintf("Fork returned with child %d, and errno %d\n", child, errno);
     return child;
 }
 
 pid_t kwait(int *status) {
-    int ret_value, exit_value;
+    int errno;
+    int exit_value;
     pid_t child;
     
     asm volatile("\
@@ -43,20 +40,13 @@ pid_t kwait(int *status) {
         movl %%eax, %0 \n \
         movl %%ebx, %1 \n \
         movl %%ecx, %2"
-        : "=m" (ret_value), "=m" (child), "=m" (exit_value)
+        : "=m" (child), "=m" (errno), "=m" (exit_value)
         :
         : "%ebx", "esi", "edi"
         );
-
-    if (ret_value) {
-        // A Zombie child has been found.        
+    if (child >= 0)
         *status = exit_value;
-        return child;
-    }
-    else {
-        // No child found.
-        return -1;
-    }
+    return child;
 }
 
 void kexit(int status) {
@@ -68,90 +58,114 @@ void kexit(int status) {
         : "m" (status)
         : "%ebx", "esi", "edi"
         );
-    
     // This syscall should never return.
     kprintf("WARNING : Returned after exit. Trying again.\n");
     //kexit(status);
 }
 
-// Utilisera-t-on des file descriptors ? TODO
-int ksend(chanid channel, int msg) {
-    int ret_value;
+ssize_t ksend(int chanid, u8 *buffer, size_t len) {
+    ssize_t res;
+    int errno;
     
     asm volatile("\
         movl $1, %%eax \n \
-        movl %1, %%ebx \n \
-        movl %2, %%ecx \n \
-        int $0x80 \n \
-        movl %%eax, %0 \n"
-        : "=m" (ret_value)
-        : "m" (channel), "m" (msg)
-        : "%ebx", "esi", "edi"
-        );
-    
-    if (ret_value) {
-        return 0;
-    }
-    else {
-        // No such channel or already occupied.
-        return -1;  
-    }
-}
-
-int kreceive(chanid channel[4], int *dest) {    
-    int ret_value, res;
-    chanid chan;
-    
-    asm volatile("\
-        movl %3, %%ebx \n \
-        movl %4, %%ecx \n \
-        movl %5, %%edx \n \
-        movl %6, %%esi \n \
-        movl $2, %%eax \n \
+        movl %2, %%ebx \n \
+        movl %3, %%ecx \n \
+        movl %4, %%esi \n \
         int $0x80 \n \
         movl %%eax, %0 \n \
-        movl %%ebx, %1 \n \
-        movl %%ecx, %2 \n"
-        : "=m" (ret_value), "=m" (chan), "=m" (res)
-        : "m" (channel[0]), "m" (channel[1]), "m" (channel[2]), "m" (channel[3])
+        movl %%ebx, %1"
+        : "=m" (res), "=m" (errno)
+        : "m" (chanid), "m" (buffer), "m" (len)
         : "%ebx", "esi", "edi"
         );
-    kprintf("Bonjour, je reviens de receive ! \n");
-   
-    if (ret_value) {   
-        //TODO On ignore le channel choisi ici ?
-        *dest = res;
-        return 0;
-    }
-    else {
-        // No valid channel
-        return -1;
-    }
+    return res;
 }
 
-chanid knew_channel() {
-    chanid chan;
+int kreceive(int chanid, u8 *buffer, size_t len) {    
+    ssize_t res;
+    int errno;
+    
+    asm volatile("\
+        movl $1, %%eax \n \
+        movl %2, %%ebx \n \
+        movl %3, %%ecx \n \
+        movl %4, %%esi \n \
+        int $0x80 \n \
+        movl %%eax, %0 \n \
+        movl %%ebx, %1"
+        : "=m" (res), "=m" (errno)
+        : "m" (chanid), "m" (buffer), "m" (len)
+        : "%ebx", "esi", "edi"
+        );
+    return res;
+}
+
+pid_t kwait_channel(int chanid) {
+    pid_t sender;
+    int errno;
+        
+    asm volatile("\
+        movl $7, %%eax \n \
+        movl %2, %%ebx \n \
+        int $0x80 \n \
+        movl %%eax, %0 \n \
+        movl %%ebx, %1"
+        : "=m" (sender), "=m" (errno)
+        : "m" (chanid)
+        : "%ebx", "esi", "edi"
+        );
+    return sender;
+}
+
+int knew_channel(void) {
+    int res;
+    int errno;
+    
     asm volatile("\
                 movl $0, %%eax \n \
                 int $0x80 \n \
-                movl %%eax, %0"
-                : "=m" (chan)
+                movl %%eax, %0 \n \
+                movl %%ebx, %1"
+                : "=m" (res), "=m" (errno)
                 :
                 : "%ebx", "esi", "edi");
-    return chan;
+    return res;
 }
+
+int kfree_channel(int chanid) {
+    int res;
+    int errno;
+        
+    asm volatile("\
+        movl $6, %%eax \n \
+        movl %2, %%ebx \n \
+        int $0x80 \n \
+        movl %%eax, %0 \n \
+        movl %%ebx, %1"
+        : "=m" (res), "=m" (errno)
+        : "m" (chanid)
+        : "%ebx", "esi", "edi"
+        );
+    return res;
+}
+
+
+// File System related Calls
 
 fd_t kfopen(char *path, oflags_t flags) {
     fd_t fd;
-    int id = KFOPEN;
+    int errno;
+    
     asm volatile("\
-        movl %1, %%eax \n \
+        movl $10, %%eax \n \
         movl %2, %%ebx \n \
         movl %3, %%ecx \n \
         int $0x80 \n \
-        movl %%eax, %0 \n"
-        : "=m" (fd)
-        : "m" (id), "m" (path), "m" (flags)
+        movl %%eax, %0 \n \
+        movl %%ebx, %1"
+        : "=m" (fd), "=m" (errno)
+        : "m" (path), "m" (flags)
         : "%ebx", "esi", "edi"
         );
     return fd;
@@ -159,64 +173,72 @@ fd_t kfopen(char *path, oflags_t flags) {
 
 int kclose(fd_t fd) {
     int res;
-    int id = KCLOSE;
+    int errno;
+    
     asm volatile("\
-        movl %1, %%eax \n \
+        movl $11, %%eax \n \
         movl %2, %%ebx \n \
         int $0x80 \n \
-        movl %%eax, %0 \n"
-        : "=m" (res)
-        : "m" (id), "m" (fd)
+        movl %%eax, %0 \n \
+        movl %%ebx, %1"
+        : "=m" (res), "=m" (errno)
+        : "m" (fd)
         : "%ebx", "esi", "edi"
         );
     return res;
 }
 ssize_t kread(fd_t fd, void *buffer, size_t length) {
-    int id = KREAD;
     ssize_t res;
+    int errno;
+    
     asm volatile("\
-        movl %1, %%eax \n \
+        movl $12, %%eax \n \
         movl %2, %%ebx \n \
         movl %3, %%ecx \n \
         movl %4, %%esi \n \
         int $0x80 \n \
-        movl %%eax, %0 \n"
-        : "=m" (res)
-        : "m" (id), "m" (fd), "m" (buffer), "m" (length)
+        movl %%eax, %0 \n \
+        movl %%ebx, %1"
+        : "=m" (res), "=m" (errno)
+        : "m" (fd), "m" (buffer), "m" (length)
         : "%ebx", "esi", "edi"
         );
     return res;
 }
 
 ssize_t kwrite(fd_t fd, void *buffer, size_t length) {
-    int id = KWRITE;
     ssize_t res;
+    int errno;
+    
     asm volatile("\
-        movl %1, %%eax \n \
+        movl $13, %%eax \n \
         movl %2, %%ebx \n \
         movl %3, %%ecx \n \
         movl %4, %%esi \n \
         int $0x80 \n \
-        movl %%eax, %0 \n"
-        : "=m" (res)
-        : "m" (id), "m" (fd), "m" (buffer), "m" (length)
+        movl %%eax, %0 \n \
+        movl %%ebx, %1"
+        : "=m" (res), "=m" (errno)
+        : "m" (fd), "m" (buffer), "m" (length)
         : "%ebx", "esi", "edi"
         );
     return res;
 }
 
 int kseek(fd_t fd, seek_cmd_t seek_command, int offset) {
-    int id = KSEEK;
+    int errno;
     int res;
+    
     asm volatile("\
-        movl %1, %%eax \n \
+        movl $14, %%eax \n \
         movl %2, %%ebx \n \
         movl %3, %%ecx \n \
         movl %4, %%esi \n \
         int $0x80 \n \
-        movl %%eax, %0 \n"
-        : "=m" (res)
-        : "m" (id), "m" (fd), "m" (seek_command), "m" (offset)
+        movl %%eax, %0 \n \
+        movl %%ebx, %1"
+        : "=m" (res), "=m" (errno)
+        : "m" (fd), "m" (seek_command), "m" (offset)
         : "%ebx", "esi", "edi"
         );
     return res;
@@ -224,15 +246,17 @@ int kseek(fd_t fd, seek_cmd_t seek_command, int offset) {
 
 int kmkdir(char *path, u8 mode) {
     int res;
-    int id = KMKDIR;
+    int errno;
+    
     asm volatile("\
-        movl %1, %%eax \n \
+        movl $20, %%eax \n \
         movl %2, %%ebx \n \
         movl %3, %%ecx \n \
         int $0x80 \n \
-        movl %%eax, %0 \n"
-        : "=m" (res)
-        : "m" (id), "m" (path), "m" (mode)
+        movl %%eax, %0 \n \
+        movl %%ebx, %1"
+        : "=m" (res), "=m" (errno)
+        : "m" (path), "m" (mode)
         : "%ebx", "esi", "edi"
         );
     return res;
@@ -240,28 +264,32 @@ int kmkdir(char *path, u8 mode) {
 
 int krmdir(char *path) {
     int res;
-    int id = KRMDIR;
+    int errno;
+    
     asm volatile("\
-        movl %1, %%eax \n \
+        movl $21, %%eax \n \
         movl %2, %%ebx \n \
         int $0x80 \n \
-        movl %%eax, %0 \n"
-        : "=m" (res)
-        : "m" (id), "m" (path)
+        movl %%eax, %0 \n \
+        movl %%ebx, %1"
+        : "=m" (res), "=m" (errno)
+        : "m" (path)
         : "%ebx", "esi", "edi"
         );
     return res;
 }
 int kchdir(char *path) {
     int res;
-    int id = KCHDIR;
+    int errno;
+    
     asm volatile("\
-        movl %1, %%eax \n \
+        movl $22, %%eax \n \
         movl %2, %%ebx \n \
         int $0x80 \n \
-        movl %%eax, %0 \n"
-        : "=m" (res)
-        : "m" (id), "m" (path)
+        movl %%eax, %0 \n \
+        movl %%ebx, %1"
+        : "=m" (res), "=m" (errno)
+        : "m" (path)
         : "%ebx", "esi", "edi"
         );
     return res;
@@ -269,27 +297,31 @@ int kchdir(char *path) {
 
 char *kgetcwd() {
     char *res;
-    int id = KGETCWD;
+    int errno;
+    
     asm volatile("\
-                movl %1, %%eax \n \
-                int $0x80 \n \
-                movl %%eax, %0"
-                : "=m" (res)
-                : "m" (id)
-                : "%ebx", "esi", "edi");
+        movl $23, %%eax \n \
+        int $0x80 \n \
+        movl %%eax, %0 \n \
+        movl %%ebx, %1"
+        : "=m" (res), "=m" (errno)
+        :
+        : "%ebx", "esi", "edi");
     return res;
 }
 
 fd_t kopendir(char *path) {
     fd_t res;
-    int id = KOPENDIR;
+    int errno;
+    
     asm volatile("\
-        movl %1, %%eax \n \
+        movl $24, %%eax \n \
         movl %2, %%ebx \n \
         int $0x80 \n \
-        movl %%eax, %0 \n"
-        : "=m" (res)
-        : "m" (id), "m" (path)
+        movl %%eax, %0 \n \
+        movl %%ebx, %1"
+        : "=m" (res), "=m" (errno)
+        : "m" (path)
         : "%ebx", "esi", "edi"
         );
     return res;
@@ -297,14 +329,16 @@ fd_t kopendir(char *path) {
 
 dirent_t *kreaddir(fd_t fd) {
     dirent_t *res;
-    int id = KREADDIR;
+    int errno;
+    
     asm volatile("\
-        movl %1, %%eax \n \
+        movl $25, %%eax \n \
         movl %2, %%ebx \n \
         int $0x80 \n \
-        movl %%eax, %0 \n"
-        : "=m" (res)
-        : "m" (id), "m" (fd)
+        movl %%eax, %0 \n \
+        movl %%ebx, %1"
+        : "=m" (res), "=m" (errno)
+        : "m" (fd)
         : "%ebx", "esi", "edi"
         );
     return res;
@@ -312,14 +346,16 @@ dirent_t *kreaddir(fd_t fd) {
 
 int krewinddir(fd_t fd) {
     int res;
-    int id = KREWINDDIR;
+    int errno;
+    
     asm volatile("\
-        movl %1, %%eax \n \
+        movl $26, %%eax \n \
         movl %2, %%ebx \n \
         int $0x80 \n \
-        movl %%eax, %0 \n"
-        : "=m" (res)
-        : "m" (id), "m" (fd)
+        movl %%eax, %0 \n \
+        movl %%ebx, %1"
+        : "=m" (res), "=m" (errno)
+        : "m" (fd)
         : "%ebx", "esi", "edi"
         );
     return res;
@@ -327,14 +363,16 @@ int krewinddir(fd_t fd) {
 
 int kclosedir(fd_t fd) {
     int res;
-    int id = KCLOSEDIR;
+    int errno;
+    
     asm volatile("\
-        movl %1, %%eax \n \
+        movl $27, %%eax \n \
         movl %2, %%ebx \n \
         int $0x80 \n \
-        movl %%eax, %0 \n"
-        : "=m" (res)
-        : "m" (id), "m" (fd)
+        movl %%eax, %0 \n \
+        movl %%ebx, %1"
+        : "=m" (res), "=m" (errno)
+        : "m" (fd)
         : "%ebx", "esi", "edi"
         );
     return res;
@@ -348,17 +386,19 @@ dirent_t *findent(fd_t dir, char *name, ftype_t type);
 
 int kget_key_event() {
     int res;
-    int id = KGET_KEY_EVENT;
+    int errno;
+    
     asm volatile("\
-                movl %1, %%eax \n \
+                movl $40, %%eax \n \
                 int $0x80 \n \
-                movl %%eax, %0"
-                : "=m" (res)
-                : "m" (id)
+                movl %%eax, %0 \n \
+                movl %%ebx, %1"
+                : "=m" (res), "=m" (errno)
+                :
                 : "%ebx", "esi", "edi");
     return res;
 }
-
+/*
 void new_launch() {
     kprintf("Initial state\n");
     chanid channels[4];
@@ -400,14 +440,14 @@ void new_launch() {
     //s->registers->eax = 3;
     //s->registers->ebx = MAX_PRIORITY - 1;
     //picotransition(s, SYSCALL);
-    /*pid_t child2 = */kfork(MAX_PRIORITY - 1);
+    pid_t child2 = kfork(MAX_PRIORITY - 1);
     log_state(s);
 
     kprintf("Let's wait for him to die!\n");
     //s->registers->eax = 5;
     //picotransition(s, SYSCALL);
     int status;
-    /*int res_wait = */kwait(&status);
+    int res_wait = kwait(&status);
     log_state(s);
 
     kprintf("On with the grandchild, which'll send on channel r3\n");
@@ -415,7 +455,7 @@ void new_launch() {
     //s->registers->ebx = s->registers->edx;
     //s->registers->ecx = -12;
     //picotransition(s, SYSCALL);
-    /*int res_send = */ksend(chan2, -12);
+    int res_send = ksend(chan2, -12);
     log_state(s);
 
     kprintf("On with idle, to listen to the grandchild!\n");
@@ -427,7 +467,7 @@ void new_launch() {
     //picotransition(s, SYSCALL);
     channels[0] = 1;
     int dest2;
-    /*int res_recv = */kreceive(channels, &dest2);
+    int res_recv = kreceive(channels, &dest2);
     log_state(s);
 
     kprintf("Letting the timer tick until we're back to the grandchild\n");
@@ -465,3 +505,4 @@ void new_launch() {
     kwait(&status);
     log_state(s);
 }
+*/
