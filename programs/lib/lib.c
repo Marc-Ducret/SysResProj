@@ -1,4 +1,5 @@
 #include "lib.h"
+#include "malloc.h"
 
 u16 *get_screen() {
     return (u16*) 0x88000000;
@@ -26,4 +27,11 @@ int next_key_event() {
                 : "m" (id)
                 : "%ebx", "esi", "edi");
     return res;
+}
+
+u32 last_rand = 1351968;
+
+u32 rand() {
+    last_rand = ((last_rand*884519) % 56311523)*8984541;
+    return last_rand;
 }

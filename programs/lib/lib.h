@@ -23,9 +23,12 @@
 #define VGA_WIDTH 80
 #define VGA_HEIGHT 25
 
+#define NULL (void *) 0
+
 u16 *get_screen();
 void set_char_at(u8 c, u8 fg, u8 bg, u8 x, u8 y);
 void clear_screen(u8 color);
 int next_key_event();
+u32 rand();
 
 #endif
