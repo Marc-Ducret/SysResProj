@@ -23,8 +23,8 @@ fd_t fopen_ent(dirent_t *dirent, oflags_t flags) {
         errno = EISDIR;
         return -1;
     }
-    int system = dirent->attributes.system;
-    int rdonly = dirent->attributes.rd_only;
+    int system = dirent->mode & SYSTEM;
+    int rdonly = dirent->mode & RDONLY;
     // Checks the rights
     if ((flags & O_WRONLY) && ((usermod && (system || rdonly))
             || (system && rdonly))) {
@@ -381,7 +381,7 @@ int remove(char *path) {
         // No such file, or it is a directory
         return -1;
     }
-    if (dirent->attributes.system && usermod) {
+    if ((dirent->mode & SYSTEM) && usermod) {
         // No such permission
         errno = EACCES;
         return -1;
@@ -930,7 +930,6 @@ dirent_t *readdir(fd_t fd) {
                 dirent_p->ent_cluster = cluster;
                 dirent_p->ent_size = size;
                 dirent_p->ent_prev_cluster = prev_cluster;
-                dirent_p->attributes = dirent->attributes;
                 dirent_p->size = dirent->file_size;
                 dirent_p->mode = dirent->attributes.system ? SYSTEM : 0;
                 dirent_p->mode |= dirent->attributes.rd_only ? RDONLY : 0;
@@ -1182,8 +1181,6 @@ int init_root() {
     dirent->mode = SYSTEM;
     dirent->size = 0;
     dirent->ent_size = 1;
-    dirent->attributes.dir = 1;
-    dirent->attributes.system = 1;
     
     fd_t fd = opendir("/");
     if (fd == -1) {

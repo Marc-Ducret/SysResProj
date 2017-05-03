@@ -81,7 +81,7 @@ void scroll_up() {
 int main() {
     init();
     for(;;) {
-        int event = next_key_event();
+        int event = kget_key_event();
         if(event >= 0 && event < 0x80) {
             if(event == KEY_SHIFT) scroll_up();
             else if(event == KEY_CTRL) scroll_down();

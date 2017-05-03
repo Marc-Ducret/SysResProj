@@ -1,9 +1,18 @@
 #ifndef KERNEL_H
 #define KERNEL_H
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 #include "int.h"
 #include "context.h"
-#include "paging.h"
 #include "multiboot.h"
+#include "printing.h"
+#include "kernel.h"
+#include "lib.h"
+#include "memory.h"
+#include "paging.h"
+#include "fs_call.h"
+#include "keyboard.h"
 
 #define MAX_SIZE_LIST 100
 #define MAX_SIZE_C_LIST 100
@@ -13,6 +22,7 @@
 #define NUM_CHANNELS 128
 #define NUM_REGISTERS 5
 #define NUM_HANDLES 32
+#define NUM_SYSCALLS 100
 
 typedef int pid_t;
 typedef int chanid;
@@ -99,6 +109,8 @@ typedef enum event
 typedef enum sysc_name 
 { SEND, RECV, FORK, WAIT, EXIT, NEWCHANNEL, GET_KEY_EVENT, INVALID } sysc_name;
 
+typedef int (*syscall_fun_t)(state* s);
+
 typedef struct syscall_t 
 {
     sysc_name t;
@@ -122,5 +134,7 @@ void picotimer(context_t *);
 void picotransition(state *s, event ev);;
 void log_state(state *s);
 state *get_global_state();
+
+#include "channel.h"
 #endif /* KERNEL_H */
 

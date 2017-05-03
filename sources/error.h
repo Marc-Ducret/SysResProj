@@ -6,7 +6,7 @@
 
 #define DEFAULT_STDERR_PATH "/error/stderr"
 #define DEFAULT_STDERR_DIR "/error/"
-#define NB_ERR 72
+#define NB_ERR 73
 
 typedef enum {
     ECLEAN,     //No error, default value
@@ -16,7 +16,7 @@ typedef enum {
     EBADF,	//Bad file descriptor
     EBUSY,	//Resource unavailable
     ECHILD,	//No child process
-    EDEADLK,	//Resource deadlock would occur
+    ENOFOCUS,	//Process doesn't have the focus
     EDOM,	//Domain error for math functions, etc.
     EEXIST,	//File exists
     EFAULT,	//Bad address
@@ -35,7 +35,7 @@ typedef enum {
     ENOLCK,	//No locks available
     ENOMEM,	//Not enough memory
     ENOSPC,	//No space left on device
-    ENOSYS,	//Function not supported
+    ENOSYS,	//No such system call
     ENOTDIR,	//Not a directory
     ENOTEMPTY,	//Directory not empty
     ENOTTY,	//Inappropriate I/O control operation
@@ -48,10 +48,10 @@ typedef enum {
     ESRCH,	//No such process
     EXDEV,	//Invalid link
     EWOULDBLOCK,	//Operation would block
-    EINPROGRESS,	//Operation now in progress
+    EINPROGRESS,	//Operation in progress
     EALREADY,	//Operation already in progress
-    ENOTSOCK,	//Socket operation on non-socket
-    EDESTADDRREQ,	//Destination address required
+    EOCCUPIED,	//Channel is already occupied by some process
+    EEMPTY,	//Channel is empty
     EMSGSIZE,	//Message too long
     EPROTOTYPE,	//Protocol wrong type for socket
     ENOPROTOOPT,	//Protocol not available
@@ -81,6 +81,7 @@ typedef enum {
     ECORRF,     // Corrupted or not consistant file
     EBADPERM,   // Bad permission for file
     EUNKNOWNERR,	//Unknown error
+    EMCHAN      // Too many open channels
 } error_t;
 
 char *error_msg[NB_ERR];

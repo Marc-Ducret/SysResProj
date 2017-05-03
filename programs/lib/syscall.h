@@ -1,5 +1,6 @@
 #ifndef SYSCALL_H
 #define SYSCALL_H
+#include "int.h"
 
 // Process related System Calls
 #define KNEWCHANNEL 0
@@ -8,15 +9,18 @@
 #define KFORK 3
 #define KEXIT 4
 #define KWAIT 5
+#define KFREECHANNEL 6
+#define KWAITCHANNEL 7
 
-pid_t kfork(priority prio);
+//pid_t kfork(int prio);
 pid_t kwait(int *status);
 void kexit(int status);
 
-// Utilisera-t-on des file descriptors ? TODO
-int ksend(chanid channel, int msg);
-int kreceive(chanid channel[4], int *dest);
-chanid knew_channel();
+ssize_t ksend(int chanid, u8 *buffer, size_t len);
+ssize_t kreceive(int chanid, u8 *buffer, size_t len);
+pid_t kwait_channel(int chanid);
+int knew_channel(void);
+int kfree_channel(int chanid);
 
 // File System related Calls
 #define KFOPEN 10
@@ -34,8 +38,6 @@ chanid knew_channel();
 #define KREWINDDIR 26
 #define KCLOSEDIR 27
 
-#define KGET_KEY_EVENT 40
-
 fd_t kfopen(char *path, oflags_t flags);
 int kclose(fd_t fd);
 ssize_t kread(fd_t fd, void *buffer, size_t length);
@@ -51,8 +53,12 @@ dirent_t *kreaddir(fd_t fd);
 int krewinddir(fd_t fd);
 int kclosedir(fd_t fd);
 
-int k_get_key_event();
+// Other system calls
 
-void new_launch();
+#define KGET_KEY_EVENT 40
+
+int kget_key_event();
+
+//void new_launch();
 #endif /* SYSCALL_H */
 
