@@ -12,7 +12,7 @@ void init_error_msg() {
     error_msg[4] = "Bad file descriptor";
     error_msg[5] = "Resource unavailable";
     error_msg[6] = "No child process";
-    error_msg[7] = "Resource deadlock would occur";
+    error_msg[7] = "Process doesn't have the focus";
     error_msg[8] = "Domain error for math functions, etc.";
     error_msg[9] = "File exists";
     error_msg[10] = "Bad address";
@@ -31,7 +31,7 @@ void init_error_msg() {
     error_msg[23] = "No locks available";
     error_msg[24] = "Not enough memory";
     error_msg[25] = "No space left on device";
-    error_msg[26] = "Function not supported";
+    error_msg[26] = "No such system call";
     error_msg[27] = "Not a directory";
     error_msg[28] = "Directory not empty";
     error_msg[29] = "Inappropriate I/O control operation";
@@ -44,10 +44,10 @@ void init_error_msg() {
     error_msg[36] = "No such process";
     error_msg[37] = "Invalid link";
     error_msg[38] = "Operation would block";
-    error_msg[39] = "Operation now in progress";
+    error_msg[39] = "Operation in progress";
     error_msg[40] = "Operation already in progress";
-    error_msg[41] = "Socket operation on non-socket";
-    error_msg[42] = "Destination address required";
+    error_msg[41] = "Channel is already occupied by some process";
+    error_msg[42] = "Channel is empty";
     error_msg[43] = "Message too long";
     error_msg[44] = "Protocol wrong type for socket";
     error_msg[45] = "Protocol not available";
@@ -77,6 +77,7 @@ void init_error_msg() {
     error_msg[69] = "Corrupted or not consistant file";
     error_msg[70] = "Bad permission. Can't create file with system permission.";
     error_msg[71] = "Unknown error";
+    error_msg[72] = "Too many open channels";
 }
 
 int init_stderr(char *path) { // TODO Really place this here ?

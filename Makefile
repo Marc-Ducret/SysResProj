@@ -10,6 +10,7 @@ OBJS:=\
 build/boot.o \
 build/io.o \
 build/kernel.o \
+build/channel.o \
 build/printing.o \
 build/memory.o \
 build/paging.o \
