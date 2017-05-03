@@ -27,7 +27,6 @@ build/stream.o \
 build/error.o \
 build/keycode.o \
 build/keyboard.o \
-build/syscall.o \
 build/lib.o \
 build/main.o
 

@@ -1,5 +1,6 @@
 #include "int.h"
 #include "printing.h"
+#include "lib.h"
 
 void *memcpy(void *dst, void *src, u32 n) {
     u8 *p = dst;

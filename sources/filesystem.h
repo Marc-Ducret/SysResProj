@@ -189,7 +189,6 @@ typedef struct {
     u8 mode;
     u32 ent_size;   // Number of directory entries used by the file / directory.
     u32 size;       // Size of the file (0 for directories).
-    attributes_t attributes;
 } dirent_t;
 
 void init_fs(int show);
