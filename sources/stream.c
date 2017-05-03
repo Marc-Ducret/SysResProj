@@ -27,10 +27,11 @@ int stream_putchar(char c, stream_t *stream) {
             // Error while flush
             return -1;
         }
+        stream->index = 0;
     }
     stream->buffer[stream->index] = c;
     stream->index ++;
-    
+
     return 0;
 }
 

@@ -1132,7 +1132,7 @@ void test_dir() {
     kprintf("Errno : %s\n", strerror(errno));
     fprintf(NULL, "Content : (* %s *)\n", buffer);
     kprintf("Error %d : %s\n", 42, strerror(42));
-    kprintf("stderr %d\n", stderr);
+    kprintf("stderr %x\n", stderr);
     kprintf("Next filename id : %d\n", next_name_id);
 }
 
