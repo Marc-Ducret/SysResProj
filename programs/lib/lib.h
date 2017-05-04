@@ -2,6 +2,8 @@
 #define LIB_H
 #include "int.h"
 #include "keycode.h"
+#include "malloc.h"
+#include "syscall.h"
 
 #define COLOR_BLACK 0
 #define COLOR_BLUE 1
@@ -28,7 +30,7 @@
 u16 *get_screen();
 void set_char_at(u8 c, u8 fg, u8 bg, u8 x, u8 y);
 void clear_screen(u8 color);
-int next_key_event();
+//int next_key_event();
 u32 rand();
 
 #endif

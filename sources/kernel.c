@@ -576,7 +576,7 @@ void picotransition(state *s, event ev) {
 }
 
 void focus_next_process() {
-    global_state.focus = (global_state.focus + 1) % 2;
+    global_state.focus = (global_state.focus + 1) % 3;
 }
 
 void picosyscall(context_t *ctx) {
@@ -613,9 +613,13 @@ void start_process(int pid, int parent) {
     p->slices_left = 0;
     p->state.ch_list = NULL;
     u8 *user_code;
-    if(pid) {
+    if (pid == 0) {
         user_code = kmalloc_a(CODE_LEN);
         fd_t file = fopen("/spread.bin", O_RDONLY);
+        read(file, user_code, CODE_LEN);
+    } else if (pid == 1) {
+        user_code = kmalloc_a(CODE_LEN);
+        fd_t file = fopen("/console.bin", O_RDONLY);
         read(file, user_code, CODE_LEN);
     } else {
         user_code = kmalloc_a(CODE_LEN);
@@ -694,6 +698,7 @@ state *picoinit() {
     }
     start_process(0, 0);
     start_process(1, 1);
+    //start_process(2, 2);
     s->curr_pid = 0;
     kprintf("Init kernel\n");
     return s;

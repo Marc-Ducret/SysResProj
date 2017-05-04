@@ -123,7 +123,7 @@ void draw() {
 int main() {
     init();
     while(turn < TURNS) {
-        int k = next_key_event();
+        int k = kget_key_event();
         if(k > 0 && k < 0x80) tick();
         draw();
         asm("hlt");

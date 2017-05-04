@@ -1,5 +1,4 @@
 #include "lib.h"
-#include "malloc.h"
 
 u16 *get_screen() {
     return (u16*) 0x88000000;
@@ -15,7 +14,7 @@ void clear_screen(u8 color) {
         for(u8 x = 0; x < VGA_WIDTH; x++)
             set_char_at(' ', color, color, x , y);
 }
-
+/*
 int next_key_event() {
     int res;
     int id = 40;
@@ -27,7 +26,7 @@ int next_key_event() {
                 : "m" (id)
                 : "%ebx", "esi", "edi");
     return res;
-}
+}*/
 
 u32 last_rand = 1351968;
 

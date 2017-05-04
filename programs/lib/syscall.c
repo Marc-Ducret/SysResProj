@@ -1,15 +1,10 @@
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
-#include "printing.h"
-#include "kernel.h"
 #include "syscall.h"
-#include "int.h"
 /* This file contains all the syscalls seen from the user side.
    This means that the user is supposed to have access to it. */
 
 // TODO Déterminer s'il faut indiquer la modification de tous les registres ?
 // Check that no casts are needed (oflags_t, ..)
+/*
 pid_t kfork(priority prio) {
     kprintf("Requested a fork, with priority %d\n", prio);
     pid_t child;
@@ -27,7 +22,7 @@ pid_t kfork(priority prio) {
         );
     kprintf("Fork returned with child %d, and errno %d\n", child, errno);
     return child;
-}
+}*/
 
 pid_t kwait(int *status) {
     int errno;
@@ -59,7 +54,7 @@ void kexit(int status) {
         : "%ebx", "esi", "edi"
         );
     // This syscall should never return.
-    kprintf("WARNING : Returned after exit. Trying again.\n");
+    //kprintf("WARNING : Returned after exit. Trying again.\n");
     //kexit(status);
 }
 

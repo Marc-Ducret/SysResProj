@@ -1,5 +1,6 @@
 #ifndef SYSCALL_H
 #define SYSCALL_H
+#include "int.h"
 
 // Process related System Calls
 #define KNEWCHANNEL 0
@@ -11,14 +12,14 @@
 #define KFREECHANNEL 6
 #define KWAITCHANNEL 7
 
-//pid_t kfork(priority prio);
+//pid_t kfork(int prio);
 pid_t kwait(int *status);
 void kexit(int status);
 
 ssize_t ksend(int chanid, u8 *buffer, size_t len);
 ssize_t kreceive(int chanid, u8 *buffer, size_t len);
 pid_t kwait_channel(int chanid);
-chanid knew_channel(void);
+int knew_channel(void);
 int kfree_channel(int chanid);
 
 // File System related Calls
@@ -56,7 +57,7 @@ int kclosedir(fd_t fd);
 
 #define KGET_KEY_EVENT 40
 
-int k_get_key_event();
+int kget_key_event();
 
 //void new_launch();
 #endif /* SYSCALL_H */
