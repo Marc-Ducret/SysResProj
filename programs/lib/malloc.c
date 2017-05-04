@@ -2,7 +2,7 @@
 
 malloc_header_t *first_block = NULL;
 
-void *expend_heap(u32 size) {
+void *expand_heap(u32 size) {
     return NULL; //TODO do
 }
 
@@ -19,7 +19,7 @@ void *malloc(u32 size) {
             new_block->prev_block = block;
             new_block->next_block = block->next_block;
             new_block->size = size;
-            next_block->prev_block = new_block;
+            block->next_block->prev_block = new_block;
             block->next_block = new_block;
             return (void *) new_block + sizeof(malloc_header_t);
         }

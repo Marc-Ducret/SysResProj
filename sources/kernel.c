@@ -569,7 +569,7 @@ void picotransition(state *s, event ev) {
         }
     }
     
-    user_esp = global_state.processes[s->curr_pid].saved_context.regs.esp - 0x2C;
+    //user_esp = global_state.processes[s->curr_pid].saved_context.regs.esp - 0x2C; TODO ??
     if (reorder_req) {
         reorder(s);
     }
@@ -630,8 +630,7 @@ void start_process(int pid, int parent) {
     p->page_directory = init_user_page_dir((u32) user_code, CODE_LEN);
     copy_context(global_state.ctx, &p->saved_context);
     p->saved_context.stack.eip = USER_CODE_VIRTUAL;
-    user_esp = USER_STACK_VIRTUAL + 0x1000 - sizeof(context_t) - 0x8;
-    user_pd = p->page_directory;
+    p->saved_context.regs.esp = USER_STACK_VIRTUAL + 0x1000 - sizeof(context_t) - 0x8 + 0x2C;
     global_state.runqueues[MAX_PRIORITY] = add(pid, global_state.runqueues[MAX_PRIORITY]);
 }
 
@@ -698,8 +697,8 @@ state *picoinit() {
     }
     start_process(0, 0);
     start_process(1, 1);
-    //start_process(2, 2);
-    s->curr_pid = 0;
+    start_process(2, 2);
+    reorder(s);
     kprintf("Init kernel\n");
     return s;
 }

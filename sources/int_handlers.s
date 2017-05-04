@@ -29,38 +29,6 @@ isr\nb:
     iret
 .endm
 
-.macro timer nb
-.global timer\nb
-timer\nb:
-    #cli
-    #push $0
-    #pushr
-    #push %esp
-    #push $\nb
-    #add $8, %esp
-    #popr
-    #add $4, %esp
-    #sti
-    #iret
-    #TODO rm
-    cli
-    push $0
-    pushr
-    push %esp
-    push $\nb
-    call irq_handler
-    mov user_pd, %eax
-    add $0x1000, %eax
-    mov %eax, %cr3
-    mov user_esp, %esp
-    add $8, %esp
-    call load_context
-    popr
-    add $4, %esp
-    sti
-    iret
-.endm
-
 .macro irq nb
 .global irq\nb
 irq\nb:
@@ -70,7 +38,15 @@ irq\nb:
     push %esp
     push $\nb
     call irq_handler
+    mov user_pd, %eax
+    movl $0, user_pd
+    test %eax, %eax
+    je irq_ret
+    add $0x1000, %eax
+    mov %eax, %cr3
+    mov user_esp, %esp
     add $8, %esp
+    call load_context
     popr
     add $4, %esp
     sti
@@ -157,7 +133,7 @@ isr_no_error_code 28
 isr_no_error_code 29
 isr_no_error_code 30
 isr_no_error_code 31
-timer 0
+irq 0
 irq 1
 irq 2
 irq 3
@@ -182,6 +158,13 @@ asm_syscall:
     push %esp
     push %eax
     call syscall
+    add $8, %esp
+    popr
+    add $4, %esp
+    sti
+    iret
+    
+irq_ret:
     add $8, %esp
     popr
     add $4, %esp

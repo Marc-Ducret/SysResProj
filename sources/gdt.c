@@ -119,7 +119,7 @@ void init_idt(void) {
     init_idt_desc(30, 0x08, (u32) isr30, INTGATE);
     init_idt_desc(31, 0x08, (u32) isr31, INTGATE);
     
-    init_idt_desc(32, 0x08, (u32) timer0, INTGATE); //Timer
+    init_idt_desc(32, 0x08, (u32) irq0, INTGATE); //Timer
     init_idt_desc(33, 0x08, (u32) irq1, INTGATE); //Keyboard
     init_idt_desc(34, 0x08, (u32) irq2, INTGATE);
     init_idt_desc(35, 0x08, (u32) irq3, INTGATE);
