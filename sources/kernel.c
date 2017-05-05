@@ -492,8 +492,9 @@ void reorder(state *s) {
                 s->processes[next_pid].slices_left = MAX_TIME_SLICES;
                 s->curr_pid = next_pid;
                 s->curr_priority = p;
-                user_pd = global_state.processes[next_pid].page_directory;
+                user_pd = &global_state.processes[next_pid].page_directory;
                 user_esp = global_state.processes[next_pid].saved_context.regs.esp - 0x2C;
+                //kprintf("hi %d, %x\n", next_pid, s->processes[next_pid].saved_context.stack.eip);
                 return;
             }
             rq = rq->tl;
@@ -576,7 +577,9 @@ void picotransition(state *s, event ev) {
 }
 
 void focus_next_process() {
-    global_state.focus = (global_state.focus + 1) % 3;
+    do
+        global_state.focus = (global_state.focus + 1) % NUM_PROCESSES;
+    while(global_state.processes[global_state.focus].state.state == FREE);
 }
 
 void picosyscall(context_t *ctx) {
@@ -595,16 +598,14 @@ void picotimer(context_t *ctx) {
         picoinit();
         return;
     }
-    if(global_state.curr_pid == global_state.focus) memcpy((void*) 0xB8000, (void*) 0x88000000, 0x1000);
+    if(global_state.curr_pid == global_state.focus) memcpy((void*) 0xB8000, (void*) USER_SCREEN_VIRTUAL, 0x1000);
     picotransition(&global_state, TIMER);
 }
 
-void writ(u8 *addr) {
-    addr[0] = 0xFF; addr[1] = 0x05; addr[2] = 0x00;
-    addr[3] = 0x80; addr[4] = 0x0B; addr[5] = 0x00; 
-}
-
 #define CODE_LEN 0x10000
+u8 TMP_BUFFER[CODE_LEN];
+u8 *TMP_CODE = TMP_BUFFER;
+page_directory_t *TMP_PD;
 
 void start_process(int pid, int parent) {
     process *p = &global_state.processes[pid];
@@ -612,22 +613,30 @@ void start_process(int pid, int parent) {
     p->state.state = RUNNABLE;
     p->slices_left = 0;
     p->state.ch_list = NULL;
-    u8 *user_code;
-    if (pid == 0) {
-        user_code = kmalloc_a(CODE_LEN);
-        fd_t file = fopen("/spread.bin", O_RDONLY);
-        read(file, user_code, CODE_LEN);
-    } else if (pid == 1) {
-        user_code = kmalloc_a(CODE_LEN);
-        fd_t file = fopen("/console.bin", O_RDONLY);
-        read(file, user_code, CODE_LEN);
-    } else {
-        user_code = kmalloc_a(CODE_LEN);
-        fd_t file = fopen("/console.bin", O_RDONLY);
-        read(file, user_code, CODE_LEN);
-    }
+    u8 *user_code = TMP_CODE;
+    fd_t file = fopen("/console.bin", O_RDONLY);
+    read(file, user_code, CODE_LEN);
+    init_user_page_dir(CODE_LEN, &p->page_directory);
+    TMP_PD = &p->page_directory;
+    asm volatile("  mov %%cr3, %%edx                    \n\
+                    mov %1, %%eax                       \n\
+                    add $0x1000, %%eax                  \n\
+                    mov %%eax, %%cr3                    \n\
+                    mov $0x10000, %%eax                  \n\
+                continue_copy:                          \n\
+                    sub $0x4, %%eax                     \n\
+                    mov %0, %%ebx                       \n\
+                    add %%eax, %%ebx                    \n\
+                    movl (%%ebx), %%ecx                 \n\
+                    movl %%ecx, 0x40000000(%%eax)       \n\
+                    test %%eax, %%eax                   \n\
+                    je end_copy                         \n\
+                    jmp continue_copy                   \n\
+                end_copy:                               \n\
+                    mov %%edx, %%cr3                    \n"
+                    : : "m" (TMP_CODE), "m" (TMP_PD)                
+                    : "eax", "ebx", "ecx", "edx");
     kprintf("Starting process %d (code = %x) [%x]\n", pid, user_code, *(u32*)user_code);
-    p->page_directory = init_user_page_dir((u32) user_code, CODE_LEN);
     copy_context(global_state.ctx, &p->saved_context);
     p->saved_context.stack.eip = USER_CODE_VIRTUAL;
     p->saved_context.regs.esp = USER_STACK_VIRTUAL + 0x1000 - sizeof(context_t) - 0x8 + 0x2C;
@@ -695,9 +704,7 @@ state *picoinit() {
     for (i = 0; i <= MAX_PRIORITY; i++) {
         s->runqueues[i] = NULL;
     }
-    start_process(0, 0);
-    start_process(1, 1);
-    start_process(2, 2);
+    for(int i = 0; i < 10; i++) start_process(i, i);
     reorder(s);
     kprintf("Init kernel\n");
     return s;
@@ -782,96 +789,4 @@ void log_state(state* s) {
         }
     }
     kprintf("\n");
-}
-
-
-void launch() {
-    kprintf("Initial state\n");
-    context_t ctx;
-    state* s = picoinit(&ctx);
-    log_state(s);
-
-    kprintf("Forking init\n");
-    s->ctx->regs.eax = 3;
-    s->ctx->regs.ebx = MAX_PRIORITY;
-    picotransition(s, SYSCALL);
-    log_state(s);
-    
-    kprintf("Asking for a new channel, in r4\n");
-    s->ctx->regs.eax = 0;
-    picotransition(s, SYSCALL);
-    s->ctx->regs.esi = s->ctx->regs.eax;
-    log_state(s);
-
-    kprintf("Making init wait for a message on the channel\n");
-    kprintf("This should switch to the child process since init is BlockedReading\n");
-    s->ctx->regs.eax = 2;
-    s->ctx->regs.ebx = -1;
-    s->ctx->regs.ecx = -1;
-    s->ctx->regs.edx = -1;
-    picotransition(s, SYSCALL);
-    log_state(s);
-
-    kprintf("Getting a new channel in r3\n");
-    s->ctx->regs.eax = 0;
-    picotransition(s, SYSCALL);
-    s->ctx->regs.edx = s->ctx->regs.eax;
-    log_state(s);
-
-    kprintf("What about having a child of our own?\n");
-    s->ctx->regs.eax = 3;
-    s->ctx->regs.ebx = MAX_PRIORITY - 1;
-    picotransition(s, SYSCALL);
-    log_state(s);
-
-    kprintf("Let's wait for him to die!\n");
-    s->ctx->regs.eax = 5;
-    picotransition(s, SYSCALL);
-    log_state(s);
-
-    kprintf("On with the grandchild, which'll send on channel r3\n");
-    s->ctx->regs.eax = 1;
-    s->ctx->regs.ebx = s->ctx->regs.edx;
-    s->ctx->regs.ecx = -12;
-    picotransition(s, SYSCALL);
-    log_state(s);
-
-    kprintf("On with idle, to listen to the grandchild!\n");
-    s->ctx->regs.eax = 2;
-    s->ctx->regs.ebx = 1; // Little hack, not supposed to know it's gonna be channel one
-    s->ctx->regs.ecx = -1;
-    s->ctx->regs.edx = -1;
-    s->ctx->regs.esi = -1;
-    picotransition(s, SYSCALL);
-    log_state(s);
-
-    kprintf("Letting the timer tick until we're back to the grandchild\n");
-    for (int i = MAX_TIME_SLICES; i >= 0; i--) {
-        picotransition(s, TIMER);
-    }
-    log_state(s);
-
-    kprintf("Hara-kiri\n");
-    s->ctx->regs.eax = 4;
-    s->ctx->regs.ebx = 125;
-    picotransition(s, SYSCALL);
-    log_state(s);
-
-    kprintf("Let's speak to dad!\n");
-    s->ctx->regs.eax = 1;
-    s->ctx->regs.ebx = s->ctx->regs.esi;
-    s->ctx->regs.ecx = 42;
-    picotransition(s, SYSCALL);
-    log_state(s);
-
-    kprintf("Our job is done, back to dad! (see 42 in r2?)\n");
-    s->ctx->regs.eax = 4;
-    s->ctx->regs.ebx = 12; // Return value
-    picotransition(s, SYSCALL);
-    log_state(s);
-
-    kprintf("Let's loot the body of our child (see 12 in r2?)\n");
-    s->ctx->regs.eax = 5;
-    picotransition(s, SYSCALL);
-    log_state(s);
 }

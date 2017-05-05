@@ -33,7 +33,7 @@ void init() {
     init_idt();
     init_pic();
     init_timer(1000);
-    init_paging(0x100000);
+    init_paging(0xF0000000);
     init_disk(0);
     init_fs(0); // init_fs(1) to obtain much more details on the file system !
     init_root();
@@ -45,7 +45,6 @@ void init() {
 void kmain(multiboot_info_t *mbinfo) {
     multiboot_info = mbinfo;
     init();
-    kprintf("I'm out\n");
     asm("sti");
     for(;;) asm("hlt");
     save_filename_gen();

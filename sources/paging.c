@@ -43,7 +43,7 @@ u32 test_frame(u32 frame_addr) {
 u32 new_frame() {
     // Finds the first unused frame in memory.
     u32 index, offset;
-    for (index = 0; index < size_frames_table; index++) {
+    for (index = 0x0; index < size_frames_table; index++) {
         if (~frames[index]) {
             // This index contains a free frame.
             u32 value = frames[index];
@@ -64,13 +64,17 @@ void map_page(page_t* page, u32 phys_address, int is_kernel, int is_writable) {
     // Allocates a frame for this page, if not already done.
     
     
-    if (page->present)
-        return;
+    if (page->present) {
+        asm("cli");
+        kprintf("Mapping present page %x to %x\n", page, phys_address);
+        asm("hlt");
+    }
     
     u32 frame = phys_address ? phys_address >> 12 : new_frame();
     
     if (frame == nb_frames) {
         kprintf("No more frames left. Not good.\n");
+        asm("hlt");
         return;
     }
 
@@ -114,7 +118,7 @@ page_t *get_page(u32 address, int make, page_directory_t* directory) {
         u32 tmp;
         page_table_t* new_table = (page_table_t*) 
                 kmalloc_3(sizeof(page_table_t), 1, &tmp);
-        memset((u8*) new_table, 0, 0x1000);
+        memset(new_table, 0, sizeof(page_table_t));
         
         directory->tables[index] = new_table;
         directory->tablesPhysical[index].table_addr = tmp >> 12;
@@ -158,32 +162,30 @@ void init_paging(u32 mem_end) {
 
     // Identity paging
     // Allocates only what we need
-    for(u32 i = 0; i < mem_end; i += 0x1000) {
+    kprintf("kernel mem end %x\n", kernel_mem_end);
+    for(u32 i = 0x0; i < mem_end; i += 0x1000) {
         page_t *page = get_page(i, 1, identity_pd);
-        if(i < kernel_mem_end) alloc_page(page, 0, 1);
+        if(i < kernel_mem_end) map_page(page, i+1, 1, 1);
     }
-    
-    // Initialises the memory used by the screen.
-    map_page(get_page(0xB8000, 1, identity_pd), 0xB8000, 0, 1);
-    
     switch_page_directory(identity_pd);
     kprintf("Paging initialized.\n");
     return;
 }
 
-page_directory_t *init_user_page_dir(u32 user_code_addr, u32 user_code_len) {
-    page_directory_t *pd = kmalloc(sizeof(page_directory_t));
+
+void init_user_page_dir(u32 user_code_len, page_directory_t *pd) {
     memset(pd, 0, sizeof(page_directory_t));
     
     for(u32 i = 0; i < kernel_mem_end; i += 0x1000)
         map_page(get_page(i, 1, pd), i+1, 0, 1);
-    map_page(get_page(0xB8000, 1, pd), 0xB8000, 0, 1);
     for(u32 i = 0; i < user_code_len; i += 0x1000)
-        map_page(get_page(USER_CODE_VIRTUAL + i, 1, pd), user_code_addr + i, 0, 0); //CODE
+        map_page(get_page(USER_CODE_VIRTUAL + i, 1, pd), 0, 0, 0); //CODE
+    kprintf("wtf: %x\n", get_page(USER_STACK_VIRTUAL, 1, pd)->present);
+    get_page(USER_STACK_VIRTUAL, 1, pd)->present = 0;
+    kprintf("wtf: %x\n", get_page(USER_STACK_VIRTUAL, 1, pd)->present);
     map_page(get_page(USER_STACK_VIRTUAL, 1, pd), 0, 0, 1); //STACK
+    kprintf("stack: %x\n", get_page(USER_STACK_VIRTUAL, 1, pd)->frame << 0xC);
     map_page(get_page(USER_SCREEN_VIRTUAL, 1, pd), 0, 0, 1); //SCREEN
-    map_page(get_page(USER_KEYBUFFER_VIRTUAL, 1, pd), 0, 0, 1); //KEYBUFFER
-    return pd;
 }
 
 void *get_physical(page_t *page) {
@@ -209,7 +211,7 @@ u8 page_fault(context_t* context) {
     kprintf("Page fault! ( ");
     if (present) 
         kprintf("present ");
-    if (rw)
+    if (!rw)
         kprintf("read ");
     else
         kprintf("write ");
