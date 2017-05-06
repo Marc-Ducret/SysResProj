@@ -60,7 +60,7 @@ struct process {
     process_state state;
     int slices_left;
     context_t saved_context;
-    page_directory_t *page_directory;
+    page_directory_t page_directory __attribute__((aligned(0x1000)));
     char *name;
 };
 

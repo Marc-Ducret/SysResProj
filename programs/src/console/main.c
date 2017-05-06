@@ -22,6 +22,7 @@ void init() {
     for(int i = 0; i < VGA_WIDTH * SCROLL_HEIGHT; i ++)
         scroll_buffer[i] = (bg_color << 0xC) + (fg_color << 0x8);
     initCharTable();
+    c_put_char('>');
 }
 
 int index(u8 x, u8 y) {
@@ -81,7 +82,7 @@ void scroll_up() {
 int main() {
     init();
     for(;;) {
-        int event = kget_key_event();
+        int event = get_key_event();
         if(event >= 0 && event < 0x80) {
             if(event == KEY_SHIFT) scroll_up();
             else if(event == KEY_CTRL) scroll_down();

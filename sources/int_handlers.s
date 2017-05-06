@@ -44,6 +44,17 @@ irq\nb:
     je irq_ret
     add $0x1000, %eax
     mov %eax, %cr3
+    #TMP
+    #mov 0x80000000, %eax
+    #mov %eax, 0x80000F00
+    #mov user_esp, %esp
+    #mov $0x80000000, %ebx
+    #movl $5, (%ebx)
+    #movl (%ebx), %eax
+    #add $0x0530, %eax
+    #mov %eax, 0xB8000
+    #hlt
+    #TMP END
     mov user_esp, %esp
     add $8, %esp
     call load_context

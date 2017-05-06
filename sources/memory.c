@@ -2,10 +2,10 @@
 #include <stddef.h>
 #include "printing.h"
 
-//TODO Frame allocation !!!!
+//TODO Frame allocation !!!! REAL malloc...
 
 volatile u32 free_address = (u32) &end;
-volatile u32 kernel_mem_end = (u32) &end + 0x50000;
+volatile u32 kernel_mem_end = (u32) &end + 0x500000;
 
 void* kmalloc_3(u32 size, int align, u32 *phys) {
     //Simple linear malloc, whithout any free.

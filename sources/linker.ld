@@ -7,11 +7,11 @@ OUTPUT_FORMAT("elf32-i386")
    kernel image. */
 SECTIONS
 {
-	. = 0x1100;
+	. = 0xFFF00;
 
 	.text ALIGN(0x1000) :
 	{
-		*(.multiboot);
+	    *(.multiboot);
 	    *(.text);
 	}
 

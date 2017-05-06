@@ -3,61 +3,61 @@
 #include "int.h"
 
 // Process related System Calls
-#define KNEWCHANNEL 0
-#define KSEND 1
-#define KRECEIVE 2
-#define KFORK 3
-#define KEXIT 4
-#define KWAIT 5
-#define KFREECHANNEL 6
-#define KWAITCHANNEL 7
+#define NEWCHANNEL 0
+#define SEND 1
+#define RECEIVE 2
+#define FORK 3
+#define EXIT 4
+#define WAIT 5
+#define FREECHANNEL 6
+#define WAITCHANNEL 7
 
-//pid_t kfork(int prio);
-pid_t kwait(int *status);
-void kexit(int status);
+//pid_t fork(int prio);
+pid_t wait(int *status);
+void exit(int status);
 
-ssize_t ksend(int chanid, u8 *buffer, size_t len);
-ssize_t kreceive(int chanid, u8 *buffer, size_t len);
-pid_t kwait_channel(int chanid);
-int knew_channel(void);
-int kfree_channel(int chanid);
+ssize_t send(int chanid, u8 *buffer, size_t len);
+ssize_t receive(int chanid, u8 *buffer, size_t len);
+pid_t wait_channel(int chanid);
+int new_channel(void);
+int free_channel(int chanid);
 
 // File System related Calls
-#define KFOPEN 10
-#define KCLOSE 11
-#define KREAD 12
-#define KWRITE 13
-#define KSEEK 14
+#define FOPEN 10
+#define CLOSE 11
+#define READ 12
+#define WRITE 13
+#define SEEK 14
 
-#define KMKDIR 20
-#define KRMDIR 21
-#define KCHDIR 22
-#define KGETCWD 23
-#define KOPENDIR 24
-#define KREADDIR 25
-#define KREWINDDIR 26
-#define KCLOSEDIR 27
+#define MKDIR 20
+#define RMDIR 21
+#define CHDIR 22
+#define GETCWD 23
+#define OPENDIR 24
+#define READDIR 25
+#define REWINDDIR 26
+#define CLOSEDIR 27
 
-fd_t kfopen(char *path, oflags_t flags);
-int kclose(fd_t fd);
-ssize_t kread(fd_t fd, void *buffer, size_t length);
-ssize_t kwrite(fd_t fd, void *buffer, size_t length);
-int kseek(fd_t fd, seek_cmd_t seek_command, int offset);
+fd_t fopen(char *path, oflags_t flags);
+int close(fd_t fd);
+ssize_t read(fd_t fd, void *buffer, size_t length);
+ssize_t write(fd_t fd, void *buffer, size_t length);
+int seek(fd_t fd, seek_cmd_t seek_command, int offset);
 
-int kmkdir(char *path, u8 mode);
-int krmdir(char *path);
-int kchdir(char *path);
+int mkdir(char *path, u8 mode);
+int rmdir(char *path);
+int chdir(char *path);
 char *kgetcwd();
-fd_t kopendir(char *path);
+fd_t opendir(char *path);
 dirent_t *kreaddir(fd_t fd);
-int krewinddir(fd_t fd);
-int kclosedir(fd_t fd);
+int rewinddir(fd_t fd);
+int closedir(fd_t fd);
 
 // Other system calls
 
-#define KGET_KEY_EVENT 40
+#define GET_KEY_EVENT 40
 
-int kget_key_event();
+int get_key_event();
 
 //void new_launch();
 #endif /* SYSCALL_H */
