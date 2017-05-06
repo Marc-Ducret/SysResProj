@@ -240,7 +240,7 @@ page_directory_t *init_user_page_dir(char *file, page_directory_t *cur_pd) {
     
     // The binary is loaded, now we complete the kernel part, and others.
     for(u32 i = 0; i < kernel_mem_end; i += PAGE_SIZE)
-        map_page(get_page(i, 1, pd), i+1, 0, 1);
+        map_page(get_page(i, 1, pd), i+1, 1, 1);
     map_page(get_page(USER_STACK_VIRTUAL, 1, pd), 0, 0, 1); //STACK
     map_page(get_page(USER_SCREEN_VIRTUAL, 1, pd), 0, 0, 1); //SCREEN
     return pd;
@@ -287,4 +287,18 @@ u8 page_fault(context_t* context) {
             alloc_page(get_page(faulting_address, 1, current_page_directory), 0, 1);
     }*/
     return 1;
+}
+
+int check_address(void *address, int user, int write, page_directory_t *pd) {
+    // Checks the permissions of given address in the page directory.
+    page_t *page = get_page((u32) address, 0, pd);
+    if (page == NULL || !page->present) {
+        errno = EFAULT;
+        return -1;
+    }
+    if ((!page->user && user) || (!page->rw && write)) {
+        errno = EFAULT;
+        return -1;
+    }
+    return 0;
 }

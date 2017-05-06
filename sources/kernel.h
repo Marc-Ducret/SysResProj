@@ -19,7 +19,7 @@
 #define MAX_TIME_SLICES 5
 #define MAX_PRIORITY 15
 #define NUM_PROCESSES 32
-#define NUM_CHANNELS 10
+#define NUM_CHANNELS_PROC 10
 #define NUM_REGISTERS 5
 #define NUM_HANDLES 32
 #define NUM_SYSCALLS 100
@@ -47,20 +47,21 @@ typedef enum p_state
     FREE, BLOCKEDWRITING, BLOCKEDREADING, WAITING, RUNNABLE, ZOMBIE
 } p_state;
 
-typedef struct process_state
+typedef struct channel_state 
 {
-    p_state state;
-    list *ch_list;
-    chanid ch;
-} process_state;
+    int chanid;
+    int read;
+    int write;
+} channel_state_t;
 
 typedef struct process process;
 struct process {
     pid_t parent_id;
-    process_state state;
+    p_state state;
     int slices_left;
     context_t saved_context;
     page_directory_t *page_directory;
+    channel_state_t channels[NUM_CHANNELS_PROC];
     char *name;
 };
 
@@ -82,13 +83,6 @@ struct elt_c_list {
 };
 
 struct elt_c_list c_list_memory[MAX_SIZE_C_LIST];
-
-typedef struct channel_state 
-{
-    int chanid;
-    int read;
-    int write;
-} channel_state;
 
 typedef struct state state;
 struct state {

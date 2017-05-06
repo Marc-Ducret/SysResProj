@@ -31,6 +31,7 @@ int next_key_event() {
 u32 last_rand = 1351968;
 
 u32 rand() {
-    last_rand = ((last_rand*884519) % 56311523)*8984541;
+    //last_rand = ((last_rand*884519) % 56311523)*8984541;
+    last_rand = (last_rand * 16807) % (((u32) 1 << 31) -1);
     return last_rand;
 }

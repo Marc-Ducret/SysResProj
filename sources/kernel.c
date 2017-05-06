@@ -155,7 +155,7 @@ void copy_context(context_t *src, context_t *dst) {
 
 int _exit(state *s) {
     pid_t pid = s->curr_pid;
-    s->processes[pid].state.state = ZOMBIE;
+    s->processes[pid].state = ZOMBIE;
     pid_t pere = s->processes[pid].parent_id;
 
     //On trouve les processus fils de celui ci.
@@ -167,10 +167,10 @@ int _exit(state *s) {
     }
 
     //On cherche aussi le processus parent de celui-ci, s'il est en wait.
-    if (s->processes[pere].state.state == WAITING) {
+    if (s->processes[pere].state == WAITING) {
         //On fait la même chose que dans wait.
-        s->processes[pere].state.state = RUNNABLE;
-        s->processes[pid].state.state = FREE;
+        s->processes[pere].state = RUNNABLE;
+        s->processes[pid].state = FREE;
         registers_t *regs = &(s->processes[pere].saved_context.regs);
         regs->eax = pid;
         regs->ebx = 0;
@@ -191,18 +191,18 @@ int _wait(state *s) {
     for (j = 0; j < NUM_PROCESSES; j++) {
         if (s->processes[j].parent_id == pid) {
             fils = 1;
-            if (s->processes[j].state.state == ZOMBIE) {
+            if (s->processes[j].state == ZOMBIE) {
                 s->ctx->regs.eax = j;
                 s->ctx->regs.ebx = 0;
                 s->ctx->regs.ecx = s->processes[j].saved_context.regs.ebx;
-                s->processes[j].state.state = FREE;
+                s->processes[j].state = FREE;
                 return 0;
             }
         }
     }
 
     if (fils) {
-        s->processes[pid].state.state = WAITING;
+        s->processes[pid].state = WAITING;
         return 1;
     }
 
@@ -212,14 +212,14 @@ int _wait(state *s) {
 }
 
 int _new_channel(state *s) {
-    int chanid = new_channel();
+    int chanid = new_channel(s->processes[s->curr_pid].channels);
     s->ctx->regs.eax = chanid;
     s->ctx->regs.ebx = errno;
     return 0; // No reorder
 }
 
 int _free_channel(state *s) {
-    int res = free_channel(s->ctx->regs.ebx);
+    int res = free_channel(s->ctx->regs.ebx, s->processes[s->curr_pid].channels);
     s->ctx->regs.eax = res;
     s->ctx->regs.ebx = errno;
     return 0; // No reorder
@@ -250,7 +250,9 @@ int _receive(state *s) {
 int _fopen(state *s) {
     char *path = (char *) s->ctx->regs.ebx;
     oflags_t flags = (oflags_t) s->ctx->regs.ecx;
-    fd_t res = fopen(path, flags);
+    fd_t res = -1;
+    if (check_address(path, 1, 1, s->processes[s->curr_pid].page_directory) == 0)
+        res = fopen(path, flags);
     s->ctx->regs.eax = res;
     s->ctx->regs.ebx = errno;
     return 0;
@@ -268,7 +270,9 @@ int _read(state *s) {
     fd_t fd = s->ctx->regs.ebx;
     void *buffer = (void *) s->ctx->regs.ecx;
     size_t length = (size_t) s->ctx->regs.esi;
-    ssize_t res = read(fd, buffer, length);
+    ssize_t res = -1;
+    if (check_address(buffer, 1, 1, s->processes[s->curr_pid].page_directory) == 0)
+        res = read(fd, buffer, length);
     s->ctx->regs.eax = res;
     s->ctx->regs.ebx = errno;
     return 0;
@@ -278,7 +282,9 @@ int _write(state *s) {
     fd_t fd = s->ctx->regs.ebx;
     void *buffer = (void *) s->ctx->regs.ecx;
     size_t length = (size_t) s->ctx->regs.esi;
-    ssize_t res = write(fd, buffer, length);
+    ssize_t res = -1;
+    if (check_address(buffer, 1, 1, s->processes[s->curr_pid].page_directory) == 0)
+        res = write(fd, buffer, length);
     s->ctx->regs.eax = res;
     s->ctx->regs.ebx = errno;
     return 0;
@@ -297,7 +303,9 @@ int _seek(state *s) {
 int _mkdir(state *s) {
     char *path = (char *) s->ctx->regs.ebx;
     u8 mode = (u8) s->ctx->regs.ecx;
-    int res = mkdir(path, mode);
+    int res = -1;
+    if (check_address(path, 1, 1, s->processes[s->curr_pid].page_directory) == 0)
+        res = mkdir(path, mode);
     s->ctx->regs.eax = res;
     s->ctx->regs.ebx = errno;
     return 0;
@@ -305,7 +313,9 @@ int _mkdir(state *s) {
 
 int _rmdir(state *s) {
     char *path = (char *) s->ctx->regs.ebx;
-    int res = rmdir(path);
+    int res = -1;
+    if (check_address(path, 1, 1, s->processes[s->curr_pid].page_directory) == 0)
+        res = rmdir(path);
     s->ctx->regs.eax = res;
     s->ctx->regs.ebx = errno;
     return 0;
@@ -313,7 +323,9 @@ int _rmdir(state *s) {
 
 int _chdir(state *s) {
     char *path = (char *) s->ctx->regs.ebx;
-    int res = chdir(path);
+    int res = -1;
+    if (check_address(path, 1, 1, s->processes[s->curr_pid].page_directory) == 0)
+        res = chdir(path);
     s->ctx->regs.eax = res;
     s->ctx->regs.ebx = errno;
     return 0;
@@ -330,7 +342,9 @@ int _getcwd(state *s) {
 
 int _opendir(state *s) {
     char *path = (char *) s->ctx->regs.ebx;
-    fd_t res = opendir(path);
+    fd_t res = -1;
+    if (check_address(path, 1, 1, s->processes[s->curr_pid].page_directory) == 0)
+        res = opendir(path);
     s->ctx->regs.eax = res;
     s->ctx->regs.ebx = errno;
     return 0;
@@ -386,7 +400,7 @@ void reorder(state *s) {
     for (p = MAX_PRIORITY; p >= 0; p--) {
         rq = s->runqueues[p];
         while (rq != NULL) {
-            if (s->processes[rq->hd].state.state == RUNNABLE) {//&& s->processes[rq->hd].slices_left > 0 ?
+            if (s->processes[rq->hd].state == RUNNABLE) {//&& s->processes[rq->hd].slices_left > 0 ?
                 next_pid = rq->hd;
                 s->processes[next_pid].slices_left = MAX_TIME_SLICES;
                 s->curr_pid = next_pid;
@@ -441,7 +455,7 @@ void picotransition(state *s, event ev) {
 void focus_next_process() {
     do
         global_state.focus = (global_state.focus + 1) % NUM_PROCESSES;
-    while(global_state.processes[global_state.focus].state.state == FREE);
+    while(global_state.processes[global_state.focus].state == FREE);
 }
 
 void picosyscall(context_t *ctx) {
@@ -472,9 +486,8 @@ page_directory_t *TMP_PD;
 void start_process(int pid, int parent) {
     process *p = &global_state.processes[pid];
     p->parent_id = parent;
-    p->state.state = RUNNABLE;
+    p->state = RUNNABLE;
     p->slices_left = 0;
-    p->state.ch_list = NULL;
     
     //char *file = "/console.bin";
     char *file = "/spread.bin";
@@ -537,9 +550,8 @@ state *picoinit() {
 
     for (i = 0; i < NUM_PROCESSES; i++) {
         s->processes[i].parent_id = 0;
-        s->processes[i].state.state = FREE;
+        s->processes[i].state = FREE;
         s->processes[i].slices_left = 0;
-        s->processes[i].state.ch_list = NULL;
     }
 
     for (i = 0; i <= MAX_PRIORITY; i++) {
@@ -616,9 +628,9 @@ void log_state(state* s) {
         list* q = s->runqueues[prio];
         if (q != NULL) {
             kprintf("Priority %d:\n", prio);
-            kprintf("%d(%d)\n", q->hd, s->processes[q->hd].state.state);
+            kprintf("%d(%d)\n", q->hd, s->processes[q->hd].state);
             for (list *curr = q->tl; curr != NULL; curr = curr->tl) {
-                kprintf("%d(%d)\n", curr->hd, s->processes[curr->hd].state.state);
+                kprintf("%d(%d)\n", curr->hd, s->processes[curr->hd].state);
             }
         }
     }
