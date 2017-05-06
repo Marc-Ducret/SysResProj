@@ -4,6 +4,7 @@
 #include "memory.h"
 #include <stddef.h>
 #include "kernel.h"
+#include "fs_call.h"
 
 // Frames table
 u32 memory_end; // Size of the memory covered by pages
@@ -17,7 +18,7 @@ page_directory_t *current_page_directory = NULL;
 
 void set_frame(u32 frame_addr) {
     // Sets the corresponding frame as used.
-    u32 frame = frame_addr / 0x1000;
+    u32 frame = frame_addr / PAGE_SIZE;
     u32 table_index = frame >> 5;
     u32 table_offset = frame & 0x1F;
     frames[table_index] |= 1 << table_offset;
@@ -25,7 +26,7 @@ void set_frame(u32 frame_addr) {
 
 void clear_frame(u32 frame_addr) {
     // Sets the corresponding frame as unused.
-    u32 frame = frame_addr / 0x1000;
+    u32 frame = frame_addr / PAGE_SIZE;
     u32 table_index = frame >> 5;
     u32 table_offset = frame & 0x1F;
     frames[table_index] &= ~(1 << table_offset);
@@ -34,7 +35,7 @@ void clear_frame(u32 frame_addr) {
 
 u32 test_frame(u32 frame_addr) {
     // Returns 0 if this frame isn't used, 1 otherwise.
-    u32 frame = frame_addr / 0x1000;
+    u32 frame = frame_addr / PAGE_SIZE;
     u32 table_index = frame >> 5;
     u32 table_offset = frame & 0x1F;
     return (frames[table_index] >> table_offset) & 1;
@@ -64,8 +65,10 @@ void map_page(page_t* page, u32 phys_address, int is_kernel, int is_writable) {
     // Allocates a frame for this page, if not already done.
     
     
-    if (page->present)
+    if (page->present) {
+        kprintf("PAGE ALREADY PRESENT !\n");
         return;
+    }
     
     u32 frame = phys_address ? phys_address >> 12 : new_frame();
     
@@ -80,7 +83,7 @@ void map_page(page_t* page, u32 phys_address, int is_kernel, int is_writable) {
     page->rw = is_writable? 1:0;
     page->user = is_kernel? 0:1;
     page->accessed = 0;
-    page->dirty = 0; 
+    page->dirty = 0;
 }
 
 void alloc_page(page_t *page, int is_kernel, int is_writable) {
@@ -97,6 +100,10 @@ void free_page(page_t * page) {
     clear_frame(page->frame);
     page->present = 0;
     page->frame = 0;
+}
+
+void invalidate(u32 address) {
+    asm volatile("invlpg (%0)" ::"r" (address) : "memory");
 }
 
 page_t *get_page(u32 address, int make, page_directory_t* directory) {
@@ -158,7 +165,7 @@ void init_paging(u32 mem_end) {
 
     // Identity paging
     // Allocates only what we need
-    for(u32 i = 0; i < mem_end; i += 0x1000) {
+    for(u32 i = 0; i < mem_end; i += PAGE_SIZE) {
         page_t *page = get_page(i, 1, identity_pd);
         if(i < kernel_mem_end) alloc_page(page, 0, 1);
     }
@@ -171,15 +178,69 @@ void init_paging(u32 mem_end) {
     return;
 }
 
-page_directory_t *init_user_page_dir(u32 user_code_addr, u32 user_code_len) {
-    page_directory_t *pd = kmalloc(sizeof(page_directory_t));
+int copy_bin(u32 buffer_code_addr, u32 user_code_len, page_directory_t *user_pd, page_directory_t *cur_pd) {
+    void *phys_addr;
+    page_t *page;
+    for (u32 i = 0; i < CODE_LEN; i += PAGE_SIZE) {
+        page = get_page(buffer_code_addr + i, 0, cur_pd);
+        phys_addr = get_physical(page);
+        if (1 || i < user_code_len) { // TODO Elf -> data segment !
+            // Maps the physical memory in the new page directory.
+            map_page(get_page(USER_CODE_VIRTUAL + i, 1, user_pd), (u32) phys_addr, 0, 0);
+        }
+        page->present = 0;
+        page->frame = 0;
+        invalidate(buffer_code_addr + i);
+    }
+    kprintf("Voila : %x\n", phys_addr);
+    return 0;
+}
+
+page_directory_t *init_user_page_dir(char *file, page_directory_t *cur_pd) {
+    // Creates a new page directory and initializes it with specified binary.
+    void *user_code = (void *) USER_CODE_VIRTUAL - CODE_LEN;
+    // TODO Do it with only one page ?
+    page_t *first_page = get_page((u32) user_code, 0, cur_pd);
+    if (first_page != NULL && first_page->present) {
+        // The page already exists. No more memory.
+        errno = ENOMEM;
+        return NULL;
+    }
+    
+    fd_t fd = fopen(file, O_RDONLY);
+    if (fd == -1)
+        return NULL;
+    
+    page_directory_t *pd = kmalloc_a(sizeof(page_directory_t)); // TODO In process ?
+    if (pd == NULL) {
+        int err = errno;
+        close(fd);
+        errno = err;
+        return NULL;
+    }
     memset(pd, 0, sizeof(page_directory_t));
     
-    for(u32 i = 0; i < kernel_mem_end; i += 0x1000)
+    // TODO only maps needed pages ?
+    for (u32 i = 0; i < CODE_LEN; i += PAGE_SIZE) {
+        map_page(get_page((u32) user_code + i, 1, cur_pd), 0, 1, 1);
+    }
+    ssize_t len = read(fd, user_code, CODE_LEN);
+
+    kprintf("Loaded %d bytes at virtual address %x, starting with %x\n",
+            len, user_code, *((u8*) user_code));
+    if (len == -1) {
+        int err = errno;
+        close(fd);
+        errno = err;
+        return NULL;
+    }
+    close(fd);
+    copy_bin((u32) user_code, len, pd, cur_pd);
+    
+    // The binary is loaded, now we complete the kernel part, and others.
+    for(u32 i = 0; i < kernel_mem_end; i += PAGE_SIZE)
         map_page(get_page(i, 1, pd), i+1, 0, 1);
     map_page(get_page(0xB8000, 1, pd), 0xB8000, 0, 1);
-    for(u32 i = 0; i < user_code_len; i += 0x1000)
-        map_page(get_page(USER_CODE_VIRTUAL + i, 1, pd), user_code_addr + i, 0, 0); //CODE
     map_page(get_page(USER_STACK_VIRTUAL, 1, pd), 0, 0, 1); //STACK
     map_page(get_page(USER_SCREEN_VIRTUAL, 1, pd), 0, 0, 1); //SCREEN
     map_page(get_page(USER_KEYBUFFER_VIRTUAL, 1, pd), 0, 0, 1); //KEYBUFFER
@@ -209,7 +270,7 @@ u8 page_fault(context_t* context) {
     kprintf("Page fault! ( ");
     if (present) 
         kprintf("present ");
-    if (rw)
+    if (!rw)
         kprintf("read ");
     else
         kprintf("write ");

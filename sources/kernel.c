@@ -595,7 +595,9 @@ void picotimer(context_t *ctx) {
         picoinit();
         return;
     }
-    if(global_state.curr_pid == global_state.focus) memcpy((void*) 0xB8000, (void*) 0x88000000, 0x1000);
+    if(global_state.curr_pid == global_state.focus) {
+        memcpy((void*) 0xB8000, (void*) 0x88000000, 0x1000); // TODO no hardcode
+    }
     picotransition(&global_state, TIMER);
 }
 
@@ -604,30 +606,22 @@ void writ(u8 *addr) {
     addr[3] = 0x80; addr[4] = 0x0B; addr[5] = 0x00; 
 }
 
-#define CODE_LEN 0x10000
-
 void start_process(int pid, int parent) {
     process *p = &global_state.processes[pid];
     p->parent_id = parent;
     p->state.state = RUNNABLE;
     p->slices_left = 0;
     p->state.ch_list = NULL;
-    u8 *user_code;
-    if (pid == 0) {
-        user_code = kmalloc_a(CODE_LEN);
-        fd_t file = fopen("/spread.bin", O_RDONLY);
-        read(file, user_code, CODE_LEN);
-    } else if (pid == 1) {
-        user_code = kmalloc_a(CODE_LEN);
-        fd_t file = fopen("/console.bin", O_RDONLY);
-        read(file, user_code, CODE_LEN);
-    } else {
-        user_code = kmalloc_a(CODE_LEN);
-        fd_t file = fopen("/console.bin", O_RDONLY);
-        read(file, user_code, CODE_LEN);
+    
+    char *file = "/console.bin";
+    
+    page_directory_t *pd = init_user_page_dir(file, get_identity());
+    if (pd == NULL) {
+        kprintf("Not good : NULL page directory !\nErrno : %s", strerror(errno));
+        asm("hlt");
     }
     kprintf("Starting process %d (code = %x) [%x]\n", pid, user_code, *(u32*)user_code);
-    p->page_directory = init_user_page_dir((u32) user_code, CODE_LEN);
+    p->page_directory = pd;
     copy_context(global_state.ctx, &p->saved_context);
     p->saved_context.stack.eip = USER_CODE_VIRTUAL;
     p->saved_context.regs.esp = USER_STACK_VIRTUAL + 0x1000 - sizeof(context_t) - 0x8 + 0x2C;

@@ -14,6 +14,7 @@ void* kmalloc_3(u32 size, int align, u32 *phys) {
     
     if(size + free_address >= kernel_mem_end) {
         kprintf("kmalloc fail (KERNEL OUT OF MEMORY)\n");
+        asm("hlt");
         return NULL;
     }
     if (align && (free_address & 0xFFF)) {
@@ -27,7 +28,6 @@ void* kmalloc_3(u32 size, int align, u32 *phys) {
     
     void* tmp = (void*) free_address;
     free_address += size;
-
     return tmp;
 }
 

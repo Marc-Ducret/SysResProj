@@ -7,7 +7,7 @@ OUTPUT_FORMAT("elf32-i386")
    kernel image. */
 SECTIONS
 {
-	. = 0x00001100;
+	. = 0x1100;
 
 	.text ALIGN(0x1000) :
 	{
