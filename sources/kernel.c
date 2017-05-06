@@ -116,18 +116,20 @@ void copy_context(context_t *src, context_t *dst) {
 
 int start_process(int parent, char* binary) {
     pid_t pid = 0;
-    while(global_state.processes[pid].state.state != FREE)
-        if(++pid == NUM_PROCESSES) return -1;
-        
+    while(global_state.processes[pid].state != FREE) {
+        if(++pid == NUM_PROCESSES) {
+            errno = EMPROC;
+            return -1;
+        }
+    }
+    
     process *p = &global_state.processes[pid];
     p->parent_id = parent;
-    p->state.state = RUNNABLE;
+    p->state = RUNNABLE;
     p->slices_left = 0;
-    p->state.ch_list = NULL;
     
     page_directory_t *pd = init_user_page_dir(binary, get_identity());
     if (pd == NULL) {
-        kprintf("Not good : failed to init page directory !\nErrno : %s", strerror(errno));
         return -1;
     }
     kprintf("Starting process %d\n", pid);
@@ -373,7 +375,11 @@ int _get_key_event(state *s) {
 
 int _exec(state *s) {
     char *cmd = (char *) s->ctx->regs.ebx;
-    s->ctx->regs.eax = start_process(s->curr_pid, cmd);
+    pid_t res = -1;
+    if (check_address(cmd, 1, 1, s->processes[s->curr_pid].page_directory) == 0)
+        res = start_process(s->curr_pid, cmd);
+    s->ctx->regs.eax = res;
+    s->ctx->regs->ebx = errno;
     return 0;
 }
 

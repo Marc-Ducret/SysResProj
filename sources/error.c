@@ -49,7 +49,7 @@ void init_error_msg() {
     error_msg[41] = "Channel is already occupied by some process";
     error_msg[42] = "Channel is empty";
     error_msg[43] = "Message too long";
-    error_msg[44] = "Protocol wrong type for socket";
+    error_msg[44] = "Too many processes";
     error_msg[45] = "Protocol not available";
     error_msg[46] = "Protocol not supported";
     error_msg[47] = "Socket type not supported";

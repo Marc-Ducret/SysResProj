@@ -53,7 +53,7 @@ typedef enum {
     EOCCUPIED,	//Channel is already occupied by some process
     EEMPTY,	//Channel is empty
     EMSGSIZE,	//Message too long
-    EPROTOTYPE,	//Protocol wrong type for socket
+    EMPROC,	//Too many processes
     ENOPROTOOPT,	//Protocol not available
     EPROTONOSUPPORT,	//Protocol not supported
     ESOCKTNOSUPPORT,	//Socket type not supported
