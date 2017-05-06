@@ -4,10 +4,10 @@
 
 // TODO Déterminer s'il faut indiquer la modification de tous les registres ?
 // Check that no casts are needed (oflags_t, ..)
-/*
-pid_t fork(priority prio) {
-    printf("Requested a fork, with priority %d\n", prio);
-    pid_t child;
+
+
+pid_t exec(char *cmd) {
+    pid_t res;
     int errno;
     
     asm volatile("\
@@ -16,13 +16,12 @@ pid_t fork(priority prio) {
         int $0x80 \n \
         movl %%eax, %0 \n \
         movl %%ebx, %1"
-        : "=m" (child), "=m" (errno)
-        : "m" (prio)
+        : "=m" (res), "=m" (errno)
+        : "m" (cmd)
         : "%ebx", "esi", "edi"
         );
-    printf("Fork returned with child %d, and errno %d\n", child, errno);
-    return child;
-}*/
+    return res;
+}
 
 pid_t wait(int *status) {
     int errno;

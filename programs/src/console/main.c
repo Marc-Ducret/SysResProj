@@ -86,6 +86,7 @@ int main() {
         if(event >= 0 && event < 0x80) {
             if(event == KEY_SHIFT) scroll_up();
             else if(event == KEY_CTRL) scroll_down();
+            else if(event == KEY_ESCAPE) exec("/spread.bin"); 
             else {
                 char c = getKeyChar(event);
                 if(c) c_put_char(c);
