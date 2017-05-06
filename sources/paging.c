@@ -178,12 +178,14 @@ void init_paging(u32 mem_end) {
 }
 
 int copy_bin(u32 buffer_code_addr, u32 user_code_len, page_directory_t *user_pd, page_directory_t *cur_pd) {
+    // Remaps the user_code_len bytes at buffer_code_address to their good location 
+    // in user_pd.
     void *phys_addr;
     page_t *page;
     for (u32 i = 0; i < CODE_LEN; i += PAGE_SIZE) {
         page = get_page(buffer_code_addr + i, 0, cur_pd);
         phys_addr = get_physical(page);
-        if (1 || i < user_code_len) { // TODO Elf -> data segment !
+        if (1 || i < user_code_len) { // TODO ELF -> data segment !
             // Maps the physical memory in the new page directory.
             map_page(get_page(USER_CODE_VIRTUAL + i, 1, user_pd), (u32) phys_addr, 0, 0);
         }
@@ -210,7 +212,7 @@ page_directory_t *init_user_page_dir(char *file, page_directory_t *cur_pd) {
     if (fd == -1)
         return NULL;
     
-    page_directory_t *pd = kmalloc_a(sizeof(page_directory_t)); // TODO In process ?
+    page_directory_t *pd = kmalloc_a(sizeof(page_directory_t)); // TODO Real malloc ?
     if (pd == NULL) {
         int err = errno;
         close(fd);
@@ -239,9 +241,9 @@ page_directory_t *init_user_page_dir(char *file, page_directory_t *cur_pd) {
     // The binary is loaded, now we complete the kernel part, and others.
     for(u32 i = 0; i < kernel_mem_end; i += PAGE_SIZE)
         map_page(get_page(i, 1, pd), i+1, 0, 1);
-    map_page(get_page(0xB8000, 1, pd), 0xB8000, 0, 1);
     map_page(get_page(USER_STACK_VIRTUAL, 1, pd), 0, 0, 1); //STACK
     map_page(get_page(USER_SCREEN_VIRTUAL, 1, pd), 0, 0, 1); //SCREEN
+    return pd;
 }
 
 void *get_physical(page_t *page) {

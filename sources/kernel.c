@@ -1,8 +1,5 @@
 #include "kernel.h"
 
-static const int CONSTANTE = 42;
-//Variable que dans ce fichier la
-//Dans une fonction, elle n'est definie qu'une fois
 syscall_fun_t syscall_fun[NUM_SYSCALLS];
 
 list* malloc_list() {
@@ -105,54 +102,6 @@ list *filter(list *l, int elt) {
     return l;
 }
 
-c_list* get_recv(state *s, chanid i) {
-    c_list* res = s->channels[i].recvs;
-    s->channels[i].recvs = res->tl;
-    return res;
-}
-
-c_list* remove_recv(pid_t r, c_list* l) {
-    //On ne le fait pas en place !
-    if (l == NULL) {
-        return NULL;
-    }
-
-    c_list *temp = remove_recv(r, l->tl);
-
-    if (l->pid == r) {
-        free_c_list(l);
-        return temp;
-    }
-
-    l->tl = temp;
-    return l;
-}
-
-void release_recv(state *s, pid_t r, list *ch_list) {
-    while (ch_list != NULL) {
-        s->channels[ch_list->hd].recvs = remove_recv(r, s->channels[ch_list->hd].recvs);
-        if (s->channels[ch_list->hd].recvs == NULL) {
-            s->channels[ch_list->hd].state = UNUSED;
-        }
-        ch_list = ch_list->tl;
-    }
-}
-
-
-c_list *add_recv(pid_t i, priority p, c_list* l) {
-    if (l == NULL || p > l->priority) {
-        c_list *res = malloc_c_list();
-        res->pid = i;
-        res->priority = p;
-        res->tl = l;
-
-        return res;
-    }
-
-    l->tl = add_recv(i, p, l->tl);
-    return l;
-}
-
 volatile u32 user_esp;
 volatile page_directory_t *user_pd;
 volatile multiboot_info_t *multiboot_info;
@@ -163,56 +112,6 @@ state *get_global_state() {
 
 void copy_context(context_t *src, context_t *dst) {
     memcpy(dst, src, sizeof(context_t));
-}
-
-syscall_t decode(state *s) {
-    syscall_t res;
-
-    switch (s->ctx->regs.eax) {
-    case 0:
-        res.t = NEWCHANNEL;
-        break;
-
-    case 1:
-        res.t = SEND;
-        res.ch_send = s->ctx->regs.ebx;
-        res.val_send = s->ctx->regs.ecx;
-        break;
-
-    case 2:
-        res.t = RECV;
-        res.ch_list = add(s->ctx->regs.ebx,
-                          add(s->ctx->regs.ecx,
-                              add(s->ctx->regs.edx,
-                                  add(s->ctx->regs.esi,
-                                      NULL))));
-        break;
-
-    case 3: //USELESS
-        res.t = FORK;
-        res.priority = s->ctx->regs.ebx;
-        res.v2 = s->ctx->regs.ecx;
-        res.v3 = s->ctx->regs.edx;
-        res.v4 = s->ctx->regs.esi;
-        break;
-
-    case 4:
-        res.t = EXIT;
-        break;
-
-    case 5:
-        res.t = WAIT;
-        break;
-
-    case 40:
-        res.t = GET_KEY_EVENT;
-        break;
-
-    default:
-        res.t = INVALID;
-        break;
-    }
-    return res;
 }
 
 /*void picofork(state *s, priority nprio, value v2, value v3, value v4) {
@@ -492,7 +391,7 @@ void reorder(state *s) {
                 s->processes[next_pid].slices_left = MAX_TIME_SLICES;
                 s->curr_pid = next_pid;
                 s->curr_priority = p;
-                user_pd = &global_state.processes[next_pid].page_directory;
+                user_pd = global_state.processes[next_pid].page_directory;
                 user_esp = global_state.processes[next_pid].saved_context.regs.esp - 0x2C;
                 //kprintf("hi %d, %x\n", next_pid, s->processes[next_pid].saved_context.stack.eip);
                 return;
@@ -518,43 +417,6 @@ void picotransition(state *s, event ev) {
             s->ctx->regs.eax = -1;
             s->ctx->regs.ebx = ENOSYS;
         }
-        /*
-        syscall_t sc = decode(s);
-
-        switch (sc.t) {
-        case SEND:
-            reorder_req = picosend(s, sc.ch_send, sc.val_send);
-            break;
-
-        case RECV:
-            reorder_req = picoreceive(s, sc.ch_list);
-            break;
-
-        case FORK:
-            //picofork(s, sc.priority, sc.v2, sc.v3, sc.v4);
-            break;
-
-        case WAIT:
-            reorder_req = picowait(s);
-            break;
-
-        case EXIT:
-            reorder_req = 1;
-            picoexit(s);
-            break;
-
-        case NEWCHANNEL:
-            piconew_channel(s);
-            break;
-        
-        case GET_KEY_EVENT:
-            picoget_key_event(s);
-            break;
-        
-        
-        case INVALID:
-            break;
-        }*/
     } else {
         if(s->curr_pid >= 0) {
             if (--s->processes[s->curr_pid].slices_left <= 0) {
@@ -614,14 +476,14 @@ void start_process(int pid, int parent) {
     p->slices_left = 0;
     p->state.ch_list = NULL;
     
-    char *file = "/console.bin";
-    
+    //char *file = "/console.bin";
+    char *file = "/spread.bin";
     page_directory_t *pd = init_user_page_dir(file, get_identity());
     if (pd == NULL) {
-        kprintf("Not good : NULL page directory !\nErrno : %s", strerror(errno));
+        kprintf("Not good : failed to init page directory !\nErrno : %s", strerror(errno));
         asm("hlt");
     }
-    kprintf("Starting process %d (code = %x) [%x]\n", pid, user_code, *(u32*)user_code);
+    kprintf("Starting process %d\n", pid);
     p->page_directory = pd;
     copy_context(global_state.ctx, &p->saved_context);
     p->saved_context.stack.eip = USER_CODE_VIRTUAL;
@@ -672,13 +534,6 @@ state *picoinit() {
     s->curr_priority = MAX_PRIORITY;
     
     int i;
-    for (i = 0; i < NUM_CHANNELS; i++) {
-        s->channels[i].recvs = NULL;
-        s->channels[i].state = UNUSED;
-        s->channels[i].s_pid = 0;
-        s->channels[i].s_priority = 0;
-        s->channels[i].s_value = 0;
-    }
 
     for (i = 0; i < NUM_PROCESSES; i++) {
         s->processes[i].parent_id = 0;
@@ -765,13 +620,6 @@ void log_state(state* s) {
             for (list *curr = q->tl; curr != NULL; curr = curr->tl) {
                 kprintf("%d(%d)\n", curr->hd, s->processes[curr->hd].state.state);
             }
-        }
-    }
-
-    kprintf("\nChannels:\n");
-    for (chanid c = 0; c < NUM_CHANNELS; c++) {
-        if (s->channels[c].state != UNUSED) {
-            kprintf("%d: %d\n", c, s->channels[c].state);
         }
     }
     kprintf("\n");

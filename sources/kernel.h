@@ -19,7 +19,7 @@
 #define MAX_TIME_SLICES 5
 #define MAX_PRIORITY 15
 #define NUM_PROCESSES 32
-#define NUM_CHANNELS 128
+#define NUM_CHANNELS 10
 #define NUM_REGISTERS 5
 #define NUM_HANDLES 32
 #define NUM_SYSCALLS 100
@@ -60,7 +60,7 @@ struct process {
     process_state state;
     int slices_left;
     context_t saved_context;
-    page_directory_t page_directory __attribute__((aligned(0x1000)));
+    page_directory_t *page_directory;
     char *name;
 };
 
@@ -85,11 +85,9 @@ struct elt_c_list c_list_memory[MAX_SIZE_C_LIST];
 
 typedef struct channel_state 
 {
-    c_state state;
-    pid_t s_pid;
-    priority s_priority;
-    value s_value;
-    c_list *recvs;
+    int chanid;
+    int read;
+    int write;
 } channel_state;
 
 typedef struct state state;
@@ -99,29 +97,13 @@ struct state {
     priority curr_priority;
     context_t *ctx;
     process processes[NUM_PROCESSES];
-    channel_state channels[NUM_CHANNELS];
     list* runqueues[MAX_PRIORITY+1];
 };
 
 typedef enum event 
 { TIMER, SYSCALL } event;
 
-typedef enum sysc_name 
-{ SEND, RECV, FORK, WAIT, EXIT, NEWCHANNEL, GET_KEY_EVENT, INVALID } sysc_name;
-
 typedef int (*syscall_fun_t)(state* s);
-
-typedef struct syscall_t 
-{
-    sysc_name t;
-    chanid ch_send;
-    value val_send;
-    list *ch_list;
-    priority priority;
-    value v2;
-    value v3;
-    value v4;
-} syscall_t;
 
 state global_state;
 volatile multiboot_info_t *multiboot_info;
