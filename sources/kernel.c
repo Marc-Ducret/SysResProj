@@ -114,44 +114,30 @@ void copy_context(context_t *src, context_t *dst) {
     memcpy(dst, src, sizeof(context_t));
 }
 
-/*void picofork(state *s, priority nprio, value v2, value v3, value v4) {
-    if (s->curr_priority < nprio) {
-        s->ctx->regs.eax = 0;
-        return;
-    }
-    //kprintf("Hi ! I have here : prio %d, v2 %d, v3 %d, v4 %d\n", nprio, v2, v3, v4);
+int start_process(int parent, char* binary) {
+    pid_t pid = 0;
+    while(global_state.processes[pid].state.state != FREE)
+        if(++pid == NUM_PROCESSES) return -1;
+        
+    process *p = &global_state.processes[pid];
+    p->parent_id = parent;
+    p->state.state = RUNNABLE;
+    p->slices_left = 0;
+    p->state.ch_list = NULL;
     
-    //Good priority
-    //Finds the new process
-    int i;
-    for (i = 0; i < NUM_PROCESSES; i++) {
-        if (s->processes[i].state.state == FREE) {
-            //Found a free process
-            s->ctx->regs.eax = 1;
-            s->ctx->regs.ebx = i;
-            
-            //Creating the new process
-            process *new_p = &(s->processes[i]);
-            new_p->parent_id = s->curr_pid;
-            new_p->slices_left = MAX_TIME_SLICES;
-            registers_t *context = &(new_p->saved_context); //VERIFIER
-            context->eax = 2;
-            context->ebx = s->curr_pid;
-            context->ecx = v2;
-            context->edx = v3;
-            context->esi = v4;
-            
-            new_p->state.state = RUNNABLE;
-            s->runqueues[nprio] = add(i, s->runqueues[nprio]);
-            
-            return;
-        }
+    page_directory_t *pd = init_user_page_dir(binary, get_identity());
+    if (pd == NULL) {
+        kprintf("Not good : failed to init page directory !\nErrno : %s", strerror(errno));
+        return -1;
     }
-
-    //No free process
-    s->ctx->regs.eax = 0;
-    return;
-}*/
+    kprintf("Starting process %d\n", pid);
+    p->page_directory = pd;
+    copy_context(global_state.ctx, &p->saved_context);
+    p->saved_context.stack.eip = USER_CODE_VIRTUAL;
+    p->saved_context.regs.esp = USER_STACK_VIRTUAL + 0x1000 - sizeof(context_t) - 0x8 + 0x2C;
+    global_state.runqueues[MAX_PRIORITY] = add(pid, global_state.runqueues[MAX_PRIORITY]);
+    return pid;
+}
 
 int _exit(state *s) {
     pid_t pid = s->curr_pid;
@@ -358,7 +344,6 @@ int _closedir(state *s) {
     s->ctx->regs.eax = res;
     s->ctx->regs.ebx = errno;
     return 0;
-    return 0;
 }
 
 int _get_key_event(state *s) {
@@ -369,6 +354,12 @@ int _get_key_event(state *s) {
         s->ctx->regs.eax = -1;
         s->ctx->regs.ebx = ENOFOCUS;
     }
+    return 0;
+}
+
+int _exec(state *s) {
+    char *cmd = (char *) s->ctx->regs.ebx;
+    s->ctx->regs.eax = start_process(s->curr_pid, cmd);
     return 0;
 }
 
@@ -464,33 +455,6 @@ void picotimer(context_t *ctx) {
     picotransition(&global_state, TIMER);
 }
 
-#define CODE_LEN 0x10000
-u8 TMP_BUFFER[CODE_LEN];
-u8 *TMP_CODE = TMP_BUFFER;
-page_directory_t *TMP_PD;
-
-void start_process(int pid, int parent) {
-    process *p = &global_state.processes[pid];
-    p->parent_id = parent;
-    p->state.state = RUNNABLE;
-    p->slices_left = 0;
-    p->state.ch_list = NULL;
-    
-    //char *file = "/console.bin";
-    char *file = "/spread.bin";
-    page_directory_t *pd = init_user_page_dir(file, get_identity());
-    if (pd == NULL) {
-        kprintf("Not good : failed to init page directory !\nErrno : %s", strerror(errno));
-        asm("hlt");
-    }
-    kprintf("Starting process %d\n", pid);
-    p->page_directory = pd;
-    copy_context(global_state.ctx, &p->saved_context);
-    p->saved_context.stack.eip = USER_CODE_VIRTUAL;
-    p->saved_context.regs.esp = USER_STACK_VIRTUAL + 0x1000 - sizeof(context_t) - 0x8 + 0x2C;
-    global_state.runqueues[MAX_PRIORITY] = add(pid, global_state.runqueues[MAX_PRIORITY]);
-}
-
 void load_context(context_t ctx) {
     copy_context(&global_state.processes[global_state.curr_pid].saved_context, &ctx);
 }
@@ -503,7 +467,7 @@ void init_syscalls_table(void) {
     syscall_fun[0] = _new_channel;
     syscall_fun[1] = _send;
     syscall_fun[2] = _receive;
-    //syscall_fun[3] = _fork;
+    syscall_fun[3] = _exec;
     syscall_fun[4] = _exit;
     syscall_fun[5] = _wait;
     syscall_fun[6] = _free_channel;
@@ -545,7 +509,7 @@ state *picoinit() {
     for (i = 0; i <= MAX_PRIORITY; i++) {
         s->runqueues[i] = NULL;
     }
-    for(int i = 0; i < 10; i++) start_process(i, i);
+    for(int i = 0; i < 1; i++) start_process(0, "/console.bin");
     reorder(s);
     kprintf("Init kernel\n");
     return s;

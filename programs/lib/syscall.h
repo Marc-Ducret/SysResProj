@@ -6,13 +6,13 @@
 #define NEWCHANNEL 0
 #define SEND 1
 #define RECEIVE 2
-#define FORK 3
+#define EXEC 3
 #define EXIT 4
 #define WAIT 5
 #define FREECHANNEL 6
 #define WAITCHANNEL 7
 
-//pid_t fork(int prio);
+pid_t exec(char *cmd);
 pid_t wait(int *status);
 void exit(int status);
 

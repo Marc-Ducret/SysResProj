@@ -177,6 +177,8 @@ void init_paging(u32 mem_end) {
     return;
 }
 
+u32 tmp;
+
 int copy_bin(u32 buffer_code_addr, u32 user_code_len, page_directory_t *user_pd, page_directory_t *cur_pd) {
     // Remaps the user_code_len bytes at buffer_code_address to their good location 
     // in user_pd.
@@ -198,6 +200,9 @@ int copy_bin(u32 buffer_code_addr, u32 user_code_len, page_directory_t *user_pd,
 }
 
 page_directory_t *init_user_page_dir(char *file, page_directory_t *cur_pd) {
+    asm volatile ("mov %cr3, %eax   \n"
+                  "mov %eax, tmp ");
+    cur_pd = (page_directory_t*) (tmp - 0x1000); //TODO do better
     // Creates a new page directory and initializes it with specified binary.
     void *user_code = (void *) USER_CODE_VIRTUAL - CODE_LEN;
     // TODO Do it with only one page ?
@@ -279,12 +284,5 @@ u8 page_fault(context_t* context) {
         kprintf("reserved ");
     kprintf(") id=%d at %x (eip = %x pid = %d)\n", id, faulting_address, 
                             context->stack.eip, get_global_state()->curr_pid);
-    
-    /*if(!present) {
-        if(current_page_directory == identity_pd) 
-            map_page(get_page(faulting_address, 1, current_page_directory), faulting_address, 0, 1);
-        else 
-            alloc_page(get_page(faulting_address, 1, current_page_directory), 0, 1);
-    }*/
     return 1;
 }
