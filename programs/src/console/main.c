@@ -78,19 +78,18 @@ void scroll_up() {
     else load_from_scroll();
 }
 
-
-int main() {
+int main(char *args) {
     init();
+    int in = new_channel();
+    int out = new_channel();
+    char *s = args;
+    while(*s) c_put_char(*(s++));
+    c_put_char('\n');
+    exec("/p.bin", out, in);
     for(;;) {
-        int event = get_key_event();
-        if(event >= 0 && event < 0x80) {
-            if(event == KEY_SHIFT) scroll_up();
-            else if(event == KEY_CTRL) scroll_down();
-            else if(event == KEY_ESCAPE) exec("/spread.bin"); 
-            else {
-                char c = getKeyChar(event);
-                if(c) c_put_char(c);
-            }
+        u8 c;
+        if(receive(in, &c, 1) > 0) {
+            c_put_char(c);
         }
     }
 }

@@ -1,11 +1,18 @@
 #include "lib.h"
 
+
+
 int main() {
-    for(u8 i = 0; i != 0xFF; i++) *((u16*)0x88000000 + i) = 0x0200 + i;
-    for(u32 i = 0;; i++) {
-        int event = kget_key_event();
-        if(event >= 0 && event < 0x80) {
-            set_char_at('0' + (event % 10), COLOR_RED, COLOR_WHITE, 5, 5);
-        }
+    clear_screen(COLOR_BLUE);
+    u8 c = '%';
+    if(send(1, &c, 1) < 0) {
+        int err = get_error();
+        set_char_at('0'+err/10, COLOR_GREEN, COLOR_BLUE, 0, 0);
+        set_char_at('0'+err%10, COLOR_GREEN, COLOR_BLUE, 1, 0);
+        for(;;);
+    }
+    for(u8 i = 0;; i++) {
+        clear_screen(i % 0x10);
+        for(int i = 0; i < 0x100; i++) asm("hlt");
     }
 }

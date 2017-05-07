@@ -1,0 +1,6 @@
+for p in "$@"
+do
+    ./build $p
+done
+cd ..
+make run-qemu-disk

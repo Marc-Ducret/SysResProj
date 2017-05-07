@@ -195,14 +195,14 @@ int copy_bin(u32 buffer_code_addr, u32 user_code_len, page_directory_t *user_pd,
         page->frame = 0;
         invalidate(buffer_code_addr + i);
     }
-    kprintf("Voila : %x\n", phys_addr);
     return 0;
 }
 
-page_directory_t *init_user_page_dir(char *file, page_directory_t *cur_pd) {
+page_directory_t *init_user_page_dir(char *cmd, page_directory_t *cur_pd) {
     asm volatile ("mov %cr3, %eax   \n"
                   "mov %eax, tmp ");
     cur_pd = (page_directory_t*) (tmp - 0x1000); //TODO do better
+    
     // Creates a new page directory and initializes it with specified binary.
     void *user_code = (void *) USER_CODE_VIRTUAL - CODE_LEN;
     // TODO Do it with only one page ?
@@ -212,6 +212,17 @@ page_directory_t *init_user_page_dir(char *file, page_directory_t *cur_pd) {
         errno = ENOMEM;
         return NULL;
     }
+    
+    char *args = cmd;
+    while(*args != '\0') {
+        args++;
+        if(*args == ' ') {
+            *args = '\0';
+            args++;
+            break;
+        }
+    }
+    char *file = cmd;
     
     fd_t fd = fopen(file, O_RDONLY);
     if (fd == -1)
@@ -226,14 +237,21 @@ page_directory_t *init_user_page_dir(char *file, page_directory_t *cur_pd) {
     }
     memset(pd, 0, sizeof(page_directory_t));
     
+    first_page = get_page((u32) user_code, 1, cur_pd);
+    map_page(first_page, 0, 1, 1);
+    char *dst = user_code;
+    while((*(dst++) = *(args++)));
+    map_page(get_page(USER_ARGS_BUFFER, 1, pd), (u32) get_physical(first_page), 1, 1);
+    first_page->present = 0;
+    first_page->frame = 0;
+    invalidate((u32) user_code);
+    
     // TODO only maps needed pages ?
     for (u32 i = 0; i < CODE_LEN; i += PAGE_SIZE) {
         map_page(get_page((u32) user_code + i, 1, cur_pd), 0, 1, 1);
     }
     ssize_t len = read(fd, user_code, CODE_LEN);
 
-    kprintf("Loaded %d bytes at virtual address %x, starting with %x\n",
-            len, user_code, *((u8*) user_code));
     if (len == -1) {
         int err = errno;
         close(fd);

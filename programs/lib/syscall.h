@@ -12,7 +12,7 @@
 #define FREECHANNEL 6
 #define WAITCHANNEL 7
 
-pid_t exec(char *cmd);
+pid_t exec(char *cmd, int chin, int chout);
 pid_t wait(int *status);
 void exit(int status);
 
