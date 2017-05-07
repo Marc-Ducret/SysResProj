@@ -5,7 +5,7 @@
 #include "context.h"
 
 #define PAGE_SIZE 0x1000
-#define CODE_LEN 0x10000
+#define CODE_LEN 0x20000
 #define USER_CODE_VIRTUAL       0x40000000
 #define USER_STACK_VIRTUAL      0x80000000
 #define USER_SCREEN_VIRTUAL     0x88000000

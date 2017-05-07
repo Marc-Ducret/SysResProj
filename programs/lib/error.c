@@ -1,8 +1,5 @@
 #include "error.h"
 
-stream_t *stderr = NULL;
-u8 stderr_buffer[STREAM_BUFFER_SIZE];
-
 void init_error_msg() {
     // Fills the array error_msg
     error_msg[0] = "No error";
@@ -78,41 +75,6 @@ void init_error_msg() {
     error_msg[70] = "Bad permission. Can't create file with system permission.";
     error_msg[71] = "Unknown error";
     error_msg[72] = "Too many open channels";
-}
-
-int init_stderr(char *path) { // TODO Really place this here ?
-    // Creates the error stream writing at specified location.
-    // If path is NULL, chooses default path.
-    init_error_msg();
-    if (path == NULL) {
-        u8 mode = 0;
-        
-        if (mkdir(DEFAULT_STDERR_DIR, mode) == -1) {
-            // Failed to create such directory. (maybe handle with finddir ?)
-            if (errno != EEXIST) {
-                // There wasn't already such a directory -> Nope !
-                kprintf("Failed to initialise stderr.\n");
-                return -1;
-            }
-        }
-        stderr = create_stream(DEFAULT_STDERR_PATH, stderr_buffer);
-    }
-    else {
-        stderr = create_stream(path, stderr_buffer);
-    }
-    if (stderr == NULL) {
-        kprintf("Failed to initialise stderr.\n");
-        return -1;
-    }
-    kprintf("stderr initialised.\n");
-    return 0;
-}
-
-void perror(char *data) {
-    // Prints data followed by the error message corresponding to errno.
-    if (data != NULL && strlen(data) > 0) {
-        fprintf(stderr, "%s: %s\n", data, strerror(errno));
-    }
 }
 
 char *static_unknown_error = "Unknown error";

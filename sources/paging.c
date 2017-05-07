@@ -189,7 +189,7 @@ int copy_bin(u32 buffer_code_addr, u32 user_code_len, page_directory_t *user_pd,
         phys_addr = get_physical(page);
         if (1 || i < user_code_len) { // TODO ELF -> data segment !
             // Maps the physical memory in the new page directory.
-            map_page(get_page(USER_CODE_VIRTUAL + i, 1, user_pd), (u32) phys_addr, 0, 0);
+            map_page(get_page(USER_CODE_VIRTUAL + i, 1, user_pd), (u32) phys_addr, 0, 1);
         }
         page->present = 0;
         page->frame = 0;
@@ -284,6 +284,8 @@ u8 page_fault(context_t* context) {
         kprintf("reserved ");
     kprintf(") id=%d at %x (eip = %x pid = %d)\n", id, faulting_address, 
                             context->stack.eip, get_global_state()->curr_pid);
+    asm("cli");
+    asm("hlt");
     return 1;
 }
 
@@ -296,6 +298,9 @@ int check_address(void *address, int user, int write, page_directory_t *pd) {
     }
     if ((!page->user && user) || (!page->rw && write)) {
         errno = EFAULT;
+        kprintf("Voila : page_user %d, page_write %d, user %d, write %d\n",
+                page->user, page->rw, user, write);
+        //asm("hlt");
         return -1;
     }
     return 0;

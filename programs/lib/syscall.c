@@ -8,8 +8,7 @@
 
 pid_t exec(char *cmd) {
     pid_t res;
-    int errno;
-    
+        
     asm volatile("\
         movl $3, %%eax \n \
         movl %2, %%ebx \n \
@@ -24,8 +23,7 @@ pid_t exec(char *cmd) {
 }
 
 pid_t wait(int *status) {
-    int errno;
-    int exit_value;
+        int exit_value;
     pid_t child;
     
     asm volatile("\
@@ -59,8 +57,7 @@ void exit(int status) {
 
 ssize_t send(int chanid, u8 *buffer, size_t len) {
     ssize_t res;
-    int errno;
-    
+        
     asm volatile("\
         movl $1, %%eax \n \
         movl %2, %%ebx \n \
@@ -78,10 +75,9 @@ ssize_t send(int chanid, u8 *buffer, size_t len) {
 
 int receive(int chanid, u8 *buffer, size_t len) {    
     ssize_t res;
-    int errno;
-    
+        
     asm volatile("\
-        movl $1, %%eax \n \
+        movl $2, %%eax \n \
         movl %2, %%ebx \n \
         movl %3, %%ecx \n \
         movl %4, %%esi \n \
@@ -97,8 +93,7 @@ int receive(int chanid, u8 *buffer, size_t len) {
 
 pid_t wait_channel(int chanid) {
     pid_t sender;
-    int errno;
-        
+            
     asm volatile("\
         movl $7, %%eax \n \
         movl %2, %%ebx \n \
@@ -114,8 +109,7 @@ pid_t wait_channel(int chanid) {
 
 int new_channel(void) {
     int res;
-    int errno;
-    
+        
     asm volatile("\
                 movl $0, %%eax \n \
                 int $0x80 \n \
@@ -124,13 +118,14 @@ int new_channel(void) {
                 : "=m" (res), "=m" (errno)
                 :
                 : "%ebx", "esi", "edi");
+    if (res >= 0)
+        create_channel_stream(res);
     return res;
 }
 
 int free_channel(int chanid) {
     int res;
-    int errno;
-        
+            
     asm volatile("\
         movl $6, %%eax \n \
         movl %2, %%ebx \n \
@@ -149,8 +144,7 @@ int free_channel(int chanid) {
 
 fd_t fopen(char *path, oflags_t flags) {
     fd_t fd;
-    int errno;
-    
+        
     asm volatile("\
         movl $10, %%eax \n \
         movl %2, %%ebx \n \
@@ -167,8 +161,7 @@ fd_t fopen(char *path, oflags_t flags) {
 
 int close(fd_t fd) {
     int res;
-    int errno;
-    
+        
     asm volatile("\
         movl $11, %%eax \n \
         movl %2, %%ebx \n \
@@ -183,8 +176,7 @@ int close(fd_t fd) {
 }
 ssize_t read(fd_t fd, void *buffer, size_t length) {
     ssize_t res;
-    int errno;
-    
+        
     asm volatile("\
         movl $12, %%eax \n \
         movl %2, %%ebx \n \
@@ -202,8 +194,7 @@ ssize_t read(fd_t fd, void *buffer, size_t length) {
 
 ssize_t write(fd_t fd, void *buffer, size_t length) {
     ssize_t res;
-    int errno;
-    
+        
     asm volatile("\
         movl $13, %%eax \n \
         movl %2, %%ebx \n \
@@ -220,8 +211,7 @@ ssize_t write(fd_t fd, void *buffer, size_t length) {
 }
 
 int seek(fd_t fd, seek_cmd_t seek_command, int offset) {
-    int errno;
-    int res;
+        int res;
     
     asm volatile("\
         movl $14, %%eax \n \
@@ -240,8 +230,7 @@ int seek(fd_t fd, seek_cmd_t seek_command, int offset) {
 
 int mkdir(char *path, u8 mode) {
     int res;
-    int errno;
-    
+        
     asm volatile("\
         movl $20, %%eax \n \
         movl %2, %%ebx \n \
@@ -258,8 +247,7 @@ int mkdir(char *path, u8 mode) {
 
 int rmdir(char *path) {
     int res;
-    int errno;
-    
+        
     asm volatile("\
         movl $21, %%eax \n \
         movl %2, %%ebx \n \
@@ -274,8 +262,7 @@ int rmdir(char *path) {
 }
 int chdir(char *path) {
     int res;
-    int errno;
-    
+        
     asm volatile("\
         movl $22, %%eax \n \
         movl %2, %%ebx \n \
@@ -291,8 +278,7 @@ int chdir(char *path) {
 
 char *kgetcwd() {
     char *res;
-    int errno;
-    
+        
     asm volatile("\
         movl $23, %%eax \n \
         int $0x80 \n \
@@ -306,8 +292,7 @@ char *kgetcwd() {
 
 fd_t opendir(char *path) {
     fd_t res;
-    int errno;
-    
+        
     asm volatile("\
         movl $24, %%eax \n \
         movl %2, %%ebx \n \
@@ -323,8 +308,7 @@ fd_t opendir(char *path) {
 
 dirent_t *kreaddir(fd_t fd) {
     dirent_t *res;
-    int errno;
-    
+        
     asm volatile("\
         movl $25, %%eax \n \
         movl %2, %%ebx \n \
@@ -340,8 +324,7 @@ dirent_t *kreaddir(fd_t fd) {
 
 int rewinddir(fd_t fd) {
     int res;
-    int errno;
-    
+        
     asm volatile("\
         movl $26, %%eax \n \
         movl %2, %%ebx \n \
@@ -357,8 +340,7 @@ int rewinddir(fd_t fd) {
 
 int closedir(fd_t fd) {
     int res;
-    int errno;
-    
+        
     asm volatile("\
         movl $27, %%eax \n \
         movl %2, %%ebx \n \
@@ -380,8 +362,7 @@ dirent_t *findent(fd_t dir, char *name, ftype_t type);
 
 int get_key_event() {
     int res;
-    int errno;
-    
+        
     asm volatile("\
                 movl $40, %%eax \n \
                 int $0x80 \n \

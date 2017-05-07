@@ -12,5 +12,5 @@ struct malloc_header {
 };
 
 void *malloc(u32 size);
-
+void free(void *allocated);
 #endif

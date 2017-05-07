@@ -15,6 +15,7 @@ u16 scroll_buffer[VGA_WIDTH * SCROLL_HEIGHT];
 void c_put_char(u8 c);
 
 void init() {
+    init_error_msg();
     clear_screen(COLOR_WHITE);
     cursor_x = cursor_y = scroll_off = scroll = max_scroll = 0;
     fg_color = COLOR_GREEN;
@@ -67,7 +68,10 @@ void c_put_char(u8 c) {
         load_from_scroll();
     }
 }
-
+void print_string(char *s) {
+    while (*s)
+        c_put_char(*s++);
+}
 void scroll_down() {
     if(--scroll < 0) scroll = 0;
     else load_from_scroll();
@@ -78,7 +82,49 @@ void scroll_up() {
     else load_from_scroll();
 }
 
+void test_create() {
+    int chanid = new_channel();
+    print_string("New channel : ");
+    c_put_char('0' + chanid);
+    c_put_char('\n');
+}
 
+void test_send(void) {
+    fprintf(0, "Bonjour, j'envoie ca dans le channel %d\n", 0);
+    int res = flush(0);
+    print_string("Oui, reussi a envoyer : ");
+    if (res >= 100) {
+        c_put_char('0' + res / 100);
+        res = res % 100;
+    }
+    if (res >= 10) {
+        c_put_char('0' + res / 10);
+        res = res % 10;
+    }
+    if (res >= 0) {
+        c_put_char('0' + res);
+    }
+    print_string(" !\n");
+}
+
+void test_receive(void) {
+    pid_t pid = wait_channel(0);
+    print_string("Pid : ");
+    c_put_char('0' + pid);
+    print_string("\n");
+    if (pid < 0)
+        return;
+    char buffer[154];
+    memset(buffer, 0, 154);
+    int res = receive(0, buffer, 154);
+    print_string(strerror(errno));
+    if (res < 0) {
+        print_string("Rate, pas de recu !\n");
+        return;
+    }
+    print_string("voila le message :");
+    print_string(buffer);
+}
 int main() {
     init();
     for(;;) {
@@ -86,7 +132,10 @@ int main() {
         if(event >= 0 && event < 0x80) {
             if(event == KEY_SHIFT) scroll_up();
             else if(event == KEY_CTRL) scroll_down();
-            else if(event == KEY_ESCAPE) exec("/spread.bin"); 
+            else if(event == KEY_ESCAPE) exec("/console.bin");
+            else if(event == KEY_COLON) test_create();
+            else if(event == KEY_HAT) test_send();
+            else if(event == KEY_RPAR) test_receive();
             else {
                 char c = getKeyChar(event);
                 if(c) c_put_char(c);

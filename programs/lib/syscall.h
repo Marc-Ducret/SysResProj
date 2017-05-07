@@ -1,7 +1,8 @@
 #ifndef SYSCALL_H
 #define SYSCALL_H
 #include "int.h"
-
+#include "error.h"
+#include "stream.h"
 // Process related System Calls
 #define NEWCHANNEL 0
 #define SEND 1

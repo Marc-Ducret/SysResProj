@@ -1,11 +1,7 @@
 #ifndef ERROR_H
 #define ERROR_H
-#include <stddef.h>
 #include "int.h"
-#include "stream.h"
 
-#define DEFAULT_STDERR_PATH "/error/stderr"
-#define DEFAULT_STDERR_DIR "/error/"
 #define NB_ERR 73
 
 typedef enum {
@@ -85,10 +81,7 @@ typedef enum {
 } error_t;
 
 char *error_msg[NB_ERR];
-error_t errno; // Global variable with error code
-stream_t *stderr;
-int init_stderr(char *path);
-void perror(char *data);
+volatile error_t errno; // Global variable with error code
 char *strerror(error_t errnum);
 #endif /* ERROR_H */
 

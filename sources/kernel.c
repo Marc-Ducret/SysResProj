@@ -138,6 +138,8 @@ int start_process(int parent, char* binary) {
     p->saved_context.stack.eip = USER_CODE_VIRTUAL;
     p->saved_context.regs.esp = USER_STACK_VIRTUAL + 0x1000 - sizeof(context_t) - 0x8 + 0x2C;
     global_state.runqueues[MAX_PRIORITY] = add(pid, global_state.runqueues[MAX_PRIORITY]);
+    // TODO Initialisation of channels !
+    memcpy(p->channels, global_state.processes[parent].channels, sizeof(channel_state_t) * NUM_CHANNELS_PROC);
     return pid;
 }
 
@@ -239,7 +241,7 @@ int _fopen(state *s) {
     char *path = (char *) s->ctx->regs.ebx;
     oflags_t flags = (oflags_t) s->ctx->regs.ecx;
     fd_t res = -1;
-    if (check_address(path, 1, 1, s->processes[s->curr_pid].page_directory) == 0)
+    if (check_address(path, 1, 0, s->processes[s->curr_pid].page_directory) == 0)
         res = fopen(path, flags);
     s->ctx->regs.eax = res;
     s->ctx->regs.ebx = errno;
@@ -271,7 +273,7 @@ int _write(state *s) {
     void *buffer = (void *) s->ctx->regs.ecx;
     size_t length = (size_t) s->ctx->regs.esi;
     ssize_t res = -1;
-    if (check_address(buffer, 1, 1, s->processes[s->curr_pid].page_directory) == 0)
+    if (check_address(buffer, 1, 0, s->processes[s->curr_pid].page_directory) == 0)
         res = write(fd, buffer, length);
     s->ctx->regs.eax = res;
     s->ctx->regs.ebx = errno;
@@ -292,7 +294,7 @@ int _mkdir(state *s) {
     char *path = (char *) s->ctx->regs.ebx;
     u8 mode = (u8) s->ctx->regs.ecx;
     int res = -1;
-    if (check_address(path, 1, 1, s->processes[s->curr_pid].page_directory) == 0)
+    if (check_address(path, 1, 0, s->processes[s->curr_pid].page_directory) == 0)
         res = mkdir(path, mode);
     s->ctx->regs.eax = res;
     s->ctx->regs.ebx = errno;
@@ -302,7 +304,7 @@ int _mkdir(state *s) {
 int _rmdir(state *s) {
     char *path = (char *) s->ctx->regs.ebx;
     int res = -1;
-    if (check_address(path, 1, 1, s->processes[s->curr_pid].page_directory) == 0)
+    if (check_address(path, 1, 0, s->processes[s->curr_pid].page_directory) == 0)
         res = rmdir(path);
     s->ctx->regs.eax = res;
     s->ctx->regs.ebx = errno;
@@ -312,7 +314,7 @@ int _rmdir(state *s) {
 int _chdir(state *s) {
     char *path = (char *) s->ctx->regs.ebx;
     int res = -1;
-    if (check_address(path, 1, 1, s->processes[s->curr_pid].page_directory) == 0)
+    if (check_address(path, 1, 0, s->processes[s->curr_pid].page_directory) == 0)
         res = chdir(path);
     s->ctx->regs.eax = res;
     s->ctx->regs.ebx = errno;
@@ -331,7 +333,7 @@ int _getcwd(state *s) {
 int _opendir(state *s) {
     char *path = (char *) s->ctx->regs.ebx;
     fd_t res = -1;
-    if (check_address(path, 1, 1, s->processes[s->curr_pid].page_directory) == 0)
+    if (check_address(path, 1, 0, s->processes[s->curr_pid].page_directory) == 0)
         res = opendir(path);
     s->ctx->regs.eax = res;
     s->ctx->regs.ebx = errno;
@@ -376,10 +378,10 @@ int _get_key_event(state *s) {
 int _exec(state *s) {
     char *cmd = (char *) s->ctx->regs.ebx;
     pid_t res = -1;
-    if (check_address(cmd, 1, 1, s->processes[s->curr_pid].page_directory) == 0)
+    if (check_address(cmd, 1, 0, s->processes[s->curr_pid].page_directory) == 0)
         res = start_process(s->curr_pid, cmd);
     s->ctx->regs.eax = res;
-    s->ctx->regs->ebx = errno;
+    s->ctx->regs.ebx = errno;
     return 0;
 }
 
@@ -445,6 +447,7 @@ void picotransition(state *s, event ev) {
     
     //user_esp = global_state.processes[s->curr_pid].saved_context.regs.esp - 0x2C; TODO ??
     if (reorder_req) {
+        copy_context(s->ctx, &(s->processes[s->curr_pid].saved_context)); // TODO remove redundant saves ?
         reorder(s);
     }
 }
@@ -453,6 +456,9 @@ void focus_next_process() {
     do
         global_state.focus = (global_state.focus + 1) % NUM_PROCESSES;
     while(global_state.processes[global_state.focus].state == FREE);
+    if(global_state.processes[global_state.focus].state != FREE) {
+        kprintf("You are looking at a blocked processus. Thus, it isn't able to display its screen, because it isn't updated !\n");
+    }
 }
 
 void picosyscall(context_t *ctx) {
@@ -523,6 +529,9 @@ state *picoinit() {
         s->processes[i].parent_id = 0;
         s->processes[i].state = FREE;
         s->processes[i].slices_left = 0;
+        for (int j = 0; j < NUM_CHANNELS_PROC; j++) {
+            s->processes[i].channels[j].chanid = -1;
+        }
     }
 
     for (i = 0; i <= MAX_PRIORITY; i++) {

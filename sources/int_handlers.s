@@ -169,6 +169,26 @@ asm_syscall:
     push %esp
     push %eax
     call syscall
+    mov user_pd, %eax
+    movl $0, user_pd
+    test %eax, %eax
+    je irq_ret
+    add $0x1000, %eax
+    mov %eax, %cr3
+    mov user_esp, %esp
+    add $8, %esp
+    call load_context
+    popr
+    add $4, %esp
+    sti
+    iret
+    // before :
+    cli
+    push $0
+    pushr
+    push %esp
+    push %eax
+    call syscall
     add $8, %esp
     popr
     add $4, %esp

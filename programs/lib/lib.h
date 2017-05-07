@@ -2,8 +2,6 @@
 #define LIB_H
 #include "int.h"
 #include "keycode.h"
-#include "malloc.h"
-#include "syscall.h"
 
 #define COLOR_BLACK 0
 #define COLOR_BLUE 1
@@ -30,7 +28,20 @@
 u16 *get_screen();
 void set_char_at(u8 c, u8 fg, u8 bg, u8 x, u8 y);
 void clear_screen(u8 color);
-//int next_key_event();
 u32 rand();
+void *memcpy(void *dst, void *src, u32 n);
+void memset(void *dst, u8 src, u32 len);
+int strEqual(char *strA, char *strB);
+void strCopy(char *src, char* dest);
+u32 strlen(const char* str);
+int min(int a, int b);
+int max(int a, int b);
+u32 umax(u32 a, u32 b);
+u32 umin(u32 a, u32 b);
 
+#include "malloc.h"
+#include "syscall.h"
+#include "args.h"
+#include "error.h"
+#include "printing.h"
 #endif
