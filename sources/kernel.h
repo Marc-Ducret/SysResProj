@@ -7,7 +7,6 @@
 #include "context.h"
 #include "multiboot.h"
 #include "printing.h"
-#include "kernel.h"
 #include "lib.h"
 #include "memory.h"
 #include "paging.h"

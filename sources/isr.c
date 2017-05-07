@@ -52,7 +52,7 @@ void isr_handler(u32 id, context_t *context) {
         else print = 0;
     }
     if(print) {
-        kprintf("Caught interruption %d, error code %d\n", id, context->err_code);
+        kprintf("Caught interruption %d, error code %x\n", id, context->err_code);
         print_reg(regs);
         print_stack(stack);
     }

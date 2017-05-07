@@ -86,3 +86,7 @@ char *strerror(error_t errnum) {
     
     return static_unknown_error;
 }
+
+int get_error() {
+    return errno;
+}

@@ -125,14 +125,21 @@ void test_receive(void) {
     print_string("voila le message :");
     print_string(buffer);
 }
-int main() {
+
+int main(char *args) {
     init();
+    int in = new_channel();
+    int out = new_channel();
+    char *s = args;
+    while(*s) c_put_char(*(s++));
+    c_put_char('\n');
+    exec("/p.bin", out, in);
     for(;;) {
         int event = get_key_event();
         if(event >= 0 && event < 0x80) {
             if(event == KEY_SHIFT) scroll_up();
             else if(event == KEY_CTRL) scroll_down();
-            else if(event == KEY_ESCAPE) exec("/console.bin");
+            else if(event == KEY_ESCAPE) exec("/console.bin", in, out);
             else if(event == KEY_COLON) test_create();
             else if(event == KEY_HAT) test_send();
             else if(event == KEY_RPAR) test_receive();
@@ -140,6 +147,10 @@ int main() {
                 char c = getKeyChar(event);
                 if(c) c_put_char(c);
             }
+        }
+        u8 c;
+        if(receive(in, &c, 1) > 0) {
+            c_put_char(c);
         }
     }
 }

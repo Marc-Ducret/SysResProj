@@ -114,7 +114,7 @@ void copy_context(context_t *src, context_t *dst) {
     memcpy(dst, src, sizeof(context_t));
 }
 
-int start_process(int parent, char* binary) {
+int start_process(int parent, char* cmd, int chin, int chout) {
     pid_t pid = 0;
     while(global_state.processes[pid].state != FREE) {
         if(++pid == NUM_PROCESSES) {
@@ -128,18 +128,22 @@ int start_process(int parent, char* binary) {
     p->state = RUNNABLE;
     p->slices_left = 0;
     
-    page_directory_t *pd = init_user_page_dir(binary, get_identity());
+    p->channels[0].chanid = chin;
+    p->channels[0].write  = 0;
+    p->channels[0].read   = 1;
+    p->channels[1].chanid = chout;
+    p->channels[1].write  = 1;
+    p->channels[1].read   = 0;
+    
+    page_directory_t *pd = init_user_page_dir(cmd, get_identity());
     if (pd == NULL) {
         return -1;
     }
-    kprintf("Starting process %d\n", pid);
     p->page_directory = pd;
     copy_context(global_state.ctx, &p->saved_context);
     p->saved_context.stack.eip = USER_CODE_VIRTUAL;
     p->saved_context.regs.esp = USER_STACK_VIRTUAL + 0x1000 - sizeof(context_t) - 0x8 + 0x2C;
     global_state.runqueues[MAX_PRIORITY] = add(pid, global_state.runqueues[MAX_PRIORITY]);
-    // TODO Initialisation of channels !
-    memcpy(p->channels, global_state.processes[parent].channels, sizeof(channel_state_t) * NUM_CHANNELS_PROC);
     return pid;
 }
 
@@ -377,9 +381,12 @@ int _get_key_event(state *s) {
 
 int _exec(state *s) {
     char *cmd = (char *) s->ctx->regs.ebx;
+    int chin  = (int)s->ctx->regs.ecx < 0 ? -1 : s->processes[s->curr_pid].channels[s->ctx->regs.ecx].chanid;
+    int chout = (int)s->ctx->regs.edx < 0 ? -1 : s->processes[s->curr_pid].channels[s->ctx->regs.edx].chanid;
+    // TODO check validity of channels ! (rights and existence)
     pid_t res = -1;
     if (check_address(cmd, 1, 0, s->processes[s->curr_pid].page_directory) == 0)
-        res = start_process(s->curr_pid, cmd);
+        res = start_process(s->curr_pid, cmd, chin, chout);
     s->ctx->regs.eax = res;
     s->ctx->regs.ebx = errno;
     return 0;
@@ -413,7 +420,7 @@ void reorder(state *s) {
         }
 
     }
-    kprintf("No process to run...\n");
+    asm("sti"); // TODO REALLY ?
     asm("hlt");
     return;
 }
@@ -537,7 +544,7 @@ state *picoinit() {
     for (i = 0; i <= MAX_PRIORITY; i++) {
         s->runqueues[i] = NULL;
     }
-    for(int i = 0; i < 1; i++) start_process(0, "/console.bin");
+    start_process(0, "/console.bin /p.bin", -1, -1);
     reorder(s);
     kprintf("Init kernel\n");
     return s;
