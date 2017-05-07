@@ -12,6 +12,7 @@
 #include "paging.h"
 #include "fs_call.h"
 #include "keyboard.h"
+#include "timer.h"
 
 #define MAX_SIZE_LIST 100
 #define MAX_SIZE_C_LIST 100

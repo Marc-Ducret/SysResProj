@@ -45,6 +45,7 @@ void init() {
 void kmain(multiboot_info_t *mbinfo) {
     multiboot_info = mbinfo;
     init();
+    reset_time();
     asm("sti");
     for(;;) asm("hlt");
     save_filename_gen();

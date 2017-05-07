@@ -374,3 +374,18 @@ int get_key_event() {
                 : "%ebx", "esi", "edi");
     return res;
 }
+
+int gettimeofday(rtc_time_t *t) {
+    int res;
+    
+    asm volatile("\
+                movl $41, %%eax \n \
+                movl %2, %%ebx \n \
+                int $0x80 \n \
+                movl %%eax, %0 \n \
+                movl %%ebx, %1"
+                : "=m" (res), "=m" (errno)
+                : "m" (t)
+                : "%ebx", "esi", "edi");
+    return res;
+}

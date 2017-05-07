@@ -57,9 +57,9 @@ int closedir(fd_t fd);
 // Other system calls
 
 #define GET_KEY_EVENT 40
-
+#define GET_TIME_OF_DAY 41
 int get_key_event();
-
+int gettimeofday(rtc_time_t *time);
 //void new_launch();
 #endif /* SYSCALL_H */
 

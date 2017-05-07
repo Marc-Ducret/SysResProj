@@ -5,6 +5,8 @@
 #include "kernel.h"
 #include "paging.h"
 #include "disk.h"
+#include "timer.h"
+
 void test() {
     putchar('.');
 }
@@ -61,6 +63,7 @@ void isr_handler(u32 id, context_t *context) {
 
 void irq_handler(u32 id, context_t *ctx) {
     if (id == 0) { // Timer
+        current_time.mseconds++;
         picotimer(ctx);
     }
     else if(id == 1) { // Keyboard

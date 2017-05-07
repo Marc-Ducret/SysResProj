@@ -90,7 +90,11 @@ void test_create() {
 }
 
 void test_send(void) {
-    fprintf(0, "Bonjour, j'envoie ca dans le channel %d\n", 0);
+    rtc_time_t time;
+    rtc_time_t *t = &time;
+    gettimeofday(t);
+    fprintf(0, "%d:%d:%d, %d/%d/%d", t->hours, t->minutes, t->seconds,
+            t->day, t->month, (t->year % 100) + 2000);
     int res = flush(0);
     print_string("Oui, reussi a envoyer : ");
     if (res >= 100) {
@@ -133,7 +137,7 @@ int main(char *args) {
     char *s = args;
     while(*s) c_put_char(*(s++));
     c_put_char('\n');
-    exec("/p.bin", out, in);
+    //exec("/p.bin", out, in);
     for(;;) {
         int event = get_key_event();
         if(event >= 0 && event < 0x80) {
@@ -148,9 +152,10 @@ int main(char *args) {
                 if(c) c_put_char(c);
             }
         }
+        /*
         u8 c;
         if(receive(in, &c, 1) > 0) {
             c_put_char(c);
-        }
+        }*/
     }
 }

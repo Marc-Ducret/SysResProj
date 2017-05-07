@@ -379,6 +379,18 @@ int _get_key_event(state *s) {
     return 0;
 }
 
+int _gettimeofday(state *s) {
+    rtc_time_t *t = (rtc_time_t*) s->ctx->regs.ebx;
+    int res = -1;
+    if (check_address(t, 1, 1, s->processes[s->curr_pid].page_directory) == 0) {
+        update_time();
+        *t = current_time;
+    }
+    s->ctx->regs.eax = res;
+    s->ctx->regs.ebx = errno;
+    return 0;
+}
+
 int _exec(state *s) {
     char *cmd = (char *) s->ctx->regs.ebx;
     int chin  = (int)s->ctx->regs.ecx < 0 ? -1 : s->processes[s->curr_pid].channels[s->ctx->regs.ecx].chanid;
@@ -522,6 +534,7 @@ void init_syscalls_table(void) {
     syscall_fun[27] = _closedir;
     
     syscall_fun[40] = _get_key_event;
+    syscall_fun[41] = _gettimeofday;
 }
 
 state *picoinit() {

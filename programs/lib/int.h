@@ -46,4 +46,16 @@ typedef struct {
     u32 ent_size;   // Number of directory entries used by the file / directory.
     u32 size;       // Size of the file (0 for directories).
 } dirent_t;
+
+typedef struct {
+    int mseconds;
+    int seconds;
+    int minutes;
+    int hours;
+    int day;
+    int month;
+    int year;
+    int century;
+} rtc_time_t;
+
 #endif
