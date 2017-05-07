@@ -14,26 +14,18 @@ void clear_screen(u8 color) {
         for(u8 x = 0; x < VGA_WIDTH; x++)
             set_char_at(' ', color, color, x , y);
 }
-/*
-int next_key_event() {
-    int res;
-    int id = 40;
-    asm volatile("\
-                movl %1, %%eax \n \
-                int $0x80 \n \
-                movl %%eax, %0"
-                : "=m" (res)
-                : "m" (id)
-                : "%ebx", "esi", "edi");
-    return res;
-}*/
 
 u32 last_rand = 1351968;
 
 u32 rand() {
-    //last_rand = ((last_rand*884519) % 56311523)*8984541;
     last_rand = (last_rand * 16807) % (((u32) 1 << 31) -1);
     return last_rand;
+}
+
+void lib_init() {
+    create_channel_stream(1);
+    initCharTable();
+    init_error_msg();
 }
 
 void *memcpy(void *dst, void *src, u32 n) {

@@ -66,7 +66,7 @@ void vkprintf(sid_t sid, const char* data, va_list args) {
     }    
 }
 
-void kprintf(const char* data, ...) {
+void printf(const char* data, ...) {
     va_list args;
     va_start(args, data);
     vkprintf(STDOUT, data, args);

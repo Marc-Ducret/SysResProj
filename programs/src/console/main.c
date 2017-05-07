@@ -15,14 +15,12 @@ u16 scroll_buffer[VGA_WIDTH * SCROLL_HEIGHT];
 void c_put_char(u8 c);
 
 void init() {
-    init_error_msg();
     clear_screen(COLOR_WHITE);
     cursor_x = cursor_y = scroll_off = scroll = max_scroll = 0;
     fg_color = COLOR_GREEN;
     bg_color = COLOR_WHITE;
     for(int i = 0; i < VGA_WIDTH * SCROLL_HEIGHT; i ++)
         scroll_buffer[i] = (bg_color << 0xC) + (fg_color << 0x8);
-    initCharTable();
     c_put_char('>');
 }
 
@@ -120,7 +118,7 @@ void test_receive(void) {
         return;
     char buffer[154];
     memset(buffer, 0, 154);
-    int res = receive(0, buffer, 154);
+    int res = receive(0, (u8*)buffer, 154);
     print_string(strerror(errno));
     if (res < 0) {
         print_string("Rate, pas de recu !\n");
@@ -130,14 +128,17 @@ void test_receive(void) {
     print_string(buffer);
 }
 
+u8 recv_buff[512];
+
 int main(char *args) {
     init();
     int in = new_channel();
     int out = new_channel();
     char *s = args;
     while(*s) c_put_char(*(s++));
+    c_put_char('<');
     c_put_char('\n');
-    //exec("/p.bin", out, in);
+    exec(args, out, in);
     for(;;) {
         int event = get_key_event();
         if(event >= 0 && event < 0x80) {
@@ -149,13 +150,15 @@ int main(char *args) {
             else if(event == KEY_RPAR) test_receive();
             else {
                 char c = getKeyChar(event);
-                if(c) c_put_char(c);
+                if(c) {
+                    stream_putchar(c, out);
+                    flush(out);
+                }
             }
         }
-        /*
-        u8 c;
-        if(receive(in, &c, 1) > 0) {
-            c_put_char(c);
-        }*/
+        int ct;
+        if((ct = receive(in, recv_buff, 512)) > 0) {
+            for(int i = 0; i < ct; i ++) c_put_char(recv_buff[i]);
+        }
     }
 }

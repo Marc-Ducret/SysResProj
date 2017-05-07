@@ -241,7 +241,7 @@ page_directory_t *init_user_page_dir(char *cmd, page_directory_t *cur_pd) {
     map_page(first_page, 0, 1, 1);
     char *dst = user_code;
     while((*(dst++) = *(args++)));
-    map_page(get_page(USER_ARGS_BUFFER, 1, pd), (u32) get_physical(first_page), 1, 1);
+    map_page(get_page(USER_ARGS_BUFFER, 1, pd), (u32) get_physical(first_page), 0, 1);
     first_page->present = 0;
     first_page->frame = 0;
     invalidate((u32) user_code);
@@ -318,7 +318,7 @@ int check_address(void *address, int user, int write, page_directory_t *pd) {
         errno = EFAULT;
         kprintf("Voila : page_user %d, page_write %d, user %d, write %d\n",
                 page->user, page->rw, user, write);
-        //asm("hlt");
+        asm("hlt");
         return -1;
     }
     return 0;

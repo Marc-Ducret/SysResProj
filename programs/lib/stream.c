@@ -68,7 +68,7 @@ int stream_putchar(char c, sid_t sid) {
         return -1;
     
     stream_t *stream = &(stream_table[sid]);
-    if (stream->index == stream->size) {
+    if (stream->index == stream->size || c == '\n') {
         int res = flush(sid);
         if (res == -1) {
             // Error while flush

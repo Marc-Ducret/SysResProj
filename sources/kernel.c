@@ -425,14 +425,13 @@ void reorder(state *s) {
                 s->curr_priority = p;
                 user_pd = global_state.processes[next_pid].page_directory;
                 user_esp = global_state.processes[next_pid].saved_context.regs.esp - 0x2C;
-                //kprintf("hi %d, %x\n", next_pid, s->processes[next_pid].saved_context.stack.eip);
                 return;
             }
             rq = rq->tl;
         }
 
     }
-    asm("sti"); // TODO REALLY ?
+    kprintf("No process to run....");
     asm("hlt");
     return;
 }
@@ -557,7 +556,7 @@ state *picoinit() {
     for (i = 0; i <= MAX_PRIORITY; i++) {
         s->runqueues[i] = NULL;
     }
-    start_process(0, "/console.bin /p.bin", -1, -1);
+    start_process(0, "/console.bin /shell.bin", -1, -1);
     reorder(s);
     kprintf("Init kernel\n");
     return s;
