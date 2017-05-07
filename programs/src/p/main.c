@@ -1,6 +1,6 @@
 #include "lib.h"
 
-
+u8 recv_buff[513];
 
 int main() {
     clear_screen(COLOR_BLUE);
@@ -13,6 +13,12 @@ int main() {
     }
     for(u8 i = 0;; i++) {
         clear_screen(i % 0x10);
-        for(int i = 0; i < 0x100; i++) asm("hlt");
+        
+        int ct;
+        if((ct = receive(0, recv_buff, 512)) > 0) {
+            recv_buff[ct] = 0;
+            printf("%s", recv_buff);
+            flush(STDOUT);
+        }
     }
 }
