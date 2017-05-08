@@ -14,17 +14,16 @@ void new_cmd() {
 }
 
 void exec_cmd() {
+    errno = ECLEAN;
     if(     strEqual(cmd, "help")) printf("Available commands: help, exit, int, test\n");
     else if(strEqual(cmd, "exit")) run = 0;
     else if(strEqual(cmd, "test")) {
         for(int i = 0; i < 100; i ++)
             printf("%d\n", i);
     } else if(strEqual(cmd, "int")) {
-        asm volatile ("int $0x03");
-        asm volatile ("int $0x03");
+        asm volatile ("int $13");
     } else if(cmd[0] == '/') {
-        exec(cmd, -1, STDOUT);
-        if(errno)
+        if(exec(cmd, -1, STDOUT) < 0) 
             printf("Error: %s\n", strerror(errno));
     }
     else printf("Unknown command (%s)\n", cmd);
