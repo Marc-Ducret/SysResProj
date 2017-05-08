@@ -198,10 +198,10 @@ ssize_t wait_channel(state *s) {
     }
     if (write) {
         // Looks for some place.
-        channels_table[kchanid].sender = waiter;
         size_t empty = channels_table[kchanid].size - channels_table[kchanid].len;
         if (empty == 0) {
             // Blocks the waiter.
+            channels_table[kchanid].sender = waiter;
             s->processes[waiter].state = BLOCKEDWRITING;
         }
         errno = 0;
@@ -209,10 +209,10 @@ ssize_t wait_channel(state *s) {
     }
     else {
         // Looks for some data.
-        channels_table[kchanid].receiver = waiter;
         size_t len = channels_table[kchanid].len;
         if (len == 0) {
             // Blocks the waiter.
+            channels_table[kchanid].receiver = waiter;
             s->processes[waiter].state = BLOCKEDREADING;
         }
         errno = 0;

@@ -53,6 +53,7 @@ int main() {
     new_cmd();
     while(run) {
         int ct;
+        sleep(50);
         if((ct = receive(0, recv_buff, 512)) > 0) {
             for(int i = 0; i < ct; i++)
                 key_typed(recv_buff[i]);

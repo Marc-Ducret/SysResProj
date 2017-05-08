@@ -133,6 +133,8 @@ void test_receive(void) {
 
 u8 recv_buff[512];
 u8 shift, alt;
+int key_buffer[10];
+int index_new = 0;
 
 int main(char *args) {
     init();
@@ -145,24 +147,34 @@ int main(char *args) {
     c_put_char('\n');
     exec(args, out, in);
     for(;;) {
-        int event = get_key_event();
-        if      ((event & 0x7F) == KEY_SHIFT ) shift = !(event & 0x80);
-        else if ((event & 0x7F) == KEY_ALT_GR) alt   = !(event & 0x80);
-        else if(event >= 0 && event < 0x80) {
-            /*if(event == KEY_SHIFT) scroll_up();
-            else if(event == KEY_CTRL) scroll_down();
-            else if(event == KEY_ESCAPE) exec("/console.bin", in, out);
-            else if(event == KEY_COLON) test_create();
-            else if(event == KEY_HAT) test_send();
-            else if(event == KEY_RPAR) test_receive();*/
-            {
-                char c = getKeyChar(event, shift, alt);
-                if(c) {
-                    stream_putchar(c, out);
-                    flush(out);
+        sleep(50);
+        key_buffer[index_new] = get_key_event();
+        while (key_buffer[index_new] != -1) {
+            index_new++;
+            key_buffer[index_new] = get_key_event();
+        }
+        for (int index = 0; index < index_new; index++) {
+            int event = key_buffer[index];
+            if      ((event & 0x7F) == KEY_SHIFT ) shift = !(event & 0x80);
+            else if ((event & 0x7F) == KEY_ALT_GR) alt   = !(event & 0x80);
+            else if(event >= 0 && event < 0x80) {
+                /*if(event == KEY_SHIFT) scroll_up();
+                else if(event == KEY_CTRL) scroll_down();
+                else if(event == KEY_ESCAPE) exec("/console.bin", in, out);
+                else if(event == KEY_COLON) test_create();
+                else if(event == KEY_HAT) test_send();
+                else if(event == KEY_RPAR) test_receive();*/
+                {
+                    char c = getKeyChar(event, shift, alt);
+                    if(c) {
+                        stream_putchar(c, out);
+                    }
                 }
             }
         }
+        if (index_new)
+            flush(out);
+        index_new = 0;
         int ct;
         if((ct = receive(in, recv_buff, 512)) > 0) {
             for(int i = 0; i < ct; i ++) c_put_char(recv_buff[i]);
