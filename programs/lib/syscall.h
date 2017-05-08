@@ -12,6 +12,7 @@
 #define WAIT 5
 #define FREECHANNEL 6
 #define WAITCHANNEL 7
+#define SLEEP 8
 
 pid_t exec(char *cmd, int chin, int chout);
 pid_t wait(int *status);
@@ -22,6 +23,8 @@ ssize_t receive(int chanid, u8 *buffer, size_t len);
 pid_t wait_channel(int chanid);
 int new_channel(void);
 int free_channel(int chanid);
+
+int sleep(int time);
 
 // File System related Calls
 #define FOPEN 10

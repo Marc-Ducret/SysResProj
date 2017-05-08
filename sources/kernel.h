@@ -44,7 +44,7 @@ struct elt_list list_memory[MAX_SIZE_LIST];
 
 typedef enum p_state 
 {
-    FREE, BLOCKEDWRITING, BLOCKEDREADING, WAITING, RUNNABLE, ZOMBIE
+    FREE, BLOCKEDWRITING, BLOCKEDREADING, WAITING, RUNNABLE, ZOMBIE, SLEEPING
 } p_state;
 
 typedef struct channel_state 
@@ -92,6 +92,7 @@ struct state {
     context_t *ctx;
     process processes[NUM_PROCESSES];
     list* runqueues[MAX_PRIORITY+1];
+    c_list *sleeping;
 };
 
 typedef enum event 

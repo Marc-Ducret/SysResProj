@@ -241,6 +241,45 @@ int _receive(state *s) {
     return 0; // No need to reorder
 }
 
+int _sleep(state *s) {
+    int time = s->ctx->regs.ebx;
+    int res;
+    if (time > 0) {
+        pid_t pid = s->curr_pid;
+        s->processes[pid].state = SLEEPING;
+        c_list *curr = NULL;
+        c_list *next = s->sleeping;
+        c_list *new = malloc_c_list();
+        int cur_time = 0;
+        int next_time = 0;
+        while (next != NULL) {
+            next_time = cur_time + next->priority;
+            if (next_time > time) {
+                next->priority -= time - cur_time;
+                break;
+            }
+            cur_time = next_time;
+            curr = next;
+            next = curr->tl;
+        }
+        if (curr != NULL)
+            curr->tl = new;
+        new->tl = next;
+        new->pid = pid;
+        new->priority = time - cur_time;
+        if (curr == NULL)
+            s->sleeping = new;
+        res = 0;
+    }
+    else {
+        errno = EINVAL;
+        res = -1;
+    }
+    s->ctx->regs.eax = res;
+    s->ctx->regs.ebx = errno;
+    return (res == 0);
+}
+
 int _fopen(state *s) {
     char *path = (char *) s->ctx->regs.ebx;
     oflags_t flags = (oflags_t) s->ctx->regs.ecx;
@@ -449,6 +488,17 @@ void picotransition(state *s, event ev) {
             s->ctx->regs.ebx = ENOSYS;
         }
     } else {
+        // Update sleeping processes
+        if (s->sleeping != NULL) {
+            s->sleeping->priority -= 1;
+            if (s->sleeping->priority <= 0) {
+                s->processes[s->sleeping->pid].state = RUNNABLE;
+                c_list *next = s->sleeping->tl;
+                free_c_list(s->sleeping);
+                s->sleeping = next;
+            }
+        }
+        // Updates current process time slices.
         if(s->curr_pid >= 0) {
             if (--s->processes[s->curr_pid].slices_left <= 0) {
                 s->processes[s->curr_pid].slices_left = 0;
@@ -464,6 +514,7 @@ void picotransition(state *s, event ev) {
     }
     
     if (reorder_req) {
+        //if(global_state.curr_pid == global_state.focus) memcpy((void*) 0xB8000, (void*) USER_SCREEN_VIRTUAL, 0x1000);
         copy_context(s->ctx, &(s->processes[s->curr_pid].saved_context)); // TODO remove redundant saves ?
         reorder(s);
     }
@@ -521,6 +572,7 @@ void init_syscalls_table(void) {
     syscall_fun[5] = _wait;
     syscall_fun[6] = _free_channel;
     syscall_fun[7] = _wait_channel;
+    syscall_fun[8] = _sleep;
     
     syscall_fun[10] = _fopen;
     syscall_fun[11] = _close;
@@ -546,6 +598,7 @@ state *picoinit() {
     state *s = &global_state;
     s->curr_pid = -1;
     s->curr_priority = MAX_PRIORITY;
+    s->sleeping = NULL;
     
     int i;
 
