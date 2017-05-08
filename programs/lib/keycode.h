@@ -1,6 +1,8 @@
 #ifndef KEYCODE_H
 #define KEYCODE_H
 
+#include "int.h"
+
 #define KEY_ESCAPE 1
 #define KEY_1 2
 #define KEY_2 3
@@ -59,7 +61,7 @@
 #define KEY_ALT_GR 56
 #define KEY_SPACE 57
 
-char getKeyChar(short key);
+char getKeyChar(u8 key, u8 shift, u8 alt);
 void initCharTable();
 
 #endif

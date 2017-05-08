@@ -10,6 +10,7 @@ int run;
 
 void new_cmd() {
     printf("> ");
+    flush(STDOUT);
 }
 
 void exec_cmd() {
@@ -21,6 +22,10 @@ void exec_cmd() {
     } else if(strEqual(cmd, "int")) {
         asm volatile ("int $0x03");
         asm volatile ("int $0x03");
+    } else if(cmd[0] == '/') {
+        exec(cmd, -1, STDOUT);
+        if(errno)
+            printf("Error: %s\n", strerror(errno));
     }
     else printf("Unknown command (%s)\n", cmd);
     while(pos > 0)
@@ -29,11 +34,17 @@ void exec_cmd() {
 }
 
 void key_typed(u8 c) {
-    stream_putchar(c, STDOUT);
-    if(c == '\n' || pos == CMD_SIZE) {
+    if(c == '\n' || pos == CMD_SIZE-1) {
+        stream_putchar(c, STDOUT);
         exec_cmd();
+    } else if(c == 0x8) {
+        if(pos > 0) {
+            cmd[--pos] = 0;
+            stream_putchar(c, STDOUT);
+        }
     } else {
         cmd[pos++] = c;
+        stream_putchar(c, STDOUT);
     }
 }
 

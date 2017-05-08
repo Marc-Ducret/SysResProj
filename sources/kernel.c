@@ -418,7 +418,7 @@ void reorder(state *s) {
     for (p = MAX_PRIORITY; p >= 0; p--) {
         rq = s->runqueues[p];
         while (rq != NULL) {
-            if (s->processes[rq->hd].state == RUNNABLE) {//&& s->processes[rq->hd].slices_left > 0 ?
+            if (s->processes[rq->hd].state == RUNNABLE) {
                 next_pid = rq->hd;
                 s->processes[next_pid].slices_left = MAX_TIME_SLICES;
                 s->curr_pid = next_pid;
@@ -463,7 +463,6 @@ void picotransition(state *s, event ev) {
         }
     }
     
-    //user_esp = global_state.processes[s->curr_pid].saved_context.regs.esp - 0x2C; TODO ??
     if (reorder_req) {
         copy_context(s->ctx, &(s->processes[s->curr_pid].saved_context)); // TODO remove redundant saves ?
         reorder(s);
@@ -477,6 +476,7 @@ void focus_next_process() {
     if(global_state.processes[global_state.focus].state != FREE) {
         kprintf("You are looking at a blocked processus. Thus, it isn't able to display its screen, because it isn't updated !\n");
     }
+    while(nextKeyEvent() >= 0);
 }
 
 void picosyscall(context_t *ctx) {
@@ -495,7 +495,12 @@ void picotimer(context_t *ctx) {
         picoinit();
         return;
     }
-    if(global_state.curr_pid == global_state.focus) memcpy((void*) 0xB8000, (void*) USER_SCREEN_VIRTUAL, 0x1000);
+    if(global_state.curr_pid == global_state.focus) {
+        if(*((u16*) USER_SCREEN_VIRTUAL))
+            memcpy((void*) 0xB8000, (void*) USER_SCREEN_VIRTUAL, 0x1000);
+        else
+            focus_next_process();
+    }
     picotransition(&global_state, TIMER);
 }
 
