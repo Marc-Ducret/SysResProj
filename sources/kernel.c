@@ -124,6 +124,11 @@ int start_process(int parent, char* cmd, int chin, int chout) {
         }
     }
     
+    page_directory_t *pd = init_user_page_dir(cmd, get_identity());
+    if (pd == NULL) {
+        return -1;
+    }
+    
     process *p = &global_state.processes[pid];
     p->parent_id = parent;
     p->state = RUNNABLE;
@@ -136,10 +141,6 @@ int start_process(int parent, char* cmd, int chin, int chout) {
     p->channels[1].write  = 1;
     p->channels[1].read   = 0;
     
-    page_directory_t *pd = init_user_page_dir(cmd, get_identity());
-    if (pd == NULL) {
-        return -1;
-    }
     p->page_directory = pd;
     copy_context(global_state.ctx, &p->saved_context);
     p->saved_context.stack.eip = USER_CODE_VIRTUAL;
