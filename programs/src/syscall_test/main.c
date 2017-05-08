@@ -5,6 +5,7 @@ int main() {
     int nb = -1;
     memset(buffer, 0, 11);
     while (1) {
+        sleep(20);
         nb = wait_channel(STDIN, 0);
         if (nb == -1)
             printf("Error : %s\n", strerror(errno));
