@@ -140,6 +140,21 @@ int free_channel(int chanid) {
     return res;
 }
 
+int sleep(int time) {
+    int res;
+    
+    asm volatile("\
+        movl $8, %%eax \n \
+        movl %2, %%ebx \n \
+        int $0x80 \n \
+        movl %%eax, %0 \n \
+        movl %%ebx, %1"
+        : "=m" (res), "=m" (errno)
+        : "m" (time)
+        : "%ebx", "esi", "edi"
+        );
+    return res;
+}
 
 // File System related Calls
 
@@ -175,6 +190,7 @@ int close(fd_t fd) {
         );
     return res;
 }
+
 ssize_t read(fd_t fd, void *buffer, size_t length) {
     ssize_t res;
     
