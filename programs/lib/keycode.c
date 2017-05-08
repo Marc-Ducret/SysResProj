@@ -1,9 +1,9 @@
 #include "keycode.h"
 
-static char chars[128];
+static char chars[128 * 3];
 
 void initCharTable() {
-    for(int i = 0; i < 128; i++) chars[i] = 0;
+    for(int i = 0; i < 128 * 3; i++) chars[i] = 0;
     chars[KEY_A] = 'a';
     chars[KEY_B] = 'b';
     chars[KEY_C] = 'c';
@@ -32,20 +32,20 @@ void initCharTable() {
     chars[KEY_Z] = 'z';
     chars[KEY_SPACE] = ' ';
     chars[KEY_ENTER] = '\n';
-    chars[KEY_1] = '1';
-    chars[KEY_2] = '2';
-    chars[KEY_3] = '3';
-    chars[KEY_4] = '4';
-    chars[KEY_5] = '5';
-    chars[KEY_6] = '6';
-    chars[KEY_7] = '7';
-    chars[KEY_8] = '8';
-    chars[KEY_9] = '9';
-    chars[KEY_0] = '0';
+    chars[KEY_BACKSPACE] = 8;
+    chars[KEY_1] = '&';
+    //chars[KEY_2] = 'é';
+    chars[KEY_3] = '"';
+    chars[KEY_4] = '\'';
+    chars[KEY_5] = '(';
+    chars[KEY_6] = '-';
+    //chars[KEY_7] = 'è';
+    chars[KEY_8] = '_';
+    //chars[KEY_9] = 'ç';
+    //chars[KEY_0] = 'à';
     chars[KEY_RPAR] = ')';
-    chars[KEY_PERCENT] = '%';
-    //chars[KEY_SQUARE_SUPERSCRIPT] = '';
-    //chars[KEY_SHIFT] = '';
+    chars[KEY_EQUAL] = '=';
+    //chars[KEY_PERCENT] = 'ù';
     chars[KEY_STAR] = '*';
     chars[KEY_HAT] = '^';
     chars[KEY_DOLLAR] = '$';
@@ -53,12 +53,60 @@ void initCharTable() {
     chars[KEY_SEMI_COLON] = ';';
     chars[KEY_COLON] = ':';
     chars[KEY_EXCLAMATION] = '!';
-    chars[KEY_EQUAL] = '=';
-    //chars[KEY_RSHIFT] = '';
-    //chars[KEY_NUM_STAR] = '';
-    //chars[KEY_ALT_GR] = '';
+    
+    char *shift = chars + 128;
+    shift[KEY_A] = 'A';
+    shift[KEY_B] = 'B';
+    shift[KEY_C] = 'C';
+    shift[KEY_D] = 'D';
+    shift[KEY_E] = 'E';
+    shift[KEY_F] = 'F';
+    shift[KEY_G] = 'G';
+    shift[KEY_H] = 'H';
+    shift[KEY_I] = 'I';
+    shift[KEY_J] = 'J';
+    shift[KEY_K] = 'K';
+    shift[KEY_L] = 'L';
+    shift[KEY_M] = 'M';
+    shift[KEY_N] = 'N';
+    shift[KEY_O] = 'O';
+    shift[KEY_P] = 'P';
+    shift[KEY_Q] = 'Q';
+    shift[KEY_R] = 'R';
+    shift[KEY_S] = 'S';
+    shift[KEY_T] = 'T';
+    shift[KEY_U] = 'U';
+    shift[KEY_V] = 'V';
+    shift[KEY_W] = 'W';
+    shift[KEY_X] = 'X';
+    shift[KEY_Y] = 'Y';
+    shift[KEY_Z] = 'Z';
+    shift[KEY_SPACE] = ' ';
+    shift[KEY_ENTER] = '\n';
+    shift[KEY_BACKSPACE] = 8;
+    shift[KEY_1] = '1';
+    shift[KEY_2] = '2';
+    shift[KEY_3] = '3';
+    shift[KEY_4] = '4';
+    shift[KEY_5] = '5';
+    shift[KEY_6] = '6';
+    shift[KEY_7] = '7';
+    shift[KEY_8] = '8';
+    shift[KEY_9] = '9';
+    shift[KEY_0] = '0';
+    //shift[KEY_RPAR] = '°';
+    shift[KEY_EQUAL] = '+';
+    shift[KEY_PERCENT] = '%';
+    //shift[KEY_STAR] = 'µ';
+    //shift[KEY_HAT] = '¨';
+    //shift[KEY_DOLLAR] = '£';
+    shift[KEY_COMMA] = '?';
+    shift[KEY_SEMI_COLON] = '.';
+    shift[KEY_COLON] = '/';
+    //shift[KEY_EXCLAMATION] = '§';
 }
 
-char getKeyChar(short key) {
-    return chars[key];
+char getKeyChar(u8 key, u8 shift, u8 alt) {
+    if(shift && alt) return 0;
+    return chars[key + shift * 128 + alt * 256];
 }

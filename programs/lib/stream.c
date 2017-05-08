@@ -81,7 +81,7 @@ int stream_putchar(char c, sid_t sid) {
 }
 
 int flush(sid_t sid) {
-    // Writes content of stream buffer to the disk.
+    // Writes content of stream buffer to the disk or channel.
     if (check_sid(sid) == -1)
         return -1;
     
@@ -92,6 +92,7 @@ int flush(sid_t sid) {
     int is_channel = stream->status == S_CHANNEL;
     while (remaining > 0) {
         if (is_channel) {
+            wait_channel(stream->chanid, 1);
             written = send(stream->chanid, index, remaining);
         }
         else {
@@ -103,6 +104,7 @@ int flush(sid_t sid) {
         }
         remaining -= written;
         index += written;
+        sleep(10); // TODO really needed ?
     }
     stream->index = 0;
     return written;

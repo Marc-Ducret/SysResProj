@@ -459,7 +459,7 @@ void reorder(state *s) {
         for (p = MAX_PRIORITY; p >= 0; p--) {
             rq = s->runqueues[p];
             while (rq != NULL) {
-                if (s->processes[rq->hd].state == RUNNABLE) {//&& s->processes[rq->hd].slices_left > 0 ?
+                if (s->processes[rq->hd].state == RUNNABLE) {
                     next_pid = rq->hd;
                     s->processes[next_pid].slices_left = MAX_TIME_SLICES;
                     s->curr_pid = next_pid;
@@ -473,6 +473,8 @@ void reorder(state *s) {
 
         }
         kprintf("No process to run...\n");
+        asm("hlt");
+        // TODO check this would be correct :
         no_process = 1;
         asm("sti");
         for (int i =0; i < 10; i++)
@@ -510,7 +512,6 @@ void picotransition(state *s, event ev) {
         }
     }
     
-    //user_esp = global_state.processes[s->curr_pid].saved_context.regs.esp - 0x2C; TODO ??
     if (reorder_req) {
         if(global_state.curr_pid == global_state.focus) memcpy((void*) 0xB8000, (void*) USER_SCREEN_VIRTUAL, 0x1000);
         copy_context(s->ctx, &(s->processes[s->curr_pid].saved_context)); // TODO remove redundant saves ?
@@ -522,9 +523,11 @@ void focus_next_process() {
     do
         global_state.focus = (global_state.focus + 1) % NUM_PROCESSES;
     while(global_state.processes[global_state.focus].state == FREE);
-    if(global_state.processes[global_state.focus].state != FREE) {
+    if(global_state.processes[global_state.focus].state != RUNNABLE) {
         kprintf("You are looking at a blocked processus. Thus, it isn't able to display its screen, because it isn't updated !\n");
+        log_state(&global_state);
     }
+    while(nextKeyEvent() >= 0);
 }
 
 void picosyscall(context_t *ctx) {
@@ -541,8 +544,6 @@ void picotimer(context_t *ctx) {
     //if (no_process)
     //    kprintf("Sleepig : %x\n", s->sleeping);
     if (s->sleeping != NULL) {
-        if (no_process)
-            kprintf("Time left %d\n", s->sleeping->priority);
         s->sleeping->priority -= 1;
         if (s->sleeping->priority <= 0) {
             s->processes[s->sleeping->pid].state = RUNNABLE;
@@ -560,6 +561,12 @@ void picotimer(context_t *ctx) {
         did_init = 1;
         picoinit();
         return;
+    }
+    if(global_state.curr_pid == global_state.focus) {
+        if(*((u16*) USER_SCREEN_VIRTUAL))
+            memcpy((void*) 0xB8000, (void*) USER_SCREEN_VIRTUAL, 0x1000);
+        else
+            focus_next_process();
     }
     picotransition(&global_state, TIMER);
 }

@@ -21,7 +21,6 @@ void init() {
     bg_color = COLOR_WHITE;
     for(int i = 0; i < VGA_WIDTH * SCROLL_HEIGHT; i ++)
         scroll_buffer[i] = (bg_color << 0xC) + (fg_color << 0x8);
-    c_put_char('>');
 }
 
 int index(u8 x, u8 y) {
@@ -47,6 +46,10 @@ void c_put_char(u8 c) {
     if(c == '\n') {
         while(++cursor_x < VGA_WIDTH) set_char(' ', cursor_x, cursor_y);
         cursor_x--;
+    } else if (c == 0x8) {
+        if(cursor_x > 0) cursor_x--;
+        set_char(' ', cursor_x, cursor_y);
+        return;
     } else set_char(c, cursor_x, cursor_y);
     if(++cursor_x == VGA_WIDTH) {
         cursor_x = 0;
@@ -129,27 +132,31 @@ void test_receive(void) {
 }
 
 u8 recv_buff[512];
+u8 shift, alt;
 
 int main(char *args) {
     init();
     int in = new_channel();
     int out = new_channel();
+    c_put_char('[');
     char *s = args;
     while(*s) c_put_char(*(s++));
-    c_put_char('<');
+    c_put_char(']');
     c_put_char('\n');
     exec(args, out, in);
     for(;;) {
         int event = get_key_event();
-        if(event >= 0 && event < 0x80) {
-            if(event == KEY_SHIFT) scroll_up();
+        if      ((event & 0x7F) == KEY_SHIFT ) shift = !(event & 0x80);
+        else if ((event & 0x7F) == KEY_ALT_GR) alt   = !(event & 0x80);
+        else if(event >= 0 && event < 0x80) {
+            /*if(event == KEY_SHIFT) scroll_up();
             else if(event == KEY_CTRL) scroll_down();
             else if(event == KEY_ESCAPE) exec("/console.bin", in, out);
             else if(event == KEY_COLON) test_create();
             else if(event == KEY_HAT) test_send();
-            else if(event == KEY_RPAR) test_receive();
-            else {
-                char c = getKeyChar(event);
+            else if(event == KEY_RPAR) test_receive();*/
+            {
+                char c = getKeyChar(event, shift, alt);
                 if(c) {
                     stream_putchar(c, out);
                     flush(out);
