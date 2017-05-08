@@ -472,8 +472,9 @@ void reorder(state *s) {
             }
 
         }
-        kprintf("No process to run...\n");
-        asm("hlt");
+        //kprintf("No process to run...\n");
+        //log_state(&global_state);
+        //asm("hlt");
         // TODO check this would be correct :
         no_process = 1;
         asm("sti");
