@@ -92,11 +92,17 @@ int flush(sid_t sid) {
     int is_channel = stream->status == S_CHANNEL;
     while (remaining > 0) {
         if (is_channel) {
+            int ready = wait_channel(stream->chanid, 1);
+            while (ready == -1) {
+                sleep(10);
+                ready = wait_channel(stream->chanid, 1);
+            }
             wait_channel(stream->chanid, 1);
             written = send(stream->chanid, index, remaining);
         }
         else {
             written = write(stream->file, index, remaining);
+            sleep(10);
         }
         if (written == -1) {
             // Error while writing
@@ -104,7 +110,7 @@ int flush(sid_t sid) {
         }
         remaining -= written;
         index += written;
-        sleep(10); // TODO really needed ?
+        //sleep(10); // TODO really needed ?
     }
     stream->index = 0;
     return written;

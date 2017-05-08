@@ -1,14 +1,15 @@
 #include "lib.h"
 
 int main() {
-    initCharTable();
-    int chanid = new_channel();
-    char buffer[10];
-    for (int i = 0; i < 10; i++)
-        buffer[i] = '0' + i;
-    set_char_at('a', COLOR_WHITE, COLOR_BLACK, 0, 0);
-    int res = send(chanid, (void*) buffer, 10);
-    set_char_at('b', COLOR_BLUE, COLOR_BLACK, 10, 10);
-    for(;;)
-        asm("hlt");
+    char buffer[11];
+    int nb = -1;
+    memset(buffer, 0, 11);
+    while (1) {
+        nb = wait_channel(STDIN, 0);
+        if (nb == -1)
+            printf("Error : %s\n", strerror(errno));
+        printf("Announced : %d\n", nb);
+        int read = receive(STDIN, buffer, 10);
+        printf("Received : %d characters : <%s>\n", read, buffer);
+    }
 }
