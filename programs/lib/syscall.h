@@ -20,7 +20,7 @@ void exit(int status);
 
 ssize_t send(int chanid, u8 *buffer, size_t len);
 ssize_t receive(int chanid, u8 *buffer, size_t len);
-pid_t wait_channel(int chanid);
+ssize_t wait_channel(int chanid, int write);
 int new_channel(void);
 int free_channel(int chanid);
 

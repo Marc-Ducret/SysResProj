@@ -63,7 +63,7 @@ ssize_t send(state *s) {
     // Decode the registers of state s to get args.
     // Tries to send a message of length len bytes into channel chanid.
     // Returns the number of transmitted bytes.
-    // If no process is waiting for receiving enough bytes, this blocks.
+    
     int chanid = s->ctx->regs.ebx;
     u8 *buffer = (u8*) s->ctx->regs.ecx;
     if (check_address(buffer, 1, 1, s->processes[s->curr_pid].page_directory) == -1) {
@@ -80,41 +80,46 @@ ssize_t send(state *s) {
         return -1;
     }
     int kchanid = channels[chanid].chanid;
-    len = umin(len, channels_table[kchanid].size);
+    size_t empty = channels_table[kchanid].size - channels_table[kchanid].len;
+    len = umin(len, empty);
     
-    if (len == 0) {
-        errno = EINVAL;
+    if (len == 0)
+        return 0; // Nothing to do.
+    
+    pid_t old_sender = channels_table[kchanid].sender;
+    if (old_sender >=0 && old_sender != sender) {
+        errno = EOCCUPIED;
         return -1;
     }
     
-    if (channels_table[kchanid].sender >= 0) {
-        // Someone is already sending a message on it.
-        errno = EALREADY;
-        return -1;
-    }
+    // Writes the message in the channel buffer.
+    size_t start = channels_table[kchanid].write;
+    u8 *data = channels_table[kchanid].data;
+    size_t first_step = channels_table[kchanid].size - start;
+    int overflow = len >= first_step;
+    memcpy(data + start, buffer, overflow ? first_step : len);
+    if (overflow)
+        memcpy(data, buffer + first_step, len - first_step);
     
-    // Saves the message in the channel buffer.
-    memcpy(channels_table[kchanid].data, buffer, len);
-    channels_table[kchanid].len = len;
-    channels_table[kchanid].sender = sender;
-    
-    // TODO Set sender registers !
+    channels_table[kchanid].len += len;
+    channels_table[kchanid].write = overflow ? (len - first_step) : (start + len);
+
     if (channels_table[kchanid].receiver >= 0) {
         // Someone is waiting for receiving.
         pid_t receiver = channels_table[kchanid].receiver;
         // Sets the return values in the registers of receiving process
-        s->processes[receiver].saved_context.regs.eax = sender;
+        s->processes[receiver].saved_context.regs.eax = len;
         // Unblocks receiver
         s->processes[receiver].state = RUNNABLE;
+        channels_table[kchanid].receiver = -1; // RESET, NO LOCK (TODO ?)
     }
-    s->processes[sender].state = BLOCKEDWRITING;
     return len;
 }
 
 ssize_t receive(state *s) {
-    // Receive the message contained in channel chanid, and unblocks the sender.
+    // Tries to read at most len bytes in the buffer.
     // Returns the size of the read message.
-    // If there isn't any message, returns immediately with value -1 and sets errno.
+    
     int chanid = s->ctx->regs.ebx;
     u8 *buffer = (u8*) s->ctx->regs.ecx;
     if (check_address(buffer, 1, 1, s->processes[s->curr_pid].page_directory) == -1) {
@@ -133,65 +138,84 @@ ssize_t receive(state *s) {
     }
     
     int kchanid = channels[chanid].chanid;
-    pid_t sender = channels_table[kchanid].sender;
-    if (sender == -1) {
-        errno = EEMPTY;
-        return -1;
+    len = umin(len, channels_table[kchanid].len);
+    
+    if (len == 0)
+        return 0; // Nothing to do.
+    
+    pid_t old_receiver = channels_table[kchanid].receiver;
+    if (old_receiver >= 0 && old_receiver != receiver) {
+        errno = EOCCUPIED;
+        return 1;
     }
     
-    if (channels_table[kchanid].receiver != receiver) {
-        if (channels_table[kchanid].receiver >= 0) {
-            errno = EOCCUPIED;
-            return 1;
-        }
-        else
-            channels_table[kchanid].receiver = receiver;
-    }
-    size_t msg_len = channels_table[kchanid].len;
-    if (msg_len > len) {
-        errno = EMSGSIZE; // Not enough space in the buffer
-        return -1;
-    }
+    // Reads len bytes of the message.
+    size_t start = channels_table[kchanid].read;
+    u8 *data = channels_table[kchanid].data;
+    size_t first_step = channels_table[kchanid].size - start;
+    int overflow = len >= first_step;
+    memcpy(buffer, data + start, overflow ? first_step : len);
+    if (overflow)
+        memcpy(buffer + first_step, data, len - first_step);
     
-    // Reads the message and then unblocks the sender.
-    memcpy(buffer, channels_table[kchanid].data, msg_len);
-    s->processes[sender].state = RUNNABLE;
-    
-    // The message was read, both sender and receivers are unblocked.
-    // Reset of the channel.
-    channels_table[kchanid].receiver = -1;
-    channels_table[kchanid].sender = -1;
-    channels_table[kchanid].len = 0;
-    return msg_len;
+    channels_table[kchanid].len -= len;
+    channels_table[kchanid].read = overflow ? (len - first_step) : (start + len);
+
+    if (channels_table[kchanid].sender >= 0) {
+        // Someone is waiting for writing.
+        pid_t sender = channels_table[kchanid].sender;
+        // Sets the return values in the registers of waiting process
+        s->processes[sender].saved_context.regs.eax = len;
+        // Unblocks receiver
+        s->processes[sender].state = RUNNABLE;
+        channels_table[kchanid].sender = -1; // RESET, NO LOCK (TODO ?)
+    }
+    return len;
 }
 
-pid_t wait_channel(state *s) {
-    // Waits for a message on channel chanid. When a message arrives, it returns
-    // without reading it. To get the content, it uses receive syscall.
-    // Return the pid of the sender.
+ssize_t wait_channel(state *s) {
+    // Waits for a message or some place on channel chanid. 
+    // When the wanted event occurs, it returns without doing anything. 
+    // To get the message or send some, it uses send / receive syscalls.
+    // Return the size of the event.
+    
     int chanid = s->ctx->regs.ebx;
-    pid_t receiver = s->curr_pid;
+    int write = s->ctx->regs.ecx;
+    pid_t waiter = s->curr_pid;
     channel_state_t *channels = s->processes[s->curr_pid].channels;
     
     if (check_channel(chanid, channels) == -1) 
         return -1;
-    if (!channels[chanid].read) {
+    if (write ? (!channels[chanid].write) : (!channels[chanid].read)) {
         errno = EPERM;
         return -1;
     }
     int kchanid = channels[chanid].chanid;
-    if (channels_table[kchanid].receiver >= 0) {
+    
+    if (write ? channels_table[kchanid].sender >= 0 : channels_table[kchanid].receiver >= 0) {
         errno = EOCCUPIED;
         return -1;
     }
-    channels_table[kchanid].receiver = receiver;
-    pid_t sender = channels_table[kchanid].sender;
-    
-    
-    if (sender == -1) {
-        // Blocks the receiver.
-        s->processes[receiver].state = BLOCKEDREADING;
+    if (write) {
+        // Looks for some place.
+        channels_table[kchanid].sender = waiter;
+        size_t empty = channels_table[kchanid].size - channels_table[kchanid].len;
+        if (empty == 0) {
+            // Blocks the waiter.
+            s->processes[waiter].state = BLOCKEDWRITING;
+        }
+        errno = 0;
+        return empty;
     }
-    errno = 0;
-    return sender;
+    else {
+        // Looks for some data.
+        channels_table[kchanid].receiver = waiter;
+        size_t len = channels_table[kchanid].len;
+        if (len == 0) {
+            // Blocks the waiter.
+            s->processes[waiter].state = BLOCKEDREADING;
+        }
+        errno = 0;
+        return len;
+    }
 }

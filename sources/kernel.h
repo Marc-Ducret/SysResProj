@@ -112,6 +112,7 @@ void picotransition(state *s, event ev);;
 void log_state(state *s);
 state *get_global_state();
 
+volatile int no_process;
 #include "channel.h"
 #endif /* KERNEL_H */
 

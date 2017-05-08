@@ -110,7 +110,7 @@ void test_send(void) {
 }
 
 void test_receive(void) {
-    pid_t pid = wait_channel(0);
+    pid_t pid = wait_channel(0, 0);
     print_string("Pid : ");
     c_put_char('0' + pid);
     print_string("\n");

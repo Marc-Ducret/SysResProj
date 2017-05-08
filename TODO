@@ -1,33 +1,32 @@
 File system :
 	- Choose clear types and notations (dirent_t, direcotry_entry_t, ..)
-	- Find a way to handle errors and 'exceptions'
-	- Separate file_descr and dir_handler into two tables.
-	- Decide which fields of file_descr_t are useful, and complete it in openfile
-	- Rename field 'size' of dirent_t, and add real size field
 	- Use a real malloc on some heap without page-fault, or use some pointer arg
 		(in readdir for instance)
 	- Rigorous and clever implementation of basename, dirname and so on.
 	- Duplication of function finddir
-	- Remove all special tests for root directory
-	- Unique names !
-	- No reset of 8.3 names
-	- Nice function to safely find and open a file ?
 	- Directories Improvement : open them as streams ?
 	- Add some malloc and free instead of 'buffer', but this will make unsafe a lot of currently safe functions !
-	- Change the error cluster 0 in some other value ? (because it's root)
-
-Disk :
-	- Manage 'out of disk' requests
-	- Manage errors happening when writing / reading (currently not supposed to fail)
-	- Return END_OF_CHAIN instead of 0 in case of failure ?
-
-Time management :
-	- Access time (http://wiki.osdev.org/CMOS)
 
 Global organisation :
 	- Folders ?
 	- Manage includes !
 	- Separate user and kernel code ?
 
-Syscalls :
-	- Implement kernel side interface !
+Screen : 
+	- Only certains process ?
+	- Refresh when sleeping ? (not good)
+
+Channels :
+	- Init stream channels for stdin / stdout ?
+	- Flush at \n ?
+	- Non blocking syscalls ? (except if full)
+
+User :
+	- User rights ?
+	- Initialisation block ?
+
+Malloc : 
+	- Test
+	- Kernel one ?
+
+

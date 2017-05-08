@@ -1,6 +1,7 @@
 #include "kernel.h"
 
 syscall_fun_t syscall_fun[NUM_SYSCALLS];
+volatile int no_process = 0;
 
 list* malloc_list() {
     static int base = 0;
@@ -227,11 +228,11 @@ int _send(state *s) {
 }
 
 int _wait_channel(state *s) {
-    pid_t sender = wait_channel(s);
-    s->ctx->regs.eax = sender;
+    ssize_t res = wait_channel(s);
+    s->ctx->regs.eax = res;
     s->ctx->regs.ebx = errno;
-    // Need to reorder only if there was no error and no sender.
-    return (sender == -1) && (errno == ECLEAN);
+    // Need to reorder only if there was no error and nothing left.
+    return (res == 0);
 }
 
 int _receive(state *s) {
@@ -454,25 +455,31 @@ void reorder(state *s) {
     pid_t next_pid;
     priority p;
     list *rq;
-    for (p = MAX_PRIORITY; p >= 0; p--) {
-        rq = s->runqueues[p];
-        while (rq != NULL) {
-            if (s->processes[rq->hd].state == RUNNABLE) {//&& s->processes[rq->hd].slices_left > 0 ?
-                next_pid = rq->hd;
-                s->processes[next_pid].slices_left = MAX_TIME_SLICES;
-                s->curr_pid = next_pid;
-                s->curr_priority = p;
-                user_pd = global_state.processes[next_pid].page_directory;
-                user_esp = global_state.processes[next_pid].saved_context.regs.esp - 0x2C;
-                return;
+    while (1) {
+        for (p = MAX_PRIORITY; p >= 0; p--) {
+            rq = s->runqueues[p];
+            while (rq != NULL) {
+                if (s->processes[rq->hd].state == RUNNABLE) {//&& s->processes[rq->hd].slices_left > 0 ?
+                    next_pid = rq->hd;
+                    s->processes[next_pid].slices_left = MAX_TIME_SLICES;
+                    s->curr_pid = next_pid;
+                    s->curr_priority = p;
+                    user_pd = global_state.processes[next_pid].page_directory;
+                    user_esp = global_state.processes[next_pid].saved_context.regs.esp - 0x2C;
+                    return;
+                }
+                rq = rq->tl;
             }
-            rq = rq->tl;
-        }
 
+        }
+        kprintf("No process to run...\n");
+        no_process = 1;
+        asm("sti");
+        for (int i =0; i < 10; i++)
+            asm("hlt");
+        asm("cli");
+        no_process = 0;
     }
-    kprintf("No process to run....");
-    asm("hlt");
-    return;
 }
 
 void picotransition(state *s, event ev) {
@@ -488,16 +495,6 @@ void picotransition(state *s, event ev) {
             s->ctx->regs.ebx = ENOSYS;
         }
     } else {
-        // Update sleeping processes
-        if (s->sleeping != NULL) {
-            s->sleeping->priority -= 1;
-            if (s->sleeping->priority <= 0) {
-                s->processes[s->sleeping->pid].state = RUNNABLE;
-                c_list *next = s->sleeping->tl;
-                free_c_list(s->sleeping);
-                s->sleeping = next;
-            }
-        }
         // Updates current process time slices.
         if(s->curr_pid >= 0) {
             if (--s->processes[s->curr_pid].slices_left <= 0) {
@@ -515,7 +512,7 @@ void picotransition(state *s, event ev) {
     
     //user_esp = global_state.processes[s->curr_pid].saved_context.regs.esp - 0x2C; TODO ??
     if (reorder_req) {
-        //if(global_state.curr_pid == global_state.focus) memcpy((void*) 0xB8000, (void*) USER_SCREEN_VIRTUAL, 0x1000);
+        if(global_state.curr_pid == global_state.focus) memcpy((void*) 0xB8000, (void*) USER_SCREEN_VIRTUAL, 0x1000);
         copy_context(s->ctx, &(s->processes[s->curr_pid].saved_context)); // TODO remove redundant saves ?
         reorder(s);
     }
@@ -539,6 +536,24 @@ void picosyscall(context_t *ctx) {
 u32 did_init = 0;
 
 void picotimer(context_t *ctx) {
+    // Update sleeping processes
+    state *s = &global_state;
+    //if (no_process)
+    //    kprintf("Sleepig : %x\n", s->sleeping);
+    if (s->sleeping != NULL) {
+        if (no_process)
+            kprintf("Time left %d\n", s->sleeping->priority);
+        s->sleeping->priority -= 1;
+        if (s->sleeping->priority <= 0) {
+            s->processes[s->sleeping->pid].state = RUNNABLE;
+            c_list *next = s->sleeping->tl;
+            free_c_list(s->sleeping);
+            s->sleeping = next;
+        }
+    }
+    if (no_process)
+        return;
+    
     // Calls the picotransition with current registers pointing regs.
     global_state.ctx = ctx;
     if(!did_init) {
@@ -546,7 +561,6 @@ void picotimer(context_t *ctx) {
         picoinit();
         return;
     }
-    if(global_state.curr_pid == global_state.focus) memcpy((void*) 0xB8000, (void*) USER_SCREEN_VIRTUAL, 0x1000);
     picotransition(&global_state, TIMER);
 }
 

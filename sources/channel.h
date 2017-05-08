@@ -12,6 +12,8 @@ typedef struct {
     u8 *data;
     size_t size;
     size_t len;
+    size_t read;
+    size_t write;
     pid_t sender;
     pid_t receiver;
 } channel_t;
@@ -20,8 +22,7 @@ int new_channel(channel_state_t *channels);
 ssize_t send(state *s);
 ssize_t receive(state *s);
 int free_channel(int chanid, channel_state_t *channels);
-pid_t wait_channel(state *s);
-
+ssize_t wait_channel(state *s);
 
 #endif /* CHANNEL_H */
 

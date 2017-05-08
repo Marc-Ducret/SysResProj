@@ -92,17 +92,18 @@ int receive(int chanid, u8 *buffer, size_t len) {
     return res;
 }
 
-pid_t wait_channel(int chanid) {
-    pid_t sender;
+ssize_t wait_channel(int chanid, int write) {
+    ssize_t sender;
     
     asm volatile("\
         movl $7, %%eax \n \
         movl %2, %%ebx \n \
+        movl %3, %%ecx \n \
         int $0x80 \n \
         movl %%eax, %0 \n \
         movl %%ebx, %1"
         : "=m" (sender), "=m" (errno)
-        : "m" (chanid)
+        : "m" (chanid), "m" (write)
         : "%ebx", "esi", "edi"
         );
     return sender;
