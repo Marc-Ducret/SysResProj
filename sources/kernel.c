@@ -489,7 +489,9 @@ void reorder(state *s) {
 void picotransition(state *s, event ev) {
     if(s->curr_pid >= 0) copy_context(s->ctx, &(s->processes[s->curr_pid].saved_context));
     int reorder_req = 0;
+    int time_slices = 0;
     if (ev == SYSCALL) {
+        time_slices = SYSCALL_SLICES;
         int id = s->ctx->regs.eax;
         if (id >= 0 && id < NUM_SYSCALLS) {
             reorder_req = (syscall_fun[id])(s);
@@ -499,23 +501,25 @@ void picotransition(state *s, event ev) {
             s->ctx->regs.ebx = ENOSYS;
         }
     } else {
-        // Updates current process time slices.
-        if(s->curr_pid >= 0) {
-            if (--s->processes[s->curr_pid].slices_left <= 0) {
-                s->processes[s->curr_pid].slices_left = 0;
-                reorder_req = 1;
-                //On remet le processus a la fin
-                priority p = s->curr_priority;
-                pid_t id = s->curr_pid;
-                s->runqueues[p] = add_end(id, filter(s->runqueues[p], id));
-            }
-        } else {
+        time_slices = TIMER_SLICES;
+    }
+    // Updates current process time slices.
+    if(s->curr_pid >= 0) {
+        s->processes[s->curr_pid].slices_left -= time_slices;
+        if (s->processes[s->curr_pid].slices_left <= 0) {
+            s->processes[s->curr_pid].slices_left = 0;
             reorder_req = 1;
+            //On remet le processus a la fin
+            priority p = s->curr_priority;
+            pid_t id = s->curr_pid;
+            s->runqueues[p] = add_end(id, filter(s->runqueues[p], id));
         }
+    } else {
+        reorder_req = 1;
     }
     
     if (reorder_req) {
-        if(global_state.curr_pid == global_state.focus) memcpy((void*) 0xB8000, (void*) USER_SCREEN_VIRTUAL, 0x1000);
+        if(global_state.curr_pid == global_state.focus) memcpy((void*) 0xB8000, (void*) USER_SCREEN_VIRTUAL, 0x1000); // TODO
         copy_context(s->ctx, &(s->processes[s->curr_pid].saved_context)); // TODO remove redundant saves ?
         reorder(s);
     }
