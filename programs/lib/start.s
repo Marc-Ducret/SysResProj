@@ -11,4 +11,5 @@ _start:
     call lib_init
     push $0x88001000
     call main
+    call exit
     jmp _start

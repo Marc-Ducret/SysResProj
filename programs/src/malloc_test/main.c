@@ -24,13 +24,11 @@ int main() {
     u32 m = 0x1000;
     void ** pointers = (void **) malloc(n * sizeof(void **));
     for(int i = 0; i < n; i ++) pointers[i] = NULL;
-    for(;;) {
-        if(run) {
-            int i = rand() % n;
-            if(pointers[i]) free(pointers[i]);
-            pointers[i] = malloc(rand() % m);
-            if(!pointers[i]) run = 0;
-        }
+    for(u32 ct = 0; ct < 0x100; ct++) {
+        int i = rand() % n;
+        if(pointers[i]) free(pointers[i]);
+        pointers[i] = malloc(m);
         flush(STDOUT);
+        if(!pointers[i]) break;
     }
 }

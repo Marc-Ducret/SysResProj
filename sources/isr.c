@@ -58,7 +58,13 @@ void isr_handler(u32 id, context_t *context) {
         print_reg(regs);
         print_stack(stack);
     }
-    if(die) asm("hlt");
+    if(die) {
+        state *s = get_global_state();
+        if(s->curr_pid >= 0) {
+            kill_process(s->curr_pid);
+            reorder(s);
+        } else asm("hlt");
+    }
 }
 
 void irq_handler(u32 id, context_t *ctx) {

@@ -134,6 +134,10 @@ int start_process(int parent, char* cmd, int chin, int chout) {
     p->state = RUNNABLE;
     p->slices_left = 0;
     
+    for (int j = 0; j < NUM_CHANNELS_PROC; j++) {
+        p->channels[j].chanid = -1;
+    }
+    
     p->channels[0].chanid = chin;
     p->channels[0].write  = 0;
     p->channels[0].read   = 1;
@@ -150,8 +154,8 @@ int start_process(int parent, char* cmd, int chin, int chout) {
     return pid;
 }
 
-int _exit(state *s) {
-    pid_t pid = s->curr_pid;
+void kill_process(pid_t pid) {
+    state *s = &global_state;
     s->processes[pid].state = ZOMBIE;
     pid_t pere = s->processes[pid].parent_id;
 
@@ -175,8 +179,13 @@ int _exit(state *s) {
     }
 
     //On enlève le processus de sa file
-    s->runqueues[s->curr_priority] = filter(s->runqueues[s->curr_priority], pid);
+    s->runqueues[MAX_PRIORITY] = filter(s->runqueues[MAX_PRIORITY], pid); //TODO priority?
     
+    //TODO clear PD
+}
+
+int _exit(state *s) {
+    kill_process(s->curr_pid);    
     return 1; // Need to reorder
 }
 
