@@ -63,6 +63,7 @@ int closedir(fd_t fd);
 #define GET_TIME_OF_DAY 41
 int get_key_event();
 int gettimeofday(rtc_time_t *time);
-//void new_launch();
+void *resize_heap(int delta_size);
+
 #endif /* SYSCALL_H */
 

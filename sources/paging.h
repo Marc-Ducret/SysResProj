@@ -10,6 +10,7 @@
 #define USER_STACK_VIRTUAL      0x80000000
 #define USER_SCREEN_VIRTUAL     0x88000000
 #define USER_ARGS_BUFFER        0x88001000
+#define USER_HEAP               0x88002000
 
 typedef struct pde
 {
@@ -65,7 +66,8 @@ page_t *get_page(u32 address, int make, page_directory_t *dir);
 void *get_physical(page_t *page);
 u8 page_fault(context_t* context);
 page_directory_t *get_identity();
-void map_page(page_t* page, u32 phys_address, int is_kernel, int is_writable);
+void map_page(page_t *page, u32 phys_address, int is_kernel, int is_writable);
+void free_page(page_t *page);
 int check_address(void *address, int user, int write, page_directory_t *pd);
 #endif /* PAGING_H */
 

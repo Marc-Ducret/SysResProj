@@ -145,6 +145,7 @@ int start_process(int parent, char* cmd, int chin, int chout) {
     copy_context(global_state.ctx, &p->saved_context);
     p->saved_context.stack.eip = USER_CODE_VIRTUAL;
     p->saved_context.regs.esp = USER_STACK_VIRTUAL + 0x1000 - sizeof(context_t) - 0x8 + 0x2C;
+    p->heap_pointer = (void *) USER_HEAP;
     global_state.runqueues[MAX_PRIORITY] = add(pid, global_state.runqueues[MAX_PRIORITY]);
     return pid;
 }
@@ -445,6 +446,23 @@ int _exec(state *s) {
     return 0;
 }
 
+int _resize_heap(state *s) {
+    int delta_size = (int) s->ctx->regs.ebx;
+    process *p = &s->processes[s->curr_pid];
+    u32 cur_page = (u32)(p->heap_pointer            -1) >> 12;
+    u32 new_page = (u32)(p->heap_pointer+delta_size -1) >> 12;
+    for(u32 i = new_page+1; i <= cur_page; i++) {
+        free_page(get_page(i << 12, 0, p->page_directory));
+    }
+    for(u32 i = cur_page+1; i <= new_page; i++) {
+        map_page( get_page(i << 12, 1, p->page_directory), 0, 0, 1);
+    }
+    s->ctx->regs.eax = (u32) p->heap_pointer;
+    p->heap_pointer += delta_size;
+    s->ctx->regs.ebx = errno;
+    return 0;
+}
+
 int _default_syscall(state *s) {
     s->ctx->regs.eax = -1;
     s->ctx->regs.ebx = ENOSYS;
@@ -595,6 +613,7 @@ void init_syscalls_table(void) {
     syscall_fun[6] = _free_channel;
     syscall_fun[7] = _wait_channel;
     syscall_fun[8] = _sleep;
+    syscall_fun[9] = _resize_heap;
     
     syscall_fun[10] = _fopen;
     syscall_fun[11] = _close;

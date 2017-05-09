@@ -406,3 +406,19 @@ int gettimeofday(rtc_time_t *t) {
                 : "%ebx", "esi", "edi");
     return res;
 }
+
+void *resize_heap(int delta_size) {
+    void *res;
+    
+    asm volatile("\
+        movl $9, %%eax \n \
+        movl %2, %%ebx \n \
+        int $0x80 \n \
+        movl %%eax, %0 \n \
+        movl %%ebx, %1"
+        : "=m" (res), "=m" (errno)
+        : "m" (delta_size)
+        : "%ebx", "esi", "edi"
+        );
+    return res;
+}

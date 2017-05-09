@@ -66,6 +66,7 @@ struct process {
     page_directory_t *page_directory;
     channel_state_t channels[NUM_CHANNELS_PROC];
     char *name;
+    void *heap_pointer;
 };
 
 typedef enum c_state c_state;
