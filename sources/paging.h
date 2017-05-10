@@ -3,6 +3,7 @@
 
 #include "int.h"
 #include "context.h"
+#include "filesystem.h"
 
 #define PAGE_SIZE 0x1000
 #define CODE_LEN 0x20000
@@ -59,7 +60,7 @@ typedef struct page_directory
 } page_directory_t;
 
 void init_paging();
-page_directory_t *init_user_page_dir(char *file, page_directory_t *cur_pd);
+page_directory_t *init_user_page_dir(fd_t fd, char *args, page_directory_t *cur_pd);
 void switch_page_directory(page_directory_t *directory);
 void switch_to_default_page_directory();
 page_t *get_page(u32 address, int make, page_directory_t *dir);

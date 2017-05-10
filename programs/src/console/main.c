@@ -1,4 +1,5 @@
 #include "lib.h"
+#include "parsing.h"
 
 #define SCROLL_HEIGHT 0x100
 
@@ -194,6 +195,7 @@ int test_ls() {
         printf("Error in ls : %s\n", strerror(errno));
     }
     closedir(fd);
+    return 0;
 }
 
 u8 recv_buff[512];
@@ -205,15 +207,16 @@ int k = 0;
 int rev = 1;
 
 int main(char *args) {
+    char *file;
+    args = parse_arg(args, &file);
     init();
     int in = new_channel();
     int out = new_channel();
     c_put_char('[');
-    char *s = args;
-    while(*s) c_put_char(*(s++));
+    print_string(file);
     c_put_char(']');
     c_put_char('\n');
-    exec(args, out, in);
+    exec(file, args, out, in);
     for(;;) {
         sleep(50);
         key_buffer[index_new] = get_key_event();

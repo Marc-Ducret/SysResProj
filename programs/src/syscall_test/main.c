@@ -10,7 +10,7 @@ int main() {
         if (nb == -1)
             printf("Error : %s\n", strerror(errno));
         printf("Announced : %d\n", nb);
-        int read = receive(STDIN, buffer, 10);
+        int read = receive(STDIN, (u8*)buffer, 10);
         printf("Received : %d characters : <%s>\n", read, buffer);
     }
 }

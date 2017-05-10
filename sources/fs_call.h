@@ -19,6 +19,8 @@ int close(fd_t fd);
 ssize_t read(fd_t fd, void *buffer, size_t length);
 ssize_t write(fd_t fd, void *buffer, size_t length);
 int seek(fd_t fd, seek_cmd_t seek_command, int offset); // TODO off_t ?
+int remove(char *path);
+int copyfile(char *old_path, char *new_path);
 
 int mkdir(char *path, u8 mode);
 int rmdir(char *path);

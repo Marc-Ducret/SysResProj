@@ -1,0 +1,7 @@
+cd src/
+for p in *
+do
+	cd ../
+    ./build $p
+	cd src/
+done

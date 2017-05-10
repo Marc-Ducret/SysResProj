@@ -871,7 +871,7 @@ dirent_t *readdir(fd_t fd) {
     // If there is no such entry, returns NULL.
     if (check_fd(fd, DIR) == -1)
         return NULL;
-    
+
     u32 cluster = file_table[fd].curr_cluster;
     u32 prev_cluster = file_table[fd].prev_cluster;
     u8 buffer[fs.cluster_size];

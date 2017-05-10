@@ -198,7 +198,7 @@ int copy_bin(u32 buffer_code_addr, u32 user_code_len, page_directory_t *user_pd,
     return 0;
 }
 
-page_directory_t *init_user_page_dir(char *cmd, page_directory_t *cur_pd) {
+page_directory_t *init_user_page_dir(fd_t fd, char *args, page_directory_t *cur_pd) {
     asm volatile ("mov %cr3, %eax   \n"
                   "mov %eax, tmp ");
     cur_pd = (page_directory_t*) (tmp - 0x1000); //TODO do better
@@ -212,21 +212,6 @@ page_directory_t *init_user_page_dir(char *cmd, page_directory_t *cur_pd) {
         errno = ENOMEM;
         return NULL;
     }
-    
-    char *args = cmd;
-    while(*args != '\0') {
-        args++;
-        if(*args == ' ') {
-            *args = '\0';
-            args++;
-            break;
-        }
-    }
-    char *file = cmd;
-    
-    fd_t fd = fopen(file, O_RDONLY);
-    if (fd == -1)
-        return NULL;
     
     page_directory_t *pd = kmalloc_a(sizeof(page_directory_t)); // TODO Real malloc ?
     if (pd == NULL) {
@@ -316,8 +301,8 @@ int check_address(void *address, int user, int write, page_directory_t *pd) {
     }
     if ((!page->user && user) || (!page->rw && write)) {
         errno = EFAULT;
-        kprintf("Voila : page_user %d, page_write %d, user %d, write %d\n",
-                page->user, page->rw, user, write);
+        kprintf("Voila : address %x, page_user %d, page_write %d, user %d, write %d\n",
+                address, page->user, page->rw, user, write);
         asm("hlt");
         return -1;
     }

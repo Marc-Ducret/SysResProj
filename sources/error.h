@@ -84,6 +84,10 @@ typedef enum {
     EMCHAN      // Too many open channels
 } error_t;
 
+#define EXIT_SUCCESS 0
+#define EXIT_FAILURE 1
+#define EXIT_KILL    2
+
 char *error_msg[NB_ERR];
 error_t errno; // Global variable with error code
 stream_t *stderr;

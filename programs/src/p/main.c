@@ -6,7 +6,7 @@ int main() {
     clear_screen(COLOR_BLUE);
     u8 c = '%';
     if(send(1, &c, 1) < 0) {
-        int err = get_error();
+        int err = errno;
         set_char_at('0'+err/10, COLOR_GREEN, COLOR_BLUE, 0, 0);
         set_char_at('0'+err%10, COLOR_GREEN, COLOR_BLUE, 1, 0);
         for(;;);

@@ -1,4 +1,4 @@
-flagc="-m32 -Wall -nostdlib -nostdinc -fno-builtin -fno-stack-protector -nostartfiles -nodefaultlibs"
+flagc="-m32 -Wall -nostdlib -nostdinc -fno-builtin -fno-stack-protector -nostartfiles -nodefaultlibs -Wno-main"
 flagl="-T linker.ld"
 flagelf="-T linker_elf.ld"
 echo "Building $1"
