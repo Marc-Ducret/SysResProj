@@ -6,11 +6,7 @@ isr\nb:
     push %esp
     push $\nb # Saves the number of interrupt
     call isr_handler
-    add $0x8, %esp
-    popr
-    add $0x4, %esp
-    sti
-    iret
+    jmp int_post_handler
 .endm
 
 .macro isr_no_error_code nb
@@ -22,11 +18,7 @@ isr\nb:
     push %esp
     push $\nb # Saves the number of interrupt
     call isr_handler
-    add $8, %esp
-    popr
-    add $0x4, %esp
-    sti
-    iret
+    jmp int_post_handler
 .endm
 
 .macro irq nb
@@ -38,30 +30,7 @@ irq\nb:
     push %esp
     push $\nb
     call irq_handler
-    mov user_pd, %eax
-    movl $0, user_pd
-    test %eax, %eax
-    je irq_ret
-    add $0x1000, %eax
-    mov %eax, %cr3
-    #TMP
-    #mov 0x80000000, %eax
-    #mov %eax, 0x80000F00
-    #mov user_esp, %esp
-    #mov $0x80000000, %ebx
-    #movl $5, (%ebx)
-    #movl (%ebx), %eax
-    #add $0x0530, %eax
-    #mov %eax, 0xB8000
-    #hlt
-    #TMP END
-    mov user_esp, %esp
-    add $8, %esp
-    call load_context
-    popr
-    add $4, %esp
-    sti
-    iret
+    jmp int_post_handler
 .endm
 
 .macro pusha
@@ -172,7 +141,7 @@ asm_syscall:
     mov user_pd, %eax
     movl $0, user_pd
     test %eax, %eax
-    je irq_ret
+    je int_ret
     add $0x1000, %eax
     mov %eax, %cr3
     mov user_esp, %esp
@@ -195,7 +164,22 @@ asm_syscall:
     sti
     iret
     
-irq_ret:
+int_post_handler:
+    mov user_pd, %eax
+    movl $0, user_pd
+    test %eax, %eax
+    je int_ret
+    add $0x1000, %eax
+    mov %eax, %cr3
+    mov user_esp, %esp
+    add $8, %esp
+    call load_context
+    popr
+    add $4, %esp
+    sti
+    iret
+    
+int_ret:
     add $8, %esp
     popr
     add $4, %esp

@@ -25,6 +25,7 @@ void exec_cmd() {
     } else if(cmd[0] == '/') {
         if(exec(cmd, -1, STDOUT) < 0) 
             printf("Error: %s\n", strerror(errno));
+        else wait(NULL);
     }
     else printf("Unknown command (%s)\n", cmd);
     while(pos > 0)
@@ -35,6 +36,7 @@ void exec_cmd() {
 void key_typed(u8 c) {
     if(c == '\n' || pos == CMD_SIZE-1) {
         stream_putchar(c, STDOUT);
+        flush(STDOUT);
         exec_cmd();
     } else if(c == 0x8) {
         if(pos > 0) {

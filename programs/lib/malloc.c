@@ -6,12 +6,14 @@ void init_malloc() { //TODO rm
     first_block = NULL;
 }
 
-void *expand_heap(u32 size) {
-    return resize_heap(size);
+void *expand_heap(int size) {
+    void *h = resize_heap(size);
+    printf("New heap pointer: %x\n", h);
+    return h;
 }
 
-void shrink_heap(u32 size) {
-    resize_heap(size);
+void shrink_heap(int size) {
+    resize_heap(-size);
 }
 
 void *malloc(u32 size) {

@@ -116,6 +116,8 @@ void picotimer(context_t *);
 void picotransition(state *s, event ev);;
 void log_state(state *s);
 state *get_global_state();
+void kill_process(pid_t pid);
+void reorder(state *s);
 
 volatile int no_process;
 #include "channel.h"
