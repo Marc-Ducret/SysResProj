@@ -12,6 +12,7 @@
  * Root directory cluster is written as "0" on the disk, so a cluster is 
  * considered as root cluster when cluster <= root_cluster
  */
+fd_t cwd;
 
 fd_t fopen(char *path, oflags_t flags);
 int close(fd_t fd);

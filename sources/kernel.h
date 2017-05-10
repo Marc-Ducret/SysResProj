@@ -65,6 +65,7 @@ struct process {
     context_t saved_context;
     page_directory_t *page_directory;
     channel_state_t channels[NUM_CHANNELS_PROC];
+    fd_t cwd;
     char *name;
     void *heap_pointer;
 };

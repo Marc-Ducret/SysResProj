@@ -51,9 +51,9 @@ int seek(fd_t fd, seek_cmd_t seek_command, int offset);
 int mkdir(char *path, u8 mode);
 int rmdir(char *path);
 int chdir(char *path);
-char *kgetcwd();
+int getcwd(char *buffer);
 fd_t opendir(char *path);
-dirent_t *kreaddir(fd_t fd);
+int readdir(fd_t fd, dirent_t *dirent);
 int rewinddir(fd_t fd);
 int closedir(fd_t fd);
 

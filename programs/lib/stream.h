@@ -14,7 +14,7 @@ typedef int sid_t; // Stream id type
 
 #define STDIN (int) 0
 #define STDOUT (sid_t) 1
-#define STDERR (sid_t) 2
+#define STDERR (sid_t) 1 // Easier to manage
 
 typedef struct {
     sstatus_t status;

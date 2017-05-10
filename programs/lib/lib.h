@@ -42,6 +42,6 @@ u32 umin(u32 a, u32 b);
 #include "malloc.h"
 #include "syscall.h"
 #include "args.h"
-#include "error.h"
 #include "printing.h"
+#include "error.h"
 #endif

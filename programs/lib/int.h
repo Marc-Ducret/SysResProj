@@ -36,15 +36,10 @@ typedef enum {
 
 // TODO Find a smaller interesting struct for dirent_t !
 typedef struct {
-    u32 cluster;
-    u32 ent_offset;
-    u32 ent_cluster;
-    u32 ent_prev_cluster;
     char name[MAX_FILE_NAME];
     ftype_t type;
     u8 mode;
-    u32 ent_size;   // Number of directory entries used by the file / directory.
-    u32 size;       // Size of the file (0 for directories).
+    u32 size;
 } dirent_t;
 
 typedef struct {

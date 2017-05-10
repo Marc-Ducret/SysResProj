@@ -140,6 +140,7 @@ int start_process(int parent, char* cmd, int chin, int chout) {
     p->channels[1].chanid = chout;
     p->channels[1].write  = 1;
     p->channels[1].read   = 0;
+    p->cwd = opendir(CUR_DIR_NAME);
     
     p->page_directory = pd;
     copy_context(global_state.ctx, &p->saved_context);
@@ -362,17 +363,24 @@ int _chdir(state *s) {
     int res = -1;
     if (check_address(path, 1, 0, s->processes[s->curr_pid].page_directory) == 0)
         res = chdir(path);
+    s->processes[s->curr_pid].cwd = cwd;
     s->ctx->regs.eax = res;
     s->ctx->regs.ebx = errno;
     return 0;
 }
 
 int _getcwd(state *s) {
-    char *res = getcwd();
-    // TODO Allocation in the user side ?
-    res = res;
-    s->ctx->regs.eax = (int) NULL;
-    s->ctx->regs.ebx = EXDEV;
+    char *buffer = (char *) s->ctx->regs.ebx;
+    int res = -1;
+    if (check_address(buffer, 1, 1, s->processes[s->curr_pid].page_directory) == 0) {
+        char *kbuffer = getcwd();
+        if (kbuffer != NULL) {
+            strCopy(kbuffer, buffer);
+            res = 0;
+        }
+    }
+    s->ctx->regs.eax = res;
+    s->ctx->regs.ebx = errno;
     return 0;
 }
 
@@ -388,8 +396,19 @@ int _opendir(state *s) {
 
 int _readdir(state *s) {
     fd_t fd = s->ctx->regs.ebx;
-    dirent_t *res = readdir(fd); // TODO Reduce the information ? And allocation !
-    s->ctx->regs.eax = (int) res;
+    user_dirent_t *user_dirent = (user_dirent_t*) s->ctx->regs.ecx;
+    int res = -1;
+    if (check_address(user_dirent, 1, 1, s->processes[s->curr_pid].page_directory) == 0) {
+        dirent_t *dirent = readdir(fd); // TODO Reduce the information ? And allocation !
+        if (dirent != NULL) {
+            user_dirent->mode = dirent->mode;
+            strCopy(dirent->name, user_dirent->name);
+            user_dirent->size = dirent->size;
+            user_dirent->type = dirent->type;
+            res = 0;
+        }
+    }
+    s->ctx->regs.eax = res;
     s->ctx->regs.ebx = errno;
     return 0;
 }
@@ -505,7 +524,10 @@ void reorder(state *s) {
 }
 
 void picotransition(state *s, event ev) {
-    if(s->curr_pid >= 0) copy_context(s->ctx, &(s->processes[s->curr_pid].saved_context));
+    if(s->curr_pid >= 0) {
+        copy_context(s->ctx, &(s->processes[s->curr_pid].saved_context));
+        cwd = s->processes[s->curr_pid].cwd;
+    }
     int reorder_req = 0;
     int time_slices = 0;
     if (ev == SYSCALL) {

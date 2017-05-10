@@ -87,6 +87,13 @@ char *strerror(error_t errnum) {
     return static_unknown_error;
 }
 
+void perror(char *data) {
+    // Prints data followed by the error message corresponding to errno.
+    if (data != NULL && strlen(data) > 0) {
+        fprintf(STDERR, "%s: %s\n", data, strerror(errno));
+    }
+}
+
 int get_error() {
     return errno;
 }

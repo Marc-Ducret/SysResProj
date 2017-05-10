@@ -191,6 +191,13 @@ typedef struct {
     u32 size;       // Size of the file (0 for directories).
 } dirent_t;
 
+typedef struct {
+    char name[MAX_FILE_NAME];
+    ftype_t type;
+    u8 mode;
+    u32 size;
+} user_dirent_t;
+
 void init_fs(int show);
 void load_mbr(int show);
 void read_cluster(u32 cluster, u8* buffer);

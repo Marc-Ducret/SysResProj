@@ -294,16 +294,17 @@ int chdir(char *path) {
     return res;
 }
 
-char *kgetcwd() {
-    char *res;
+int getcwd(char *buffer) {
+    int res;
     
     asm volatile("\
         movl $23, %%eax \n \
+        movl %2, %%ebx \n \
         int $0x80 \n \
         movl %%eax, %0 \n \
         movl %%ebx, %1"
         : "=m" (res), "=m" (errno)
-        :
+        : "m" (buffer)
         : "%ebx", "esi", "edi");
     return res;
 }
@@ -324,17 +325,18 @@ fd_t opendir(char *path) {
     return res;
 }
 
-dirent_t *kreaddir(fd_t fd) {
-    dirent_t *res;
+int readdir(fd_t fd, dirent_t *dirent) {
+    int res;
     
     asm volatile("\
         movl $25, %%eax \n \
         movl %2, %%ebx \n \
+        movl %3, %%ecx \n \
         int $0x80 \n \
         movl %%eax, %0 \n \
         movl %%ebx, %1"
         : "=m" (res), "=m" (errno)
-        : "m" (fd)
+        : "m" (fd), "m" (dirent)
         : "%ebx", "esi", "edi"
         );
     return res;
