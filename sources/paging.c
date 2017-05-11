@@ -93,19 +93,20 @@ void alloc_page(page_t *page, int is_kernel, int is_writable) {
     map_page(page, 0, is_kernel, is_writable);
 }
 
-void free_page(page_t * page) {
+void invalidate(u32 address) {
+    asm volatile("invlpg (%0)" ::"r" (address) : "memory");
+}
+
+void free_page(page_t * page, u32 address) {
     // Frees this page, if not already done.
     
     if (!page->present)
         return;
     
-    clear_frame(page->frame);
+    clear_frame(page->frame << 12);
     page->present = 0;
     page->frame = 0;
-}
-
-void invalidate(u32 address) {
-    asm volatile("invlpg (%0)" ::"r" (address) : "memory");
+    invalidate(address);
 }
 
 page_t *get_page(u32 address, int make, page_directory_t* directory) {

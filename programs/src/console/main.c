@@ -164,7 +164,8 @@ int main(char *args) {
                 else if(event == KEY_COLON) test_create();
                 else if(event == KEY_HAT) test_send();
                 else if(event == KEY_RPAR) test_receive();*/
-                {
+                if(event == KEY_CTRL) scroll_up(); 
+                else {
                     char c = getKeyChar(event, shift, alt);
                     if(c) {
                         stream_putchar(c, out);
