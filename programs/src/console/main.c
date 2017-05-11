@@ -2,11 +2,14 @@
 #include "parsing.h"
 
 #define SCROLL_HEIGHT 0x100
+#define SCREEN_SIZE (VGA_WIDTH * VGA_HEIGHT * 2)
 
 u8 cursor_x;
 u8 cursor_y;
 u8 bg_color;
 u8 fg_color;
+u8 old_bg_color;
+u8 old_fg_color;
 int scroll_off;
 int scroll;
 int max_scroll;
@@ -16,12 +19,18 @@ u16 scroll_buffer[VGA_WIDTH * SCROLL_HEIGHT];
 void c_put_char(u8 c);
 
 void init() {
-    clear_screen(COLOR_WHITE);
+    clear_screen(WHITE);
     cursor_x = cursor_y = scroll_off = scroll = max_scroll = 0;
-    fg_color = COLOR_GREEN;
-    bg_color = COLOR_WHITE;
+    fg_color = old_fg_color = GREEN;
+    bg_color = old_bg_color = WHITE;
     for(int i = 0; i < VGA_WIDTH * SCROLL_HEIGHT; i ++)
         scroll_buffer[i] = (bg_color << 0xC) + (fg_color << 0x8);
+}
+
+void update_cursor(void) {
+    u8 *screen = (u8*) get_screen();
+    *(screen + SCREEN_SIZE) = cursor_x;
+    *(screen + SCREEN_SIZE + 1) = cursor_y;    
 }
 
 int index(u8 x, u8 y) {
@@ -40,7 +49,7 @@ void load_from_scroll() {
         int y = (i/VGA_WIDTH + scroll_off - scroll) % SCROLL_HEIGHT;
         screen[i] = scroll_buffer[(i%VGA_WIDTH) + y * VGA_WIDTH];
     }
-    //updatecursor(); TODO
+    update_cursor();
 }
 
 void c_put_char(u8 c) {
@@ -49,6 +58,10 @@ void c_put_char(u8 c) {
         cursor_x--;
     } else if (c == 0x8) {
         if(cursor_x > 0) cursor_x--;
+        else if (cursor_y > 0) {
+            cursor_y--;
+            cursor_x = VGA_WIDTH - 1;
+        }
         set_char(' ', cursor_x, cursor_y);
         return;
     } else set_char(c, cursor_x, cursor_y);
@@ -65,15 +78,18 @@ void c_put_char(u8 c) {
             for(u8 x = 0; x < VGA_WIDTH; x++) set_char(' ', x, cursor_y);
         }
     }
+    set_char(' ', cursor_x, cursor_y);
     if(scroll > 0) {
         scroll = 0;
         load_from_scroll();
     }
 }
+
 void print_string(char *s) {
     while (*s)
         c_put_char(*s++);
 }
+
 void scroll_down() {
     if(--scroll < 0) scroll = 0;
     else load_from_scroll();
@@ -82,6 +98,116 @@ void scroll_down() {
 void scroll_up() {
     if(++scroll > max_scroll) scroll = max_scroll;
     else load_from_scroll();
+}
+
+void erase() {
+    u16 *screen = get_screen();
+    for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++) {
+        screen[i] = (bg_color << 0xC) + (fg_color << 0x8) + ' ';
+    }
+}
+
+int c_parse_char(u8 c) {
+    static int esc_seq = 0;
+    static int esc_seen = 0;
+    if (esc_seen) {
+        if (c == '[') {
+            esc_seen = 0;
+            esc_seq = 1;
+            return 1;
+        }
+        esc_seen = 0;
+    }
+    if (c == '\e') {
+        esc_seen = 1;
+        return 1;
+    }
+    if (!esc_seq) {
+        c_put_char(c);
+        update_cursor();
+        return 1;
+    }
+    
+    // Here, we are in an escape sequence.
+    // Every following character codes an action (following our code).
+    if (c == 124) {
+        // End of escape sequence.
+        esc_seq = 0;
+    }
+    
+    if (c < 25) {
+        cursor_y = c;
+    }
+    else if (c < 105) {
+        cursor_x = c - (u8) 25;
+    }
+    else if (c == 105) {
+        if (cursor_x > 0) cursor_x--;
+    }
+    else if (c == 106) {
+        if (cursor_x < VGA_WIDTH - 1) cursor_x++;
+    }
+    else if (c == 107) {
+        if (cursor_y > 0) cursor_y--;
+    }
+    else if (c == 108) {
+        if (cursor_y < VGA_HEIGHT - 1) cursor_y++;
+    }
+    else if (c == 109) {
+        if (cursor_x > 0) cursor_x--;
+        else if (cursor_y > 0) {
+            cursor_x = VGA_WIDTH - 1;
+            cursor_y--;
+        }
+    }
+    else if (c == 110) {
+        if (cursor_x < VGA_WIDTH - 1) cursor_x++;
+        else if (cursor_y < VGA_HEIGHT - 1) {
+            cursor_x = 0;
+            cursor_y++;
+        }
+    }
+    else if (c < 128) {
+        // Uknown character
+    }
+    else if (c < 144) {
+        old_fg_color = fg_color;
+        fg_color = c - (u8) 128;
+    }
+    else if (c < 160) {
+        old_bg_color = bg_color;
+        bg_color = c - (u8) 144;
+    }
+    else if (c == 160) {
+        // Gets back to previous foreground color.
+        fg_color = old_fg_color;
+    }
+    else if (c == 161) {
+        // Gets back to previous background color.
+        bg_color = old_bg_color;
+    }
+    else if (c == 162) {
+        // Exit
+        return 0;
+    }
+    else if (c == 163) {
+        // Clears the buffer
+        for (int i = 0; i < cursor_y; i++)
+            c_put_char('\n');
+        cursor_x = 0;
+        cursor_y = 0;
+    }
+    else if (c == 164) {
+        scroll_up();
+    }
+    else if (c == 165) {
+        scroll_down();
+    }
+    else if (c == 166) {
+        erase();
+    }
+    update_cursor();
+    return 1;
 }
 
 void test_create() {
@@ -132,52 +258,6 @@ void test_receive(void) {
     print_string(buffer);
 }
 
-u8 cacatoes[25][25] = 
-    {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 7, 0, 0, 0 },
-    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 7, 0, 0, 0 },
-    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 7, 0, 0, 0 },
-    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15, 15, 0, 0, 0 },
-    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 14, 14, 7, 0, 0 },
-    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 7, 15, 14, 14, 7, 0, 0 },
-    { 0, 0, 0, 0, 0, 7, 15, 15, 15, 15, 15, 15, 15, 15, 7, 8, 15, 15, 14, 14, 14, 14, 7, 0, 0 },
-    { 0, 0, 0, 8, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 14, 14, 14, 14, 14, 14, 15, 0, 0 },
-    { 0, 0, 0, 15, 15, 15, 15, 15, 15, 15, 15, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 7, 0, 0 },
-    { 0, 0, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 14, 14, 14, 14, 14, 15, 0, 0, 0 },
-    { 0, 8, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 14, 14, 14, 14, 15, 0, 0, 0, 0 },
-    { 0, 8, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 14, 14, 7, 0, 0, 0, 0, 0 },
-    { 0, 8, 7, 7, 7, 7, 7, 7, 7, 15, 15, 15, 15, 15, 15, 15, 15, 15, 8, 0, 0, 0, 0, 0, 0 },
-    { 0, 8, 7, 0, 8, 7, 7, 7, 7, 7, 8, 15, 15, 7, 15, 15, 15, 15, 0, 0, 0, 0, 0, 0, 0 },
-    { 0, 7, 0, 0, 0, 0, 7, 7, 7, 8, 0, 8, 15, 15, 15, 15, 15, 15, 15, 0, 0, 0, 0, 0, 0 },
-    { 0, 15, 7, 8, 8, 0, 8, 7, 7, 7, 8, 7, 15, 15, 15, 15, 15, 15, 15, 0, 0, 0, 0, 0, 0 },
-    { 0, 7, 15, 8, 8, 8, 8, 8, 7, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 0, 0, 0, 0, 0, 0 },
-    { 0, 8, 7, 8, 7, 7, 7, 7, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 7, 0, 0, 0, 0, 0 },
-    { 0, 8, 7, 7, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 0, 0, 0, 0, 0 },
-    { 0, 0, 7, 8, 15, 15, 7, 7, 7, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 0, 0, 0, 0, 0 },
-    { 0, 0, 7, 8, 7, 15, 7, 7, 15, 7, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 0, 0, 0, 0, 0 },
-    { 0, 0, 7, 8, 7, 7, 7, 15, 7, 7, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 0, 0, 0, 0 },
-    { 0, 0, 0, 8, 7, 7, 7, 15, 7, 7, 7, 7, 7, 15, 15, 15, 15, 15, 15, 15, 15, 0, 0, 0, 0 },
-    { 0, 0, 0, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 15, 15, 15, 15, 15, 15, 15, 0, 0, 0, 0 }};
-
-void print_cacatoes(u8 offset, int revert) {
-    u8 x1;
-    for (int i = 0; i < 25; i++) {
-        for (int j = 0; j < 25; j++) {
-            u8 c = cacatoes[i][j];
-            bg_color = c;
-            fg_color = c;
-            if (revert)
-                x1 = 2*(24 - j) + offset - 50;
-            else
-                x1 = 2*j + offset - 50;
-            if (0 <= x1 && x1 < 80)
-                set_char(' ', x1, i);
-            if ((0 <= x1 + 1) && (x1 + 1 < 80))
-                set_char(' ', x1 + 1, i);
-        }
-    }
-}
-
 int test_ls() {
     dirent_t dirent;
     fd_t fd = opendir(".");
@@ -203,9 +283,6 @@ u8 shift, alt;
 int key_buffer[10];
 int index_new = 0;
 
-int k = 0;
-int rev = 1;
-
 int main(char *args) {
     char *file;
     args = parse_arg(args, &file);
@@ -216,8 +293,9 @@ int main(char *args) {
     print_string(file);
     c_put_char(']');
     c_put_char('\n');
-    exec(file, args, out, in);
-    for(;;) {
+    pid_t pid = exec(file, args, out, in);
+    int run = (pid != -1);
+    for (;;) {
         sleep(50);
         key_buffer[index_new] = get_key_event();
         while (key_buffer[index_new] != -1) {
@@ -227,18 +305,8 @@ int main(char *args) {
         for (int index = 0; index < index_new; index++) {
             int event = key_buffer[index];
             if      ((event & 0x7F) == KEY_SHIFT ) shift = !(event & 0x80);
+            else if ((event & 0x7F) == KEY_RSHIFT ) shift = !(event & 0x80);
             else if ((event & 0x7F) == KEY_ALT_GR) alt   = !(event & 0x80);
-            else if (event == KEY_EXCLAMATION) {
-                print_cacatoes(k, rev);
-                if (rev)
-                    k = (k + 1) % 130;
-                else
-                    k = (k + 130 - 1) % 130;
-            }
-            else if (event == KEY_COMMA) {
-                rev = !rev;
-                print_cacatoes(k, rev);
-            }
             //else if (event == KEY_COLON) test_ls();
             else if(event >= 0 && event < 0x80) {
                 /*if(event == KEY_SHIFT) scroll_up();
@@ -259,8 +327,18 @@ int main(char *args) {
             flush(out);
         index_new = 0;
         int ct;
-        if((ct = receive(in, recv_buff, 512)) > 0) {
-            for(int i = 0; i < ct; i ++) c_put_char(recv_buff[i]);
+        while ((ct = receive(in, recv_buff, 512)) > 0) {
+            for(int i = 0; i < ct; i ++) {
+                run = c_parse_char(recv_buff[i]);
+                if(!run)
+                    break;
+            }
+            if (!run)
+                break;
+            sleep(1);
         }
     }
+    // Exits.
+    int exit_value = kill(pid) ? EXIT_FAILURE : EXIT_SUCCESS;
+    exit(exit_value);
 }

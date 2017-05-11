@@ -33,6 +33,7 @@ void initCharTable() {
     chars[KEY_SPACE] = ' ';
     chars[KEY_ENTER] = '\n';
     chars[KEY_BACKSPACE] = 8;
+    chars[KEY_TAB] = '\t';
     chars[KEY_1] = '&';
     //chars[KEY_2] = 'é';
     chars[KEY_3] = '"';
@@ -53,6 +54,7 @@ void initCharTable() {
     chars[KEY_SEMI_COLON] = ';';
     chars[KEY_COLON] = ':';
     chars[KEY_EXCLAMATION] = '!';
+    chars[KEY_COMP] = '<';
     
     char *shift = chars + 128;
     shift[KEY_A] = 'A';
@@ -104,6 +106,20 @@ void initCharTable() {
     shift[KEY_SEMI_COLON] = '.';
     shift[KEY_COLON] = '/';
     //shift[KEY_EXCLAMATION] = '§';
+    shift[KEY_COMP] = '>';
+    
+    char *alt = chars + 256;
+    alt[KEY_2] = '~';
+    alt[KEY_3] = '#';
+    alt[KEY_4] = '{';
+    alt[KEY_5] = '[';
+    alt[KEY_6] = '|';
+    alt[KEY_7] = '`';
+    alt[KEY_8] = '\\';
+    alt[KEY_9] = '^';
+    alt[KEY_0] = '@';
+    alt[KEY_RPAR] = ']';
+    alt[KEY_EQUAL] = '}';
 }
 
 char getKeyChar(u8 key, u8 shift, u8 alt) {

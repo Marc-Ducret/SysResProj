@@ -26,6 +26,14 @@ void put_string(char *s, sid_t sid) {
         putchar(s[i], sid);
 }
 
+void esc_seq(u8 esc_value) {
+    fprintf_esc_seq(esc_value, STDOUT);
+}
+
+void fprintf_esc_seq(u8 esc_value, sid_t sid) {
+    fprintf(sid, "%s%c%s", ESC_SEQ_START, esc_value, ESC_SEQ_END);
+}
+
 void vkprintf(sid_t sid, const char* data, va_list args) {    
     char c = *data;
     while (c != 0) {
@@ -34,6 +42,8 @@ void vkprintf(sid_t sid, const char* data, va_list args) {
             c = *data;
             int nb;
             char *s;
+            char ch;
+            u8 color;
             
             switch (c) {
                 case 'd':
@@ -54,6 +64,58 @@ void vkprintf(sid_t sid, const char* data, va_list args) {
                     put_hex(nb, sid);
                     break;
                 
+                case 'c':
+                    nb = va_arg(args, int);
+                    ch = (char) nb;
+                    putchar(ch, sid);
+                    break;
+                    
+                case 'f':
+                    if (*(++data) != 'g') {
+                        data--;
+                        break;
+                    }
+                    nb = va_arg(args, int);
+                    color = (u8) nb;
+                    fprintf_esc_seq(ESC_FG(color), sid);
+                    break;
+                    
+                case 'b':
+                    if (*(++data) != 'g') {
+                        data--;
+                        break;
+                    }
+                    nb = va_arg(args, int);
+                    color = (u8) nb;
+                    fprintf_esc_seq(ESC_BG(color), sid);
+                    break;
+                    
+                case 'p':
+                    data++;
+                    if (*data == 'f') {
+                        if (*(++data) != 'g') {
+                            data--;
+                            break;
+                        }
+                        fprintf_esc_seq(ESC_PREV_FG, sid);
+                        break;
+                    }
+                    if (*data == 'b') {
+                        if (*(++data) != 'g') {
+                            data--;
+                            break;
+                        }
+                        fprintf_esc_seq(ESC_PREV_BG, sid);
+                        break;
+                    }
+                    if (*data == 'c') {
+                        fprintf_esc_seq(ESC_PREV_BG, sid);
+                        fprintf_esc_seq(ESC_PREV_FG, sid);
+                        break;
+                    }
+                    data--;
+                    break;
+                    
                 default:
                     break;
             }

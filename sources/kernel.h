@@ -17,8 +17,8 @@
 #define MAX_SIZE_LIST 100
 #define MAX_SIZE_C_LIST 100
 #define MAX_PRIORITY 15
-#define NUM_PROCESSES 32
-#define NUM_CHANNELS_PROC 10
+#define NUM_PROCESSES 100
+#define NUM_CHANNELS_PROC 100
 #define NUM_REGISTERS 5
 #define NUM_HANDLES 32
 #define NUM_SYSCALLS 100
@@ -26,6 +26,8 @@
 #define MAX_TIME_SLICES 100
 #define TIMER_SLICES 30
 #define SYSCALL_SLICES 10
+
+#define INIT_PROCESS 0
 
 typedef int pid_t;
 typedef int chanid;

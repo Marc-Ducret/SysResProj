@@ -14,8 +14,8 @@ u8 keyboardState() {
 }
 
 void provideKeyEvent(u8 event) {    
-    if(event < 0x80 && event == KEY_TAB) focus_next_process();
-    if(event < 0x80 && event == KEY_STAR)  {
+    if(event < 0x80 && event == KEY_SQUARE_SUPERSCRIPT) focus_next_process();
+    else if (event == KEY_STAR) {
         log_state(&global_state);
         asm("hlt");
     }

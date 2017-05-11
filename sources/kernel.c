@@ -174,7 +174,7 @@ void kill_process(pid_t pid) {
     pid_t j;
     for (j = 0; j < NUM_PROCESSES; j++) {
         if (s->processes[j].parent_id == pid) {
-            s->processes[j].parent_id = 1; // TODO No hardcode of init process
+            s->processes[j].parent_id = INIT_PROCESS; // TODO No hardcode of init process
         }
     }
 
@@ -532,13 +532,14 @@ int _exec(state *s) {
 int _kill(state *s) {
     pid_t pid = s->ctx->regs.ebx;
     int res;
-    if (pid < 0 || pid >= NUM_PROCESSES || s->processes[pid].state == FREE) {
+    if (pid < 0 || pid >= NUM_PROCESSES || s->processes[pid].state == FREE || s->processes[pid].state == ZOMBIE) {
         res = -1;
         errno = EINVAL;
     }
     else {
         s->processes[pid].saved_context.regs.ebx = EXIT_KILL;
         kill_process(pid);
+        res = 0;
     }
     s->ctx->regs.eax = res;
     s->ctx->regs.ebx = errno;
@@ -603,6 +604,14 @@ void reorder(state *s) {
     }
 }
 
+void update_cursor(u8 x, u8 y) {
+    u16 pos = (x == 0xFF && y == 0xFF) ? 0xFFFF : x + VGA_WIDTH * y;
+    outportb(0x3D4, 0x0F);
+    outportb(0x3D5, (u8) (pos & 0xFF));
+    outportb(0x3D4, 0x0E);
+    outportb(0x3D5, (u8) ((pos >> 8) & 0xFF));
+}
+
 void picotransition(state *s, event ev) {
     if(s->curr_pid >= 0) {
         copy_context(s->ctx, &(s->processes[s->curr_pid].saved_context));
@@ -639,7 +648,12 @@ void picotransition(state *s, event ev) {
     }
     
     if (reorder_req) {
-        if(global_state.curr_pid == global_state.focus) memcpy((void*) 0xB8000, (void*) USER_SCREEN_VIRTUAL, 0x1000); // TODO
+        if(global_state.curr_pid == global_state.focus) {
+            memcpy((void*) 0xB8000, (void*) USER_SCREEN_VIRTUAL, SCREEN_SIZE);
+            u8 x = *((u8*)USER_SCREEN_VIRTUAL + SCREEN_SIZE);
+            u8 y = *((u8*)USER_SCREEN_VIRTUAL + SCREEN_SIZE + 1);
+            update_cursor(x, y);
+        }
         copy_context(s->ctx, &(s->processes[s->curr_pid].saved_context)); // TODO remove redundant saves ?
         reorder(s);
     }
@@ -689,8 +703,12 @@ void picotimer(context_t *ctx) {
         return;
     }
     if(global_state.curr_pid == global_state.focus) {
-        if(*((u16*) USER_SCREEN_VIRTUAL))
-            memcpy((void*) 0xB8000, (void*) USER_SCREEN_VIRTUAL, 0x1000);
+        if(*((u16*) USER_SCREEN_VIRTUAL)) {
+            memcpy((void*) 0xB8000, (void*) USER_SCREEN_VIRTUAL, SCREEN_SIZE);
+            u8 x = *((u8*)USER_SCREEN_VIRTUAL + SCREEN_SIZE);
+            u8 y = *((u8*)USER_SCREEN_VIRTUAL + SCREEN_SIZE + 1);
+            update_cursor(x, y);
+        }
         else
             focus_next_process();
     }

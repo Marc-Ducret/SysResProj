@@ -72,4 +72,5 @@ typedef struct {
     p_state_t p_state;
 } process_info_t;
 
+#define NUM_PROCESSES 100
 #endif

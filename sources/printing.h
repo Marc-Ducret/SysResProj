@@ -24,7 +24,7 @@
 #define VGA_WIDTH 80
 #define VGA_HEIGHT 25
 #define SCROLL_HEIGHT 256
-
+#define SCREEN_SIZE (VGA_WIDTH * VGA_HEIGHT * 2)
 
 u8 make_color(u8 fg, u8 bg);
 void terminal_initialize();

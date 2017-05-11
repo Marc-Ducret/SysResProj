@@ -15,7 +15,10 @@ char *shell_commands[NB_SHELL_CMD] =  {
     "pwd",
     "cat",
     "touch",
-    "kill"
+    "kill",
+    "color",
+    "clear",
+    "cacatoes"
 };
 
 #define SHELL_CMD_PATH "/"
@@ -24,11 +27,12 @@ char *shell_commands[NB_SHELL_CMD] =  {
 u8 recv_buff[512];
 
 char cmd[CMD_SIZE];
+char cwd[MAX_PATH_NAME];
 int pos;
 int run;
 
 void new_cmd() {
-    printf("> ");
+    printf("%fgwhateveryouwant@CacatOez:%pfg%fg%s%pfg>", GREEN, BLUE, cwd);
     flush(STDOUT);
 }
 
@@ -56,14 +60,13 @@ int exec_builtin(char *fun, char *args) {
             fprintf(STDERR, "pwd: Too many arguments");
         }
         else {
-            char path[MAX_PATH_NAME];
-            int res = getcwd(path);
+            int res = getcwd(cwd);
             if (res == -1) {
                 fprintf(STDERR, "pwd: Couldn't print current working directory: %s", 
                         strerror(errno));
             }
             else {
-                printf("%s", path);
+                printf("%s", cwd);
             }
         }
     }
@@ -80,7 +83,13 @@ int exec_builtin(char *fun, char *args) {
             if (res == -1)
                 fprintf(STDERR, "cd: Couldn't change directory to %s: %s", path,
                         strerror(errno));
+            else {
+                getcwd(cwd);
+            }
         }
+    }
+    else if (strEqual(fun, "clear")) {
+        esc_seq(ESC_CLEAR);
     }
     else {
         // Not a known builtin.
@@ -96,7 +105,6 @@ int exec_file(char *file, char *args) {
     else {
         int status;
         wait(&status);
-        printf("\n");
     }
     return 0;
 }
@@ -143,7 +151,6 @@ void exec_cmd() {
             }
         }
     }
-    printf("\n");
     while(pos > 0)
         cmd[--pos] = 0;
     new_cmd();
@@ -167,6 +174,8 @@ void key_typed(u8 c) {
 
 int main() {
     run = 1;
+    memset(cwd, 0, MAX_PATH_NAME);
+    getcwd(cwd);
     new_cmd();
     while(run) {
         int ct;
