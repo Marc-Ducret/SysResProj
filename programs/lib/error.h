@@ -1,7 +1,7 @@
 #ifndef ERROR_H
 #define ERROR_H
 #include "int.h"
-
+#include "lib.h"
 #define NB_ERR 73
 
 typedef enum {
@@ -80,9 +80,15 @@ typedef enum {
     EMCHAN      // Too many open channels
 } error_t;
 
+#define EXIT_SUCCESS 0
+#define EXIT_FAILURE 1
+#define EXIT_KILL    2
+
 char *error_msg[NB_ERR];
 volatile error_t errno; // Global variable with error code
 char *strerror(error_t errnum);
 void init_error_msg();
+void perror(char *data);
+
 #endif /* ERROR_H */
 

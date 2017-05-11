@@ -61,6 +61,8 @@
 #define KEY_ALT_GR 56
 #define KEY_SPACE 57
 
+#define TERMINATION_KEY 0
+
 char getKeyChar(u8 key, u8 shift, u8 alt);
 void initCharTable();
 

@@ -5,19 +5,20 @@
 // TODO Déterminer s'il faut indiquer la modification de tous les registres ?
 // Check that no casts are needed (oflags_t, ..)
 
-pid_t exec(char *cmd, int chin, int chout) {
+pid_t exec(char *file, char *args, int chin, int chout) {
     pid_t res;
     
     asm volatile("\
         movl $3, %%eax \n \
         movl %2, %%ebx \n \
         movl %3, %%ecx \n \
-        movl %4, %%edx \n \
+        movl %4, %%esi \n \
+        movl %5, %%edi \n \
         int $0x80 \n \
         movl %%eax, %0 \n \
         movl %%ebx, %1"
         : "=m" (res), "=m" (errno)
-        : "m" (cmd), "m" (chin), "m" (chout)
+        : "m" (file), "m" (args), "m" (chin), "m" (chout)
         : "%ebx", "esi", "edi"
         );
     return res;
@@ -43,6 +44,10 @@ pid_t wait(int *status) {
 }
 
 void exit(int status) {
+    // Flushes all channels and leaves.
+    for(int i = 0; i < NUM_CHANNELS_PROC; i++)
+        flush(i);
+    
     asm volatile("\
         movl $4, %%eax \n \
         movl %0, %%ebx \n \
@@ -56,7 +61,7 @@ void exit(int status) {
     //kexit(status);
 }
 
-ssize_t send(int chanid, u8 *buffer, size_t len) {
+ssize_t send(int chanid, void *buffer, size_t len) {
     ssize_t res;
     
     asm volatile("\
@@ -74,7 +79,7 @@ ssize_t send(int chanid, u8 *buffer, size_t len) {
     return res;
 }
 
-int receive(int chanid, u8 *buffer, size_t len) {    
+int receive(int chanid, void *buffer, size_t len) {    
     ssize_t res;
     
     asm volatile("\
@@ -152,6 +157,23 @@ int sleep(int time) {
         movl %%ebx, %1"
         : "=m" (res), "=m" (errno)
         : "m" (time)
+        : "%ebx", "esi", "edi"
+        );
+    return res;
+}
+
+int pinfo(pid_t pid, process_info_t *data) {
+    int res;
+    
+    asm volatile("\
+        movl $9, %%eax \n \
+        movl %2, %%ebx \n \
+        movl %3, %%ecx \n \
+        int $0x80 \n \
+        movl %%eax, %0 \n \
+        movl %%ebx, %1"
+        : "=m" (res), "=m" (errno)
+        : "m" (pid), "m" (data)
         : "%ebx", "esi", "edi"
         );
     return res;
@@ -246,6 +268,39 @@ int seek(fd_t fd, seek_cmd_t seek_command, int offset) {
     return res;
 }
 
+int remove(char *path) {
+    int res;
+    
+    asm volatile("\
+        movl $15, %%eax \n \
+        movl %2, %%ebx \n \
+        int $0x80 \n \
+        movl %%eax, %0 \n \
+        movl %%ebx, %1"
+        : "=m" (res), "=m" (errno)
+        : "m" (path)
+        : "%ebx", "esi", "edi"
+        );
+    return res;
+}
+
+int fcopy(char *src, char *dest) {
+    int res;
+    
+    asm volatile("\
+        movl $16, %%eax \n \
+        movl %2, %%ebx \n \
+        movl %3, %%ecx \n \
+        int $0x80 \n \
+        movl %%eax, %0 \n \
+        movl %%ebx, %1"
+        : "=m" (res), "=m" (errno)
+        : "m" (src), "m" (dest)
+        : "%ebx", "esi", "edi"
+        );
+    return res;
+}
+
 int mkdir(char *path, u8 mode) {
     int res;
     
@@ -294,16 +349,17 @@ int chdir(char *path) {
     return res;
 }
 
-char *kgetcwd() {
-    char *res;
+int getcwd(char *buffer) {
+    int res;
     
     asm volatile("\
         movl $23, %%eax \n \
+        movl %2, %%ebx \n \
         int $0x80 \n \
         movl %%eax, %0 \n \
         movl %%ebx, %1"
         : "=m" (res), "=m" (errno)
-        :
+        : "m" (buffer)
         : "%ebx", "esi", "edi");
     return res;
 }
@@ -324,17 +380,18 @@ fd_t opendir(char *path) {
     return res;
 }
 
-dirent_t *kreaddir(fd_t fd) {
-    dirent_t *res;
+int readdir(fd_t fd, dirent_t *dirent) {
+    int res;
     
     asm volatile("\
         movl $25, %%eax \n \
         movl %2, %%ebx \n \
+        movl %3, %%ecx \n \
         int $0x80 \n \
         movl %%eax, %0 \n \
         movl %%ebx, %1"
         : "=m" (res), "=m" (errno)
-        : "m" (fd)
+        : "m" (fd), "m" (dirent)
         : "%ebx", "esi", "edi"
         );
     return res;
@@ -407,11 +464,27 @@ int gettimeofday(rtc_time_t *t) {
     return res;
 }
 
+int kill(pid_t pid) {
+    int res;
+    
+    asm volatile("\
+        movl $42, %%eax \n \
+        movl %2, %%ebx \n \
+        int $0x80 \n \
+        movl %%eax, %0 \n \
+        movl %%ebx, %1"
+        : "=m" (res), "=m" (errno)
+        : "m" (pid)
+        : "%ebx", "esi", "edi"
+        );
+    return res;
+}
+
 void *resize_heap(int delta_size) {
     void *res;
     
     asm volatile("\
-        movl $9, %%eax \n \
+        movl $43, %%eax \n \
         movl %2, %%ebx \n \
         int $0x80 \n \
         movl %%eax, %0 \n \

@@ -115,17 +115,25 @@ void copy_context(context_t *src, context_t *dst) {
     memcpy(dst, src, sizeof(context_t));
 }
 
-int start_process(int parent, char* cmd, int chin, int chout) {
+int start_process(int parent, char* file, char *args, int chin, int chout) {    
+    fd_t fd = fopen(file, O_RDONLY);
+    if (fd == -1)
+        return -1;
+    
     pid_t pid = 0;
     while(global_state.processes[pid].state != FREE) {
         if(++pid == NUM_PROCESSES) {
+            close(fd);
             errno = EMPROC;
             return -1;
         }
     }
     
-    page_directory_t *pd = init_user_page_dir(cmd, get_identity());
+    page_directory_t *pd = init_user_page_dir(fd, args, get_identity());
     if (pd == NULL) {
+        int err = errno;
+        close(fd);
+        errno = err;
         return -1;
     }
     
@@ -144,7 +152,10 @@ int start_process(int parent, char* cmd, int chin, int chout) {
     p->channels[1].chanid = chout;
     p->channels[1].write  = 1;
     p->channels[1].read   = 0;
-    
+    p->cwd = opendir(CUR_DIR_NAME);
+    if (strlen(file) >= 255)
+        file[255] = 0;
+    strCopy(file, p->name);
     p->page_directory = pd;
     copy_context(global_state.ctx, &p->saved_context);
     p->saved_context.stack.eip = USER_CODE_VIRTUAL;
@@ -182,6 +193,8 @@ void kill_process(pid_t pid) {
     s->runqueues[MAX_PRIORITY] = filter(s->runqueues[MAX_PRIORITY], pid); //TODO priority?
     
     //TODO clear PD
+    
+    close(s->processes[pid].cwd);
 }
 
 int _exit(state *s) {
@@ -292,6 +305,18 @@ int _sleep(state *s) {
     return (res == 0);
 }
 
+int _pinfo(state *s) {
+    pid_t pid = s->ctx->regs.ebx;
+    process_info_t *data = (process_info_t *) s->ctx->regs.ecx;
+    
+    int res = -1;
+    if (check_address(data, 1, 1, s->processes[s->curr_pid].page_directory) == 0)
+        res = get_pinfo(pid, data);
+    s->ctx->regs.eax = res;
+    s->ctx->regs.ebx = errno;
+    return 0;
+}
+
 int _fopen(state *s) {
     char *path = (char *) s->ctx->regs.ebx;
     oflags_t flags = (oflags_t) s->ctx->regs.ecx;
@@ -345,6 +370,28 @@ int _seek(state *s) {
     return 0;
 }
 
+int _remove(state *s) {
+    char *path = (char *) s->ctx->regs.ebx;
+    int res = -1;
+    if (check_address(path, 1, 0, s->processes[s->curr_pid].page_directory) == 0)
+        res = remove(path);
+    s->ctx->regs.eax = res;
+    s->ctx->regs.ebx = errno;
+    return 0;
+}
+
+int _fcopy(state *s) {
+    char *src = (char *) s->ctx->regs.ebx;
+    char *dest = (char *) s->ctx->regs.ecx;
+    int res = -1;
+    if (check_address(dest, 1, 0, s->processes[s->curr_pid].page_directory) == 0
+        && check_address(src, 1, 0, s->processes[s->curr_pid].page_directory) == 0)
+        res = copyfile(src, dest);
+    s->ctx->regs.eax = res;
+    s->ctx->regs.ebx = errno;
+    return 0;
+}
+
 int _mkdir(state *s) {
     char *path = (char *) s->ctx->regs.ebx;
     u8 mode = (u8) s->ctx->regs.ecx;
@@ -371,17 +418,24 @@ int _chdir(state *s) {
     int res = -1;
     if (check_address(path, 1, 0, s->processes[s->curr_pid].page_directory) == 0)
         res = chdir(path);
+    s->processes[s->curr_pid].cwd = cwd;
     s->ctx->regs.eax = res;
     s->ctx->regs.ebx = errno;
     return 0;
 }
 
 int _getcwd(state *s) {
-    char *res = getcwd();
-    // TODO Allocation in the user side ?
-    res = res;
-    s->ctx->regs.eax = (int) NULL;
-    s->ctx->regs.ebx = EXDEV;
+    char *buffer = (char *) s->ctx->regs.ebx;
+    int res = -1;
+    if (check_address(buffer, 1, 1, s->processes[s->curr_pid].page_directory) == 0) {
+        char *kbuffer = getcwd();
+        if (kbuffer != NULL) {
+            strCopy(kbuffer, buffer);
+            res = 0;
+        }
+    }
+    s->ctx->regs.eax = res;
+    s->ctx->regs.ebx = errno;
     return 0;
 }
 
@@ -397,8 +451,19 @@ int _opendir(state *s) {
 
 int _readdir(state *s) {
     fd_t fd = s->ctx->regs.ebx;
-    dirent_t *res = readdir(fd); // TODO Reduce the information ? And allocation !
-    s->ctx->regs.eax = (int) res;
+    user_dirent_t *user_dirent = (user_dirent_t*) s->ctx->regs.ecx;
+    int res = -1;
+    if (check_address(user_dirent, 1, 1, s->processes[s->curr_pid].page_directory) == 0) {
+        dirent_t *dirent = readdir(fd);
+        if (dirent != NULL) {
+            user_dirent->mode = dirent->mode;
+            strCopy(dirent->name, user_dirent->name);
+            user_dirent->size = dirent->size;
+            user_dirent->type = dirent->type;
+            res = 0;
+        }
+    }
+    s->ctx->regs.eax = res;
     s->ctx->regs.ebx = errno;
     return 0;
 }
@@ -443,16 +508,41 @@ int _gettimeofday(state *s) {
 }
 
 int _exec(state *s) {
-    char *cmd = (char *) s->ctx->regs.ebx;
-    int chin  = (int)s->ctx->regs.ecx < 0 ? -1 : s->processes[s->curr_pid].channels[s->ctx->regs.ecx].chanid;
-    int chout = (int)s->ctx->regs.edx < 0 ? -1 : s->processes[s->curr_pid].channels[s->ctx->regs.edx].chanid;
+    char *file = (char *) s->ctx->regs.ebx;
+    char *args = (char *) s->ctx->regs.ecx;
+    int check2;
+    if (!args) {
+        args = "";
+        check2 = 1;
+    }
+    else
+        check2 = check_address(args, 1, 0, s->processes[s->curr_pid].page_directory) == 0;
+    int chin  = (int)s->ctx->regs.esi < 0 ? -1 : s->processes[s->curr_pid].channels[s->ctx->regs.esi].chanid;
+    int chout = (int)s->ctx->regs.edi < 0 ? -1 : s->processes[s->curr_pid].channels[s->ctx->regs.edi].chanid;
     // TODO check validity of channels ! (rights and existence)
     pid_t res = -1;
-    if (check_address(cmd, 1, 0, s->processes[s->curr_pid].page_directory) == 0)
-        res = start_process(s->curr_pid, cmd, chin, chout);
+    if (check2 && 
+        check_address(file, 1, 0, s->processes[s->curr_pid].page_directory) == 0)
+        res = start_process(s->curr_pid, file, args, chin, chout);
     s->ctx->regs.eax = res;
     s->ctx->regs.ebx = errno;
     return 0;
+}
+
+int _kill(state *s) {
+    pid_t pid = s->ctx->regs.ebx;
+    int res;
+    if (pid < 0 || pid >= NUM_PROCESSES || s->processes[pid].state == FREE) {
+        res = -1;
+        errno = EINVAL;
+    }
+    else {
+        s->processes[pid].saved_context.regs.ebx = EXIT_KILL;
+        kill_process(pid);
+    }
+    s->ctx->regs.eax = res;
+    s->ctx->regs.ebx = errno;
+    return (pid == s->curr_pid);
 }
 
 int _resize_heap(state *s) {
@@ -522,7 +612,10 @@ void reorder(state *s) {
 }
 
 void picotransition(state *s, event ev) {
-    if(s->curr_pid >= 0) copy_context(s->ctx, &(s->processes[s->curr_pid].saved_context));
+    if(s->curr_pid >= 0) {
+        copy_context(s->ctx, &(s->processes[s->curr_pid].saved_context));
+        cwd = s->processes[s->curr_pid].cwd;
+    }
     int reorder_req = 0;
     int time_slices = 0;
     if (ev == SYSCALL) {
@@ -630,13 +723,15 @@ void init_syscalls_table(void) {
     syscall_fun[6] = _free_channel;
     syscall_fun[7] = _wait_channel;
     syscall_fun[8] = _sleep;
-    syscall_fun[9] = _resize_heap;
+    syscall_fun[9] = _pinfo;
     
     syscall_fun[10] = _fopen;
     syscall_fun[11] = _close;
     syscall_fun[12] = _read;
     syscall_fun[13] = _write;
     syscall_fun[14] = _seek;
+    syscall_fun[15] = _remove;
+    syscall_fun[16] = _fcopy;
     
     syscall_fun[20] = _mkdir;
     syscall_fun[21] = _rmdir;
@@ -649,6 +744,8 @@ void init_syscalls_table(void) {
     
     syscall_fun[40] = _get_key_event;
     syscall_fun[41] = _gettimeofday;
+    syscall_fun[42] = _kill;
+    syscall_fun[43] = _resize_heap;
 }
 
 state *picoinit() {
@@ -672,7 +769,7 @@ state *picoinit() {
     for (i = 0; i <= MAX_PRIORITY; i++) {
         s->runqueues[i] = NULL;
     }
-    start_process(0, "/console.bin /shell.bin", -1, -1);
+    start_process(0, "/console.bin", "/shell.bin", -1, -1);
     reorder(s);
     kprintf("Init kernel\n");
     return s;
@@ -728,6 +825,18 @@ char* channel_to_str(channel_state c) {
     return state;
 }
 */
+int get_pinfo(pid_t pid, process_info_t *data) {
+    state *s = &global_state;
+    if (pid < 0 || pid >= NUM_PROCESSES) {
+        errno = EINVAL;
+        return -1;
+    }
+    strCopy(s->processes[pid].name, data->name);
+    data->parent = s->processes[pid].parent_id;
+    data->pid = pid;
+    data->state = s->processes[pid].state;
+    return 0;
+}
 
 void log_state(state* s) {
     kprintf("Current process is %d (priority %d, %d slices left)\n",

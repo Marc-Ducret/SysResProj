@@ -1,4 +1,5 @@
 #include "lib.h"
+#include "parsing.h"
 
 #define SCROLL_HEIGHT 0x100
 
@@ -131,21 +132,91 @@ void test_receive(void) {
     print_string(buffer);
 }
 
+u8 cacatoes[25][25] = 
+    {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 7, 0, 0, 0 },
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 7, 0, 0, 0 },
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 7, 0, 0, 0 },
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15, 15, 0, 0, 0 },
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 14, 14, 7, 0, 0 },
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 7, 15, 14, 14, 7, 0, 0 },
+    { 0, 0, 0, 0, 0, 7, 15, 15, 15, 15, 15, 15, 15, 15, 7, 8, 15, 15, 14, 14, 14, 14, 7, 0, 0 },
+    { 0, 0, 0, 8, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 14, 14, 14, 14, 14, 14, 15, 0, 0 },
+    { 0, 0, 0, 15, 15, 15, 15, 15, 15, 15, 15, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 7, 0, 0 },
+    { 0, 0, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 14, 14, 14, 14, 14, 15, 0, 0, 0 },
+    { 0, 8, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 14, 14, 14, 14, 15, 0, 0, 0, 0 },
+    { 0, 8, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 14, 14, 7, 0, 0, 0, 0, 0 },
+    { 0, 8, 7, 7, 7, 7, 7, 7, 7, 15, 15, 15, 15, 15, 15, 15, 15, 15, 8, 0, 0, 0, 0, 0, 0 },
+    { 0, 8, 7, 0, 8, 7, 7, 7, 7, 7, 8, 15, 15, 7, 15, 15, 15, 15, 0, 0, 0, 0, 0, 0, 0 },
+    { 0, 7, 0, 0, 0, 0, 7, 7, 7, 8, 0, 8, 15, 15, 15, 15, 15, 15, 15, 0, 0, 0, 0, 0, 0 },
+    { 0, 15, 7, 8, 8, 0, 8, 7, 7, 7, 8, 7, 15, 15, 15, 15, 15, 15, 15, 0, 0, 0, 0, 0, 0 },
+    { 0, 7, 15, 8, 8, 8, 8, 8, 7, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 0, 0, 0, 0, 0, 0 },
+    { 0, 8, 7, 8, 7, 7, 7, 7, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 7, 0, 0, 0, 0, 0 },
+    { 0, 8, 7, 7, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 0, 0, 0, 0, 0 },
+    { 0, 0, 7, 8, 15, 15, 7, 7, 7, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 0, 0, 0, 0, 0 },
+    { 0, 0, 7, 8, 7, 15, 7, 7, 15, 7, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 0, 0, 0, 0, 0 },
+    { 0, 0, 7, 8, 7, 7, 7, 15, 7, 7, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 0, 0, 0, 0 },
+    { 0, 0, 0, 8, 7, 7, 7, 15, 7, 7, 7, 7, 7, 15, 15, 15, 15, 15, 15, 15, 15, 0, 0, 0, 0 },
+    { 0, 0, 0, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 15, 15, 15, 15, 15, 15, 15, 0, 0, 0, 0 }};
+
+void print_cacatoes(u8 offset, int revert) {
+    u8 x1;
+    for (int i = 0; i < 25; i++) {
+        for (int j = 0; j < 25; j++) {
+            u8 c = cacatoes[i][j];
+            bg_color = c;
+            fg_color = c;
+            if (revert)
+                x1 = 2*(24 - j) + offset - 50;
+            else
+                x1 = 2*j + offset - 50;
+            if (0 <= x1 && x1 < 80)
+                set_char(' ', x1, i);
+            if ((0 <= x1 + 1) && (x1 + 1 < 80))
+                set_char(' ', x1 + 1, i);
+        }
+    }
+}
+
+int test_ls() {
+    dirent_t dirent;
+    fd_t fd = opendir(".");
+    printf("HI");
+    if (fd < 0) {
+        printf("Error in ls : %s\n", strerror(errno));
+        return 1;
+    }
+    int res = readdir(fd, &dirent);
+    while (res == 0) {
+        printf("%s  ", dirent.name);
+        res = readdir(fd, &dirent);
+    }
+    if (errno != ENOENT) {
+        printf("Error in ls : %s\n", strerror(errno));
+    }
+    closedir(fd);
+    return 0;
+}
+
 u8 recv_buff[512];
 u8 shift, alt;
 int key_buffer[10];
 int index_new = 0;
 
+int k = 0;
+int rev = 1;
+
 int main(char *args) {
+    char *file;
+    args = parse_arg(args, &file);
     init();
     int in = new_channel();
     int out = new_channel();
     c_put_char('[');
-    char *s = args;
-    while(*s) c_put_char(*(s++));
+    print_string(file);
     c_put_char(']');
     c_put_char('\n');
-    exec(args, out, in);
+    exec(file, args, out, in);
     for(;;) {
         sleep(50);
         key_buffer[index_new] = get_key_event();
@@ -157,6 +228,18 @@ int main(char *args) {
             int event = key_buffer[index];
             if      ((event & 0x7F) == KEY_SHIFT ) shift = !(event & 0x80);
             else if ((event & 0x7F) == KEY_ALT_GR) alt   = !(event & 0x80);
+            else if (event == KEY_EXCLAMATION) {
+                print_cacatoes(k, rev);
+                if (rev)
+                    k = (k + 1) % 130;
+                else
+                    k = (k + 130 - 1) % 130;
+            }
+            else if (event == KEY_COMMA) {
+                rev = !rev;
+                print_cacatoes(k, rev);
+            }
+            //else if (event == KEY_COLON) test_ls();
             else if(event >= 0 && event < 0x80) {
                 /*if(event == KEY_SHIFT) scroll_up();
                 else if(event == KEY_CTRL) scroll_down();

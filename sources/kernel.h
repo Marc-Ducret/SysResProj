@@ -65,9 +65,17 @@ struct process {
     context_t saved_context;
     page_directory_t *page_directory;
     channel_state_t channels[NUM_CHANNELS_PROC];
-    char *name;
+    fd_t cwd;
+    char name[256];
     void *heap_pointer;
 };
+
+typedef struct {
+    pid_t pid;
+    pid_t parent;
+    char name[256];
+    p_state state;
+} process_info_t;
 
 typedef enum c_state c_state;
 enum c_state {
@@ -117,7 +125,7 @@ void log_state(state *s);
 state *get_global_state();
 void kill_process(pid_t pid);
 void reorder(state *s);
-
+int get_pinfo(pid_t pid, process_info_t *data);
 volatile int no_process;
 #include "channel.h"
 #endif /* KERNEL_H */

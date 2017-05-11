@@ -30,21 +30,23 @@ typedef enum {
 
 typedef u8 oflags_t;
 
+#define DIR_SEP '/'
+#define CUR_DIR_NAME "."
+#define PARENT_DIR_NAME ".."
+#define DIR_SEP_STR "/"
+#define ROOT_NAME '/'
+#define ROOT_NAME_STR "/"
+
 typedef enum {
     F_UNUSED, FILE, DIR
 } ftype_t;
 
 // TODO Find a smaller interesting struct for dirent_t !
 typedef struct {
-    u32 cluster;
-    u32 ent_offset;
-    u32 ent_cluster;
-    u32 ent_prev_cluster;
     char name[MAX_FILE_NAME];
     ftype_t type;
     u8 mode;
-    u32 ent_size;   // Number of directory entries used by the file / directory.
-    u32 size;       // Size of the file (0 for directories).
+    u32 size;
 } dirent_t;
 
 typedef struct {
@@ -57,5 +59,17 @@ typedef struct {
     int year;
     int century;
 } rtc_time_t;
+
+typedef enum p_state 
+{
+    P_FREE, P_BLOCKEDWRITING, P_BLOCKEDREADING, P_WAITING, P_RUNNABLE, P_ZOMBIE, P_SLEEPING
+} p_state_t;
+
+typedef struct {
+    pid_t pid;
+    pid_t parent;
+    char name[256];
+    p_state_t p_state;
+} process_info_t;
 
 #endif

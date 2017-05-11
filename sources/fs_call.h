@@ -12,12 +12,15 @@
  * Root directory cluster is written as "0" on the disk, so a cluster is 
  * considered as root cluster when cluster <= root_cluster
  */
+fd_t cwd;
 
 fd_t fopen(char *path, oflags_t flags);
 int close(fd_t fd);
 ssize_t read(fd_t fd, void *buffer, size_t length);
 ssize_t write(fd_t fd, void *buffer, size_t length);
 int seek(fd_t fd, seek_cmd_t seek_command, int offset); // TODO off_t ?
+int remove(char *path);
+int copyfile(char *old_path, char *new_path);
 
 int mkdir(char *path, u8 mode);
 int rmdir(char *path);

@@ -3,3 +3,4 @@ build/*
 bochslog.txt
 *.dump
 programs/bin/**
+-e
