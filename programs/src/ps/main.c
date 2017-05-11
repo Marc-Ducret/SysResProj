@@ -39,6 +39,7 @@ char *pad(int a) {
 
 int main(char *args) {
     if (*args) {
+    printf("%s\n", args);//TODO rm
         too_many_args("ps");
     }
     process_info_t p;

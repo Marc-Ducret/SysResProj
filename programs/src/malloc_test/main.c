@@ -2,7 +2,6 @@
 
 int main() {
     printf("Hello!\n");
-    init_malloc();
     u32 *x = (u32*) malloc(sizeof(u32));
     *x = 0xFEE;
     printf("x = %x, *x = %x\n", x, *x);
@@ -18,17 +17,20 @@ int main() {
     *z = 0xE;
     printf("z = %x, *z = %x\n", z, *z);
     
-    u8 run = 1;
-    
     u32 n = 0x80;
-    u32 m = 0x1000;
+    u32 m = 0x200000;
     void ** pointers = (void **) malloc(n * sizeof(void **));
     for(int i = 0; i < n; i ++) pointers[i] = NULL;
-    for(u32 ct = 0; ct < 0x100; ct++) {
+    for(u32 ct = 0; ct < 0x10000; ct++) {
         int i = rand() % n;
         if(pointers[i]) free(pointers[i]);
-        pointers[i] = malloc(m);
+        pointers[i] = malloc(rand() % m);
         flush(STDOUT);
-        if(!pointers[i]) break;
+        if(!pointers[i]) {
+            printf("fail\n");
+            exit(-1);
+        }
     }
+    
+    printf("success\n");
 }

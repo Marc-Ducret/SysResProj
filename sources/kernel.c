@@ -2,6 +2,7 @@
 
 syscall_fun_t syscall_fun[NUM_SYSCALLS];
 volatile int no_process = 0;
+int hanging_pd = 0;
 
 list* malloc_list() {
     static int base = 0;
@@ -170,6 +171,7 @@ void kill_process(pid_t pid) {
     s->processes[pid].state = ZOMBIE;
     pid_t pere = s->processes[pid].parent_id;
 
+    hanging_pd = 1;
     //On trouve les processus fils de celui ci.
     pid_t j;
     for (j = 0; j < NUM_PROCESSES; j++) {
@@ -191,8 +193,6 @@ void kill_process(pid_t pid) {
 
     //On enlève le processus de sa file
     s->runqueues[MAX_PRIORITY] = filter(s->runqueues[MAX_PRIORITY], pid); //TODO priority?
-    
-    //TODO clear PD
     
     close(s->processes[pid].cwd);
 }
@@ -549,13 +549,21 @@ int _kill(state *s) {
 int _resize_heap(state *s) {
     int delta_size = (int) s->ctx->regs.ebx;
     process *p = &s->processes[s->curr_pid];
+    if(p->heap_pointer + delta_size < (void *) USER_HEAP || 
+      (delta_size >= 0 && (u32) p->heap_pointer >= 0xFFFFFFFF - delta_size)) {
+        s->ctx->regs.eax = 0;
+        s->ctx->regs.ebx = 0xFFFFFFFF - delta_size; //TODO real error
+        return 0;
+    }
     u32 cur_page = (u32)(p->heap_pointer            -1) >> 12;
     u32 new_page = (u32)(p->heap_pointer+delta_size -1) >> 12;
     for(u32 i = new_page+1; i <= cur_page; i++) {
-        free_page(get_page(i << 12, 0, p->page_directory));
+        free_page(get_page(i << 12, 0, p->page_directory), i << 12);
     }
     for(u32 i = cur_page+1; i <= new_page; i++) {
-        map_page( get_page(i << 12, 1, p->page_directory), 0, 0, 1);
+        page_t *page = get_page(i << 12, 1, p->page_directory);
+        if(!page->present)
+            map_page(page, 0, 0, 1);
     }
     s->ctx->regs.eax = (u32) p->heap_pointer;
     p->heap_pointer += delta_size;
@@ -679,6 +687,17 @@ void picosyscall(context_t *ctx) {
 u32 did_init = 0;
 
 void picotimer(context_t *ctx) {
+    if(hanging_pd) {
+        hanging_pd = 0;
+        for(int i = 0; i < NUM_PROCESSES; i ++) {
+            if(global_state.processes[i].state == FREE && global_state.processes[i].page_directory) {
+                if(i != global_state.curr_pid) {
+                    free_page_directory(global_state.processes[i].page_directory);
+                    global_state.processes[i].page_directory = NULL;
+                } else hanging_pd = 1;
+            }
+        }
+    }  
     // Update sleeping processes
     state *s = &global_state;
     //if (no_process)

@@ -23,6 +23,7 @@ u32 rand() {
 }
 
 void lib_init() {
+    init_malloc();
     create_channel_stream(1);
     initCharTable();
     init_error_msg();

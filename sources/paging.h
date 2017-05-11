@@ -68,7 +68,9 @@ void *get_physical(page_t *page);
 u8 page_fault(context_t* context);
 page_directory_t *get_identity();
 void map_page(page_t *page, u32 phys_address, int is_kernel, int is_writable);
-void free_page(page_t *page);
+void free_page(page_t *page, u32 address);
 int check_address(void *address, int user, int write, page_directory_t *pd);
+void free_page_directory(page_directory_t *pd);
+
 #endif /* PAGING_H */
 

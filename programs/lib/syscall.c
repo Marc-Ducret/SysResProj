@@ -45,8 +45,7 @@ pid_t wait(int *status) {
 
 void exit(int status) {
     // Flushes all channels and leaves.
-    for(int i = 0; i < NUM_CHANNELS_PROC; i++)
-        flush(i);
+    flush(STDOUT);
     
     asm volatile("\
         movl $4, %%eax \n \
