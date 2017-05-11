@@ -25,6 +25,7 @@ void set_frame(u32 frame_addr) {
 }
 
 void clear_frame(u32 frame_addr) {
+    if(frame_addr <= kernel_mem_end) return;
     // Sets the corresponding frame as unused.
     u32 frame = frame_addr / PAGE_SIZE;
     u32 table_index = frame >> 5;
@@ -50,6 +51,10 @@ u32 new_frame() {
             u32 value = frames[index];
             for (offset = 0; offset < 32; offset++) {
                 if (!(value & 1)) {
+                    if((index << 5) + offset == 0) {
+                        kprintf("ALLOC ON FRAME 0!\n");
+                        asm("hlt");
+                    }
                     return (index << 5) + offset;
                 }
                 value = value >> 1;
@@ -74,6 +79,7 @@ void map_page(page_t* page, u32 phys_address, int is_kernel, int is_writable) {
     u32 frame = phys_address ? phys_address >> 12 : new_frame();
     
     if (frame == nb_frames) {
+        asm("cli");
         kprintf("No more frames left. Not good.\n");
         asm("hlt");
         return;
@@ -97,7 +103,7 @@ void invalidate(u32 address) {
     asm volatile("invlpg (%0)" ::"r" (address) : "memory");
 }
 
-void free_page(page_t * page, u32 address) {
+void free_page(page_t *page, u32 address) {
     // Frees this page, if not already done.
     
     if (!page->present)
@@ -109,7 +115,19 @@ void free_page(page_t * page, u32 address) {
     invalidate(address);
 }
 
-page_t *get_page(u32 address, int make, page_directory_t* directory) {
+void free_page_table(page_table_t *table, u32 tindex) {
+    for(int i = 0; i < 0x400; i ++) free_page(&table->pages[i], ((tindex*0x400)+i)*0x1000);
+}
+
+void free_page_directory(page_directory_t *pd) {
+    for(int i = 0; i < 0x400; i ++) if(pd->tables[i]) {
+        free_page_table(pd->tables[i], i);
+        free(pd->tables[i]);
+    }
+    free(pd);
+}
+
+page_t *get_page(u32 address, int make, page_directory_t *directory) {
     // Gets a pointer to the page entry.
     // If make, creates the corresponding page table if it doesn't exist.
     address = address >> 12;      // Index of the page
@@ -121,13 +139,11 @@ page_t *get_page(u32 address, int make, page_directory_t* directory) {
         return &(directory->tables[index]->pages[offset]);
     } else if (make) {
         // Creates the corresponding page table.
-        u32 tmp;
-        page_table_t* new_table = (page_table_t*) 
-                kmalloc_3(sizeof(page_table_t), 1, &tmp);
+        page_table_t* new_table = (page_table_t*) malloc(sizeof(page_table_t));
         memset(new_table, 0, sizeof(page_table_t));
         
         directory->tables[index] = new_table;
-        directory->tablesPhysical[index].table_addr = tmp >> 12;
+        directory->tablesPhysical[index].table_addr = (u32) new_table >> 12;
         directory->tablesPhysical[index].present = 1;
         directory->tablesPhysical[index].accessed = 0;
         directory->tablesPhysical[index].rw = 1;
@@ -155,16 +171,17 @@ void switch_to_default_page_directory() {
 page_directory_t *get_identity() { return identity_pd; }
 
 void init_paging(u32 mem_end) {
+    init_malloc();
     // Init of frames table
     memory_end = mem_end;
     nb_frames = memory_end >> 12;
     size_frames_table = nb_frames >> 5;
-    frames = (u32*) kmalloc(size_frames_table << 2);
+    frames = (u32*) malloc(size_frames_table << 2);
     memset((u8*) frames, 0, size_frames_table << 2);
     
     // Init of page directory
-    identity_pd = (page_directory_t*) kmalloc_a(sizeof(page_directory_t));
-    memset((u8*)identity_pd, 0, sizeof(page_directory_t));
+    identity_pd = (page_directory_t*) malloc(sizeof(page_directory_t));
+    memset(identity_pd, 0, sizeof(page_directory_t));
 
     // Identity paging
     // Allocates only what we need
@@ -202,7 +219,7 @@ int copy_bin(u32 buffer_code_addr, u32 user_code_len, page_directory_t *user_pd,
 page_directory_t *init_user_page_dir(fd_t fd, char *args, page_directory_t *cur_pd) {
     asm volatile ("mov %cr3, %eax   \n"
                   "mov %eax, tmp ");
-    cur_pd = (page_directory_t*) (tmp - 0x1000); //TODO do better
+    cur_pd = (page_directory_t*) (tmp - 0x1000);
     
     // Creates a new page directory and initializes it with specified binary.
     void *user_code = (void *) USER_CODE_VIRTUAL - CODE_LEN;
@@ -214,7 +231,8 @@ page_directory_t *init_user_page_dir(fd_t fd, char *args, page_directory_t *cur_
         return NULL;
     }
     
-    page_directory_t *pd = kmalloc_a(sizeof(page_directory_t)); // TODO Real malloc ?
+    page_directory_t *pd = malloc(sizeof(page_directory_t));
+    memset(pd, 0, sizeof(page_directory_t)); //TODO rm
     if (pd == NULL) {
         int err = errno;
         close(fd);
@@ -302,8 +320,8 @@ int check_address(void *address, int user, int write, page_directory_t *pd) {
     }
     if ((!page->user && user) || (!page->rw && write)) {
         errno = EFAULT;
-        kprintf("Voila : address %x, page_user %d, page_write %d, user %d, write %d\n",
-                address, page->user, page->rw, user, write);
+        kprintf("Voila : address %x, page_user %d, page_write %d, user %d, write %d, eip %x\n",
+                address, page->user, page->rw, user, write, get_global_state()->processes[get_global_state()->curr_pid].saved_context.stack.eip);
         asm("hlt");
         return -1;
     }

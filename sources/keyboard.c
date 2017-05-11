@@ -17,6 +17,7 @@ void provideKeyEvent(u8 event) {
     if(event < 0x80 && event == KEY_TAB) focus_next_process();
     if(event < 0x80 && event == KEY_STAR)  {
         log_state(&global_state);
+        print_malloc();
         asm("hlt");
     }
     else if(writeCursor != (readCursor-1) % BUFFER_SIZE) {

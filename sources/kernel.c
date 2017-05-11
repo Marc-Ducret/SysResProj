@@ -2,6 +2,7 @@
 
 syscall_fun_t syscall_fun[NUM_SYSCALLS];
 volatile int no_process = 0;
+int hanging_pd = 0;
 
 list* malloc_list() {
     static int base = 0;
@@ -170,6 +171,7 @@ void kill_process(pid_t pid) {
     s->processes[pid].state = ZOMBIE;
     pid_t pere = s->processes[pid].parent_id;
 
+    hanging_pd = 1;
     //On trouve les processus fils de celui ci.
     pid_t j;
     for (j = 0; j < NUM_PROCESSES; j++) {
@@ -191,8 +193,6 @@ void kill_process(pid_t pid) {
 
     //On enlève le processus de sa file
     s->runqueues[MAX_PRIORITY] = filter(s->runqueues[MAX_PRIORITY], pid); //TODO priority?
-    
-    //TODO clear PD
     
     close(s->processes[pid].cwd);
 }
@@ -673,6 +673,17 @@ void picosyscall(context_t *ctx) {
 u32 did_init = 0;
 
 void picotimer(context_t *ctx) {
+    if(hanging_pd) {
+        hanging_pd = 0;
+        for(int i = 0; i < NUM_PROCESSES; i ++) {
+            if(global_state.processes[i].state == FREE && global_state.processes[i].page_directory) {
+                if(i != global_state.curr_pid) {
+                    free_page_directory(global_state.processes[i].page_directory);
+                    global_state.processes[i].page_directory = NULL;
+                } else hanging_pd = 1;
+            }
+        }
+    }  
     // Update sleeping processes
     state *s = &global_state;
     //if (no_process)
