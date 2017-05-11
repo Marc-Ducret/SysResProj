@@ -2,13 +2,13 @@
 
 malloc_header_t *first_block;
 
-void init_malloc() { //TODO rm
+void init_malloc() {
     first_block = NULL;
+    malloc(0);
 }
 
 void *expand_heap(int size) {
     void *h = resize_heap(size);
-    printf("New heap pointer: %x\n", h);
     return h;
 }
 
@@ -27,20 +27,21 @@ void *malloc(u32 size) {
             new_block->size = size;
             block->next_block->prev_block = new_block;
             block->next_block = new_block;
-            //printf("found gap of size %x at %x\n", size, new_block);
             return (void *) new_block + sizeof(malloc_header_t);
         }
         prev_block = block;
     }
     malloc_header_t *new_block = (malloc_header_t *) expand_heap(size);
-    //printf("new block of size %x at %x\n", size, new_block);
     if(!new_block) return NULL;
     new_block->size = size;
     new_block->next_block = NULL;
     if(prev_block) {
         prev_block->next_block = new_block;
         new_block->prev_block = prev_block;
-        //TODO CHECK prev_block + prev_block->size = new_block
+        if((void*) prev_block + prev_block->size != (void*) new_block) {
+            printf("Corrupted malloc\n");
+            return NULL;
+        }
     } else {
         new_block->prev_block = NULL;
         first_block = new_block;
@@ -49,16 +50,16 @@ void *malloc(u32 size) {
 }
 
 void free(void *allocated) {
-    //printf("free %x\n", allocated);
     malloc_header_t *block = (malloc_header_t*) allocated - 1;
     if(block->prev_block) {
         block->prev_block->next_block = block->next_block;
         if(block->next_block)
             block->next_block->prev_block = block->prev_block;
         else {
-            shrink_heap(block->size);
+            shrink_heap((u32) block + block->size - (u32) block->prev_block - block->prev_block->size);
         }
     } else {
+        printf("free first block...\n");
         shrink_heap(block->size);
         first_block = NULL;
     }
