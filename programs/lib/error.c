@@ -48,7 +48,7 @@ void init_error_msg() {
     error_msg[43] = "Message too long";
     error_msg[44] = "Too many processes";
     error_msg[45] = "Too many streams";
-    error_msg[46] = "Protocol not supported";
+    error_msg[46] = "Alone on this channel";
     error_msg[47] = "Socket type not supported";
     error_msg[48] = "Operation not supported on socket";
     error_msg[49] = "Protocol family not supported";

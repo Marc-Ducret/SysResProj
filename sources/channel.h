@@ -16,13 +16,15 @@ typedef struct {
     size_t write;
     pid_t sender;
     pid_t receiver;
+    int nb_users;
 } channel_t;
 
 int new_channel(channel_state_t *channels);
 ssize_t send(state *s);
 ssize_t receive(state *s);
-int free_channel(int chanid, channel_state_t *channels);
+int free_channel(state *s, int chanid, channel_state_t *channels);
 ssize_t wait_channel(state *s);
+channel_t channels_table[NB_MAX_CHANNELS];
 
 #endif /* CHANNEL_H */
 

@@ -110,6 +110,7 @@ void update_time() {
     while (t->minutes >= 60) {
         t->minutes -= 60;
         t->hours ++;
+        reset_time();
     }
     if (t->hours >= 24) {
         reset_time();

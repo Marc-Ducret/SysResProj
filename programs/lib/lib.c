@@ -15,9 +15,10 @@ void clear_screen(u8 color) {
             set_char_at(' ', color, color, x , y);
 }
 
-u32 last_rand = 1351968;
+u32 last_rand;
 
 u32 rand() {
+    
     last_rand = (last_rand * 16807) % (((u32) 1 << 31) -1);
     return last_rand;
 }
@@ -27,6 +28,11 @@ void lib_init() {
     create_channel_stream(1);
     initCharTable();
     init_error_msg();
+    rtc_time_t t;
+    gettimeofday(&t);
+    last_rand = ((u32) 16807 * 16807 * 16807 * ((u32) t.century - (u32) t.year + (u32) t.month) +
+            16807 * 16807 * ((u32)t.day - (u32)t.hours) + 
+            16807 * ((u32)t.minutes + (u32)t.seconds) +  49 * (u32)t.mseconds) % (((u32) 1 << 31) - 1);
 }
 
 void *memcpy(void *dst, void *src, u32 n) {

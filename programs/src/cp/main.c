@@ -8,11 +8,11 @@ int main(char *args) {
         too_many_args("cp");
     
     if (nb == 0) {
-        fprintf(STDERR, "cp: Missing operands");
+        fprintf(STDERR, "cp: Missing operands\n");
         exit(EXIT_FAILURE);
     }
     if (nb == 1) {
-        fprintf(STDERR, "cp: Missing destination operand");
+        fprintf(STDERR, "cp: Missing destination operand\n");
         exit(EXIT_FAILURE);
     }
     char *src = paths[0];
@@ -20,7 +20,7 @@ int main(char *args) {
     
     int res = fcopy(src, dest);
     if (res != 0) {
-        fprintf(STDERR, "cp: Cannot copy %s to %s: %s", src, dest, strerror(errno));
+        fprintf(STDERR, "cp: Cannot copy %s to %s: %s\n", src, dest, strerror(errno));
         exit(EXIT_FAILURE);
     }
     exit(EXIT_SUCCESS);

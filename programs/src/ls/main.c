@@ -7,7 +7,7 @@ int main(char *args) {
     }
     fd_t fd = opendir(args);
     if (fd < 0) {
-        fprintf(STDERR, "ls: Cannot open directory / %s: %s", args, strerror(errno));
+        fprintf(STDERR, "ls: Cannot open directory / %s: %s\n", args, strerror(errno));
         exit(EXIT_FAILURE);
     }
     int res = readdir(fd, &dirent);
@@ -18,9 +18,10 @@ int main(char *args) {
     int err = errno;
     closedir(fd);
     if (err != ENOENT) {
-        fprintf(STDERR, "\nls: An error occured while reading %s: %s", args, strerror(errno));
+        fprintf(STDERR, "\nls: An error occured while reading %s: %s\n", args, strerror(errno));
         exit(EXIT_FAILURE);
     }
+    printf("\n");
     flush(STDOUT);
     exit(EXIT_SUCCESS);
     return 0;

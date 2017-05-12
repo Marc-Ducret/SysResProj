@@ -53,6 +53,7 @@ int main(char *args) {
         pid++;
         res = pinfo(pid, &p);
     }
+    printf("\n");
     exit(EXIT_SUCCESS);
     return 0;
 }

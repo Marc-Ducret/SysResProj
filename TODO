@@ -6,6 +6,7 @@ File system :
 	- Duplication of function finddir
 	- Directories Improvement : open them as streams ?
 	- Add some malloc and free instead of 'buffer', but this will make unsafe a lot of currently safe functions !
+	- BUg of mv a b; rm b -> crash ? (twice)!!!
 
 Global organisation :
 	- Folders ?
@@ -29,4 +30,15 @@ Malloc :
 	- Test
 	- Kernel one ?
 
-
+Shell:
+	- Colors for directories in ls + alignement
+	- tree
+	- Implement fwrite (writes stdin into a file)
+	- Test redirection >
+	- Code cat properly to not display error message ? (special end character ?)
+	- Code commands to accept input from stdin ! (not all)
+	- Multiple arguments ?
+	- Options ?
+	- Cacatoes -> fg color ? (+print dans un fichier, le stocker, et ne faire que le charger)
+	- Cursor not disappearing when scroll
+	- Scroll with arrows

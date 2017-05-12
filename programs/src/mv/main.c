@@ -26,11 +26,11 @@ int main(char *args) {
         too_many_args("mv");
     
     if (nb == 0) {
-        fprintf(STDERR, "mv: Missing operands");
+        fprintf(STDERR, "mv: Missing operands\n");
         exit(EXIT_FAILURE);
     }
     if (nb == 1) {
-        fprintf(STDERR, "mv: Missing destination operand");
+        fprintf(STDERR, "mv: Missing destination operand\n");
         exit(EXIT_FAILURE);
     }
     char *src = paths[0];
@@ -38,7 +38,7 @@ int main(char *args) {
     
     int res = aux_mv(src, dest);
     if (res != 0) {
-        fprintf(STDERR, "mv: Cannot rename %s into %s: %s", src, dest, strerror(errno));
+        fprintf(STDERR, "mv: Cannot rename %s into %s: %s\n", src, dest, strerror(errno));
         exit(EXIT_FAILURE);
     }
     exit(EXIT_SUCCESS);

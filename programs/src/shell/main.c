@@ -2,7 +2,9 @@
 #include "parsing.h"
 
 #define CMD_SIZE 0x200
+#define HISTORY_LENGTH 512
 #define NB_SHELL_CMD 27
+
 char *shell_commands[NB_SHELL_CMD] =  {
     "ls",
     "mkdir",
@@ -23,13 +25,20 @@ char *shell_commands[NB_SHELL_CMD] =  {
 
 #define SHELL_CMD_PATH "/"
 #define SHELL_CMD_EXT ".bin"
+#define SHELL_PATH "/shell.bin"
 
 u8 recv_buff[512];
 
 char cmd[CMD_SIZE];
 char cwd[MAX_PATH_NAME];
+char *history[HISTORY_LENGTH] = {0};
+int last_cmd = 0;
+int cur_cmd = 0;
+int first_cmd = 0;
+
 int pos;
 int run;
+int ephemeral = 0;
 
 void new_cmd() {
     printf("%fgwhateveryouwant@CacatOez:%pfg%fg%s%pfg>", GREEN, BLUE, cwd);
@@ -39,7 +48,11 @@ void new_cmd() {
 int exec_builtin(char *fun, char *args) {
     
     if(strEqual(fun, "help")) {
-        printf("Available commands: help, exit, int, test\n");
+        printf("Available commands:\n");
+        for (int i = 0; i < NB_SHELL_CMD; i++) {
+            if (shell_commands[i])
+                printf("%fg%s\n%pfg", BLUE, shell_commands[i]);
+        }
     }
     else if(strEqual(fun, "exit")) {
         char *exit_string;
@@ -57,16 +70,16 @@ int exec_builtin(char *fun, char *args) {
     }
     else if (strEqual(fun, "pwd")) {
         if (*args) {
-            fprintf(STDERR, "pwd: Too many arguments");
+            fprintf(STDERR, "pwd: Too many arguments\n");
         }
         else {
             int res = getcwd(cwd);
             if (res == -1) {
-                fprintf(STDERR, "pwd: Couldn't print current working directory: %s", 
+                fprintf(STDERR, "pwd: Couldn't print current working directory: %s\n", 
                         strerror(errno));
             }
             else {
-                printf("%s", cwd);
+                printf("%s\n", cwd);
             }
         }
     }
@@ -74,14 +87,14 @@ int exec_builtin(char *fun, char *args) {
         char *path;
         int nb_args = get_args(args, &path, 1);
         if (nb_args == -1) {
-            fprintf(STDERR, "cd: Too many arguments");
+            fprintf(STDERR, "cd: Too many arguments\n");
         }
         else {
             if (nb_args == 0)
                 path = ROOT_NAME_STR;
             int res = chdir(path);
             if (res == -1)
-                fprintf(STDERR, "cd: Couldn't change directory to %s: %s", path,
+                fprintf(STDERR, "cd: Couldn't change directory to %s: %s\n", path,
                         strerror(errno));
             else {
                 getcwd(cwd);
@@ -98,18 +111,18 @@ int exec_builtin(char *fun, char *args) {
     return 0;
 }
 
-int exec_file(char *file, char *args) {
-    printf("Exec file <%s>\n", file);
-    if(exec(file, args, STDIN, STDOUT) < 0) // TODO Args ?
+int exec_file(char *file, char *args, int bg) {
+    //printf("Exec file <%s> with args <%s> and bg <%d>\n", file, args, bg);
+    if(exec(file, args, STDIN, STDOUT) < 0)
         printf("Error: %s\n", strerror(errno));
-    else {
+    else if (!bg) {
         int status;
         wait(&status);
     }
     return 0;
 }
 
-int exec_shell_cmd(char *fun, char *args) {
+int exec_shell_cmd(char *fun, char *args, int bg) {
     int i;
     for (i = 0; i < NB_SHELL_CMD; i++) {
         if (shell_commands[i] && strEqual(shell_commands[i], fun))
@@ -124,16 +137,17 @@ int exec_shell_cmd(char *fun, char *args) {
     strCopy(fun, &file[offset]);
     offset += strlen(fun);
     strCopy(SHELL_CMD_EXT, &file[offset]);
-    exec_file(file, args);
+    exec_file(file, args, bg);
     return 0;
 }
 
-void exec_cmd() {
+int exec_simple_cmd(char *s, int bg) {
     errno = ECLEAN;
     char *first;
-    char *args = parse_arg(cmd, &first);
+    char *args = parse_arg(s, &first);
     args = args ? args : "";
-    
+    //printf("Executing simple cmd <%s> with args <%s>\n", first, args);
+    //flush(STDOUT);
     if (first != NULL) {
         if (exec_builtin(first, args) != 0) {
             if(strEqual(first, "test")) {
@@ -143,14 +157,165 @@ void exec_cmd() {
                 asm volatile ("int $13");
             } else if(first[0] == '/' || first[0] == '.') {
                 // Execute a file.
-                exec_file(first, args);
+                return exec_file(first, args, bg);
             }
             else {
-                if (exec_shell_cmd(first, args) == -1)
-                    printf("Unknown command (%s)", cmd);
+                if (exec_shell_cmd(first, args, bg) == -1) {
+                    fprintf(STDERR, "Unknown command (%s)\n", s);
+                    return -1;
+                }
             }
         }
     }
+    return 0;
+}
+
+char *strip(char *s) {
+    // Removes ending spaces and returns pointer to the end.
+    char *cur = s;
+    while (*cur)
+        cur++;
+    cur--;
+    while (cur >= s && *cur == ' ')
+        *cur-- = 0;
+    if (cur >= s)
+        return cur;
+    return s;
+}
+
+int exec_pipe(char *cmd1, char *cmd2, int no_wait) {
+    //printf("Executing some pipe\n");
+    //flush(STDOUT);
+    strip(cmd1);
+    strip(cmd2);
+    if (!*cmd1 || !*cmd2) {
+        fprintf(STDERR, "pipe: Syntax error\n");
+        return -1;
+    }
+    int chan = new_channel();
+    if (chan == -1) {
+        fprintf(STDERR, "pipe: Unable to create a channel: %s\n", strerror(errno));
+        return -1;
+    }
+    int res1 = exec(SHELL_PATH, cmd1, STDIN, chan);
+    if (res1 == -1) {
+        fprintf(STDERR, "pipe: Unable to exec: %s\n", strerror(errno));
+    }
+    sleep(50);
+    int res2 = exec(SHELL_PATH, cmd2, chan, STDOUT);
+    if (res2 == -1) {
+        fprintf(STDERR, "pipe: Unable to exec: %s\n", strerror(errno));
+    }
+    free_channel(chan);
+    if (ephemeral) {
+        free_channel(STDIN);
+        free_channel(STDOUT);
+    }
+    if (!no_wait && res1 >= 0) {
+        wait(NULL);
+    }
+    if (!no_wait && res2 >= 0) {
+        wait(NULL);
+    }
+    return 0;
+}
+
+int exec_redir(char *s, int bg) {
+    //printf("searching some redirection\n");
+    //flush(STDOUT);
+    char *cur = s;
+    while (*cur) {        
+        if (*cur == '>') {
+            *cur = 0;
+            cur++;
+            //printf("Found a redirection to %s\n", cur);
+            // Executes '| fwrite' instead
+            char *cmd2 = malloc(MAX_PATH_NAME);
+            if (cmd2 == NULL) {
+                fprintf(STDERR, "redirection >: Out of memory\n");
+                return -1;
+            }
+            strCopy(SHELL_CMD_PATH, cmd2);
+            int offset = strlen(SHELL_CMD_PATH);
+            strCopy("fwrite", &cmd2[offset]);
+            offset += strlen("fwrite");
+            strCopy(SHELL_CMD_EXT, &cmd2[offset]);
+            offset += strlen(SHELL_CMD_EXT);
+            cmd2[offset] = ' ';
+            offset++;
+            strCopy(cur, &cmd2[offset]);
+            int res = exec_pipe(s, cmd2, 1);
+            free(cmd2);
+            return res;;
+        }
+        cur++;  
+    }
+    // No redirections
+    return exec_simple_cmd(s, bg);
+}
+
+int exec_cmd(char *s) {
+    //printf("Parsing some cmd\n");
+    //flush(STDOUT);
+    // Search for pipes
+    char *cur = s;
+    while(*cur) {
+        if (*cur == '|') {
+            *cur = 0;
+            cur++;
+            return exec_pipe(s, cur, 0);
+        }
+        cur++;
+    }
+    //printf("No pipes, searching for &\n");
+    //flush(STDOUT);
+    // It is a simple command.
+    // Checks for an ampersand
+    char *last_ch = strip(s);
+    
+    if (*last_ch == '&') {
+        if (ephemeral) {
+            // We have to execute this command and die.
+            *last_ch = 0;
+            //printf("We have to exec this cmd and die\n");
+            //flush(STDOUT);
+            return exec_redir(s, 1);
+        }
+        else {
+            //printf("Found a &: forking a ephemeral shell\n");
+            //flush(STDOUT);
+            int res = exec(SHELL_PATH, s, -1, STDOUT);
+            if (res == -1) {
+                fprintf(STDERR, "bg-task: Unable to exec: %s\n", strerror(errno));
+                return -1;
+            }
+            wait(NULL);
+            return 0;
+        }
+    }
+    //printf("No &\n");
+    return exec_redir(s, 0);
+}
+
+void save_cmd() {
+    int prev_cmd = (last_cmd + HISTORY_LENGTH - 1) % HISTORY_LENGTH;
+    if (last_cmd == first_cmd || !strEqual(history[prev_cmd], cmd)) {
+        size_t len = strlen(cmd);
+        history[last_cmd] = malloc(len + 1);
+        if (history[last_cmd]) {
+            strCopy(cmd, history[last_cmd]);
+            last_cmd = (last_cmd + 1) % HISTORY_LENGTH;
+        }
+        if (history[last_cmd]) {
+            free(history[last_cmd]);
+            history[last_cmd] = NULL;
+            first_cmd = (first_cmd + 1) % HISTORY_LENGTH;
+        }
+    }
+    cur_cmd = last_cmd;
+}
+
+void clear_cmd() {
     while(pos > 0)
         cmd[--pos] = 0;
     new_cmd();
@@ -160,22 +325,71 @@ void key_typed(u8 c) {
     if(c == '\n' || pos == CMD_SIZE-1) {
         stream_putchar(c, STDOUT);
         flush(STDOUT);
-        exec_cmd();
+        char *end = strip(cmd);
+        if (*end) {
+            save_cmd();
+            exec_cmd(cmd);
+        }
+        clear_cmd();
     } else if(c == 0x8) {
         if(pos > 0) {
             cmd[--pos] = 0;
             stream_putchar(c, STDOUT);
         }
-    } else {
+    } else if (c == CHAR_UP) {
+        if (cur_cmd == first_cmd)
+            return;
+        
+        cur_cmd = (cur_cmd + HISTORY_LENGTH - 1) % HISTORY_LENGTH;
+        while (pos > 0) {
+            cmd[--pos] = 0;
+            stream_putchar(0x8, STDOUT);
+        }
+        if (history[cur_cmd]) {
+            char *s = history[cur_cmd];
+            while (*s) {
+                c = *s++;
+                cmd[pos++] = c;
+                stream_putchar(c, STDOUT);
+            }
+        }
+    } else if (c == CHAR_DOWN) {
+        if (cur_cmd == last_cmd) {
+            return;
+        }
+        while (pos > 0) {
+            cmd[--pos] = 0;
+            stream_putchar(0x8, STDOUT);
+        }
+        
+        cur_cmd = (cur_cmd + 1) % HISTORY_LENGTH;
+        if (history[cur_cmd]) {
+            char *s = history[cur_cmd];
+            while (*s) {
+                c = *s++;
+                cmd[pos++] = c;
+                stream_putchar(c, STDOUT);
+            }
+        }
+    }else if (c == CHAR_LEFT || c == CHAR_RIGHT) {
+        // Nothing to do yet.
+    }
+    else {
         cmd[pos++] = c;
         stream_putchar(c, STDOUT);
     }
 }
 
-int main() {
+int main(char *init_cmd) {
+    ephemeral = *init_cmd;
     run = 1;
+    flush(STDOUT);
     memset(cwd, 0, MAX_PATH_NAME);
     getcwd(cwd);
+    if (ephemeral) {
+        //printf("EPHEMERAL\n");
+        exit(exec_cmd(init_cmd));
+    }
     new_cmd();
     while(run) {
         int ct;

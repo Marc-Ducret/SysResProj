@@ -95,10 +95,11 @@ int flush(sid_t sid) {
         if (is_channel) {
             int ready = wait_channel(stream->chanid, 1);
             while (ready == -1) {
+                if (errno == EALONE)
+                    return -1;
                 sleep(10);
                 ready = wait_channel(stream->chanid, 1);
             }
-            wait_channel(stream->chanid, 1);
             written = send(stream->chanid, index, remaining);
         }
         else {

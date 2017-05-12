@@ -35,14 +35,14 @@ int main(char *args) {
         return 0;
     }
     if (nb_args == 0) {
-        fprintf(STDERR, "kill: Missing poor target process");
+        fprintf(STDERR, "kill: Missing poor target process\n");
         exit(EXIT_FAILURE);
     }
     if (nb_args == 1) {
         errno = EINVAL;
         pid = string_to_int(pid_string);
         if (pid == -1 || kill_rec(pid) == -1) {
-            fprintf(STDERR, "kill: Cannot kill process %s: %s", pid_string, strerror(errno));
+            fprintf(STDERR, "kill: Cannot kill process %s: %s\n", pid_string, strerror(errno));
             exit(EXIT_FAILURE);
         }
     }

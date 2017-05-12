@@ -15,12 +15,12 @@ int main(char *args) {
         while (run) {
             nb = wait_channel(STDIN, 0);
             if (nb < 0) {
-                fprintf(STDERR, "cat: Cannot read input: %s", strerror(errno));
+                fprintf(STDERR, "cat: Cannot read input: %s\n", strerror(errno));
                 exit(EXIT_FAILURE);
             }
             nb = receive(STDIN, buffer, 512);
             if (nb < 0) {
-                fprintf(STDERR, "cat: Cannot read input: %s", strerror(errno));
+                fprintf(STDERR, "cat: Cannot read input: %s\n", strerror(errno));
                 exit(EXIT_FAILURE);
             }
             for (int j = 0; j < nb; j++) {
@@ -32,12 +32,12 @@ int main(char *args) {
             while (nb > 0) {
                 written = wait_channel(STDOUT, 1);
                 if (written < 0) {
-                    fprintf(STDERR, "cat: Cannot write to output: %s", strerror(errno));
+                    fprintf(STDERR, "cat: Cannot write to output: %s\n", strerror(errno));
                     exit(EXIT_FAILURE);
                 }
                 written = send(STDOUT, buffer, nb);
                 if (written < 0) {
-                    fprintf(STDERR, "cat: Cannot write to output: %s", strerror(errno));
+                    fprintf(STDERR, "cat: Cannot write to output: %s\n", strerror(errno));
                     exit(EXIT_FAILURE);
                 }
                 nb -= written;
@@ -47,7 +47,7 @@ int main(char *args) {
     if (nb_args == 1) {
         fd_t fd = fopen(path, O_RDONLY);
         if (fd < 0) {
-            fprintf(STDERR, "cat: Couldn't open %s: %s", path, strerror(errno));
+            fprintf(STDERR, "cat: Couldn't open %s: %s\n", path, strerror(errno));
             exit(EXIT_FAILURE);
         }
         char buffer[512];
@@ -60,20 +60,20 @@ int main(char *args) {
                 exit(EXIT_SUCCESS);
             }
             if (nb == -1) {
-                fprintf(STDERR, "cat: Failed to read file %s: %s", path, strerror(errno));
+                fprintf(STDERR, "cat: Failed to read file %s: %s\n", path, strerror(errno));
                 close(fd);
                 exit(EXIT_FAILURE);
             }
             while (nb > 0) {
                 written = wait_channel(STDOUT, 1);
                 if (written < 0) {
-                    fprintf(STDERR, "cat: Cannot write to output: %s", strerror(errno));
+                    fprintf(STDERR, "cat: Cannot write to output: %s\n", strerror(errno));
                     close(fd);
                     exit(EXIT_FAILURE);
                 }
                 written = send(STDOUT, buffer, nb);
                 if (written < 0) {
-                    fprintf(STDERR, "cat: Cannot write to output: %s", strerror(errno));
+                    fprintf(STDERR, "cat: Cannot write to output: %s\n", strerror(errno));
                     close(fd);
                     exit(EXIT_FAILURE);
                 }

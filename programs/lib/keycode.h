@@ -61,19 +61,23 @@
 #define KEY_ALT_GR 56
 #define KEY_SPACE 57
 #define KEY_NUM_1 79
-#define KEY_NUM_2 80
+#define KEY_DOWN 80
 #define KEY_NUM_3 81
-#define KEY_NUM_4 75
+#define KEY_LEFT 75
 #define KEY_NUM_5 76
-#define KEY_NUM_6 77
+#define KEY_RIGHT 77
 #define KEY_NUM_7 71
-#define KEY_NUM_8 72
+#define KEY_UP 72
 #define KEY_NUM_9 73
 #define KEY_NUM_0 82
 // TODO ARROWS have same code ?! (ci dessus)
 #define KEY_COMP 86
 #define TERMINATION_KEY 0
 
+#define CHAR_UP 0x11
+#define CHAR_DOWN 0x12
+#define CHAR_LEFT 0x13
+#define CHAR_RIGHT 0x14
 char getKeyChar(u8 key, u8 shift, u8 alt);
 void initCharTable();
 

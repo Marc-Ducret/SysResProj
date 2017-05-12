@@ -150,9 +150,14 @@ int start_process(int parent, char* file, char *args, int chin, int chout) {
     p->channels[0].chanid = chin;
     p->channels[0].write  = 0;
     p->channels[0].read   = 1;
+    if (chin != -1)
+        channels_table[chin].nb_users += 1;
     p->channels[1].chanid = chout;
     p->channels[1].write  = 1;
     p->channels[1].read   = 0;
+    if (chout != -1)
+        channels_table[chout].nb_users += 1;
+    
     p->cwd = opendir(CUR_DIR_NAME);
     if (strlen(file) >= 255)
         file[255] = 0;
@@ -191,10 +196,15 @@ void kill_process(pid_t pid) {
         regs->ecx = s->ctx->regs.ebx;
     }
 
-    //On enlève le processus de sa file
+    //Removes the process from its runqueue.
     s->runqueues[MAX_PRIORITY] = filter(s->runqueues[MAX_PRIORITY], pid); //TODO priority?
     
+    //Closes the channels of the process.
+    for (int i = 0; i < NUM_CHANNELS_PROC; i++) {
+        free_channel(s, i, s->processes[pid].channels);
+    }
     close(s->processes[pid].cwd);
+    // TODO Files property -> close opened files ?
 }
 
 int _exit(state *s) {
@@ -238,7 +248,7 @@ int _new_channel(state *s) {
 }
 
 int _free_channel(state *s) {
-    int res = free_channel(s->ctx->regs.ebx, s->processes[s->curr_pid].channels);
+    int res = free_channel(s, s->ctx->regs.ebx, s->processes[s->curr_pid].channels);
     s->ctx->regs.eax = res;
     s->ctx->regs.ebx = errno;
     return 0; // No reorder

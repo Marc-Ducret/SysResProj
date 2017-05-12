@@ -42,10 +42,10 @@ void incr_new_at(char v, u8 x, u8 y) {
 
 void init() {
     initCharTable();
-    player_color[0] = COLOR_RED;
-    player_color[1] = COLOR_BLUE;
-    neutral_color = COLOR_BLACK;
-    clear_screen(COLOR_WHITE);
+    player_color[0] = RED;
+    player_color[1] = BLUE;
+    neutral_color = BLACK;
+    clear_screen(WHITE);
     for(int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++) {
         map[i] = 0;
     }
@@ -134,7 +134,7 @@ int main() {
             score += get_at(x, y);
         }
     }
-    u8 bg = COLOR_WHITE;
+    u8 bg = WHITE;
     u8 fg;
     if(score == 0) fg = neutral_color;
     else fg = player_color[(sgn(score)+1)/2];
@@ -143,5 +143,6 @@ int main() {
             set_char_at('#', fg, bg, x, y);
         }
     }
-    for(;;) asm("hlt");
+    sleep(1000);
+    exit(EXIT_SUCCESS);
 }

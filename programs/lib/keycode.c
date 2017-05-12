@@ -55,6 +55,10 @@ void initCharTable() {
     chars[KEY_COLON] = ':';
     chars[KEY_EXCLAMATION] = '!';
     chars[KEY_COMP] = '<';
+    chars[KEY_UP] = 0x11;
+    chars[KEY_DOWN] = 0x12;
+    chars[KEY_LEFT] = 0x13;
+    chars[KEY_RIGHT] = 0x14;
     
     char *shift = chars + 128;
     shift[KEY_A] = 'A';

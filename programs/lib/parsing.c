@@ -80,6 +80,6 @@ int string_to_int(char *src) {
 }
 
 void too_many_args(char *fun) {
-    fprintf(STDERR, "%s: Too many arguments", fun);
+    fprintf(STDERR, "%s: Too many arguments\n", fun);
     exit(EXIT_FAILURE);
 }

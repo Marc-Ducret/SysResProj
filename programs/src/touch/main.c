@@ -8,14 +8,14 @@ int main(char *args) {
         too_many_args("touch");
     
     if (nb == 0) {
-        fprintf(STDERR, "touch: Missing operand");
+        fprintf(STDERR, "touch: Missing operand\n");
         exit(EXIT_FAILURE);
     }
     
     fd_t res = fopen(file, O_CREAT);
     
     if (res == -1) {
-        fprintf(STDERR, "touch: Couldn't touch file %s: %s", file, strerror(errno));
+        fprintf(STDERR, "touch: Couldn't touch file %s: %s\n", file, strerror(errno));
         exit(EXIT_FAILURE);
     }
     close(res);

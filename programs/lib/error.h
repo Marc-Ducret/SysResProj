@@ -51,7 +51,7 @@ typedef enum {
     EMSGSIZE,	//Message too long
     EMPROC,	//Too many processes
     EMSTREAM,	//Too many streams
-    EPROTONOSUPPORT,	//Protocol not supported
+    EALONE,	//Alone on this channel
     ESOCKTNOSUPPORT,	//Socket type not supported
     EOPNOTSUPP,	//Operation not supported on socket
     EPFNOSUPPORT,	//Protocol family not supported

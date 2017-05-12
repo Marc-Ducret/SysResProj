@@ -71,7 +71,6 @@ int main(char *args) {
             break;
     }
     flush(STDOUT);
-    sleep(500);
     exit(EXIT_SUCCESS);
     return 0;
 }

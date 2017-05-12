@@ -33,6 +33,7 @@ int new_channel(channel_state_t *channels) {
             channels_table[i].size = CHANNEL_SIZE;
             channels_table[i].sender = -1;
             channels_table[i].receiver = -1;
+            channels_table[i].nb_users = 1;
             channels[chan_index].chanid = i;
             channels[chan_index].read = 1;
             channels[chan_index].write = 1;
@@ -43,18 +44,37 @@ int new_channel(channel_state_t *channels) {
     return -1;
 }
 
-int free_channel(int chanid, channel_state_t *channels) {
-    // Frees the corresponding channel
+int free_channel(state *s, int chanid, channel_state_t *channels) {
+    // Frees the corresponding channel for one user.
     if (check_channel(chanid, channels) == -1)
         return -1;
     
     int kchanid = channels[chanid].chanid;
-    if (channels_table[kchanid].len != 0 || channels_table[kchanid].receiver >= 0) {
-        errno = EINPROGRESS;
-        return -1;
+    channels_table[kchanid].receiver -= 1;
+    
+    if (channels_table[kchanid].nb_users == 1) {
+        // Release with an error the receiver and sender.
+        pid_t waiter = channels_table[kchanid].receiver;
+        if (waiter >= 0) {
+            // Release receiver
+            s->processes[waiter].saved_context.regs.eax = -1;
+            s->processes[waiter].saved_context.regs.ebx = EALONE;
+            s->processes[waiter].state = RUNNABLE;
+            channels_table[kchanid].receiver = -1;
+        }
+        waiter = channels_table[kchanid].sender;
+        if (waiter >= 0) {
+            // Release sender
+            s->processes[waiter].saved_context.regs.eax = -1;
+            s->processes[waiter].saved_context.regs.ebx = EALONE;
+            s->processes[waiter].state = RUNNABLE;
+            channels_table[kchanid].receiver = -1;
+        }
     }
-    // TODO free(channels_table[chanid].data);
-    channels_table[chanid].data = NULL;
+    
+    if (channels_table[kchanid].nb_users <= 0) {
+        channels_table[kchanid].data = NULL;
+    }
     channels[chanid].chanid = -1;
     return 0;
 }
@@ -200,6 +220,10 @@ ssize_t wait_channel(state *s) {
         // Looks for some place.
         size_t empty = channels_table[kchanid].size - channels_table[kchanid].len;
         if (empty == 0) {
+            if (channels_table[chanid].nb_users <= 1) {
+                errno = EALONE;
+                return -1;
+            }
             // Blocks the waiter.
             channels_table[kchanid].sender = waiter;
             s->processes[waiter].state = BLOCKEDWRITING;
@@ -211,6 +235,10 @@ ssize_t wait_channel(state *s) {
         // Looks for some data.
         size_t len = channels_table[kchanid].len;
         if (len == 0) {
+            if (channels_table[chanid].nb_users <= 1) {
+                errno = EALONE;
+                return -1;
+            }
             // Blocks the waiter.
             channels_table[kchanid].receiver = waiter;
             s->processes[waiter].state = BLOCKEDREADING;
