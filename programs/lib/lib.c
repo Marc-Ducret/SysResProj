@@ -25,6 +25,7 @@ u32 rand() {
 
 void lib_init() {
     init_malloc();
+    memset(get_screen(), 0, VGA_HEIGHT * VGA_WIDTH * 2);
     create_channel_stream(1);
     initCharTable();
     init_error_msg();

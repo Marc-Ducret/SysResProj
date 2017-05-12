@@ -667,10 +667,13 @@ void picotransition(state *s, event ev) {
     
     if (reorder_req) {
         if(global_state.curr_pid == global_state.focus) {
+            if(*((u16*) USER_SCREEN_VIRTUAL)) {
             memcpy((void*) 0xB8000, (void*) USER_SCREEN_VIRTUAL, SCREEN_SIZE);
             u8 x = *((u8*)USER_SCREEN_VIRTUAL + SCREEN_SIZE);
             u8 y = *((u8*)USER_SCREEN_VIRTUAL + SCREEN_SIZE + 1);
             update_cursor(x, y);
+            } else
+                focus_next_process();
         }
         copy_context(s->ctx, &(s->processes[s->curr_pid].saved_context)); // TODO remove redundant saves ?
         reorder(s);
@@ -682,8 +685,8 @@ void focus_next_process() {
         global_state.focus = (global_state.focus + 1) % NUM_PROCESSES;
     while(global_state.processes[global_state.focus].state == FREE);
     if(global_state.processes[global_state.focus].state != RUNNABLE) {
-        kprintf("You are looking at a blocked processus. Thus, it isn't able to display its screen, because it isn't updated !\n");
-        log_state(&global_state);
+        //kprintf("You are looking at a blocked processus. Thus, it isn't able to display its screen, because it isn't updated !\n");
+        //log_state(&global_state); TODO do elsewhere
     }
     while(nextKeyEvent() >= 0);
 }
@@ -737,8 +740,7 @@ void picotimer(context_t *ctx) {
             u8 x = *((u8*)USER_SCREEN_VIRTUAL + SCREEN_SIZE);
             u8 y = *((u8*)USER_SCREEN_VIRTUAL + SCREEN_SIZE + 1);
             update_cursor(x, y);
-        }
-        else
+        } else
             focus_next_process();
     }
     picotransition(&global_state, TIMER);

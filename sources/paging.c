@@ -268,7 +268,8 @@ page_directory_t *init_user_page_dir(fd_t fd, char *args, page_directory_t *cur_
     // The binary is loaded, now we complete the kernel part, and others.
     for(u32 i = 0; i < kernel_mem_end; i += PAGE_SIZE)
         map_page(get_page(i, 1, pd), i+1, 1, 1);
-    map_page(get_page(USER_STACK_VIRTUAL, 1, pd), 0, 0, 1); //STACK
+    for(u32 i = 0; i < USER_STACK_SIZE; i += PAGE_SIZE)
+        map_page(get_page(USER_STACK_VIRTUAL+i, 1, pd), 0, 0, 1); //STACK
     map_page(get_page(USER_SCREEN_VIRTUAL, 1, pd), 0, 0, 1); //SCREEN
     return pd;
 }
