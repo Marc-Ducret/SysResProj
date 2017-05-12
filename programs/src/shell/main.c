@@ -2,6 +2,7 @@
 #include "parsing.h"
 
 #define CMD_SIZE 0x200
+#define HISTORY  0x10
 #define NB_SHELL_CMD 27
 char *shell_commands[NB_SHELL_CMD] =  {
     "ls",
@@ -27,6 +28,7 @@ char *shell_commands[NB_SHELL_CMD] =  {
 u8 recv_buff[512];
 
 char cmd[CMD_SIZE];
+char cmd_hist[CMD_SIZE * HISTORY];
 char cwd[MAX_PATH_NAME];
 int pos;
 int run;
@@ -130,29 +132,36 @@ int exec_shell_cmd(char *fun, char *args) {
 
 void exec_cmd() {
     errno = ECLEAN;
-    char *first;
-    char *args = parse_arg(cmd, &first);
-    args = args ? args : "";
-    
-    if (first != NULL) {
-        if (exec_builtin(first, args) != 0) {
-            if(strEqual(first, "test")) {
-                for(int i = 0; i < 100; i ++)
-                    printf("%d\n", i);
-            } else if(strEqual(first, "int")) {
-                asm volatile ("int $13");
-            } else if(first[0] == '/' || first[0] == '.') {
-                // Execute a file.
-                exec_file(first, args);
-            }
-            else {
-                if (exec_shell_cmd(first, args) == -1)
-                    printf("Unknown command (%s)", cmd);
+    if(*cmd) {
+        if(!strEqual(cmd, cmd_hist)) {
+            for(int i = HISTORY; i > 0; i --)
+                memcopy(cmd_hist + i * CMD_SIZE, cmd_hist + (i-1) * CMD_SIZE, CMD_SIZE);
+            memcopy(cmd_hist, cmd, CMD_SIZE);
+        }
+        char *first;
+        char *args = parse_arg(cmd, &first);
+        args = args ? args : "";
+        
+        if (first != NULL) {
+            if (exec_builtin(first, args) != 0) {
+                if(strEqual(first, "test")) {
+                    for(int i = 0; i < 100; i ++)
+                        printf("%d\n", i);
+                } else if(strEqual(first, "int")) {
+                    asm volatile ("int $13");
+                } else if(first[0] == '/' || first[0] == '.') {
+                    // Execute a file.
+                    exec_file(first, args);
+                }
+                else {
+                    if (exec_shell_cmd(first, args) == -1)
+                        printf("Unknown command (%s)\n", cmd);
+                }
             }
         }
-    }
-    while(pos > 0)
-        cmd[--pos] = 0;
+        while(pos > 0)
+            cmd[--pos] = 0;
+    } else printf("\n");
     new_cmd();
 }
 
