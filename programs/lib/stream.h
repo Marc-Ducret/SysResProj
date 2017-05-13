@@ -27,7 +27,7 @@ typedef struct {
     };
 } stream_t;
 
-sid_t create_stream(char *path);
+sid_t create_stream(char *path, int append);
 sid_t create_channel_stream(int chanid);
 int stream_putchar(char c, sid_t id);
 int flush(sid_t id);

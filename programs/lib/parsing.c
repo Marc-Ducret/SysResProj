@@ -59,6 +59,33 @@ int get_args(char *src, char **table, size_t size) {
     return res;
 }
 
+int parse(char *data, args_t *args) {
+    // Parses the data.
+    // If too much to process, returns -1.
+    int ind_arg = 0;
+    int ind_opt = 0;
+    char *arg;
+    while (data && *data) {
+        data = parse_arg(data, &arg);
+        if (arg) {
+            if (*arg == '-') {
+                arg++;
+                if (ind_opt == NUM_OPTS_MAX)
+                    return -1;
+                args->opts[ind_opt++] = arg;
+            }
+            else {
+                if (ind_opt == NUM_ARGS_MAX)
+                    return -1;
+                args->args[ind_arg++] = arg;
+            }
+        }
+    }
+    args->nb_args = ind_arg;
+    args->nb_opts = ind_opt;
+    return 0;
+}
+
 int string_to_int(char *src) {
     // Tries to parse an int.
     // Suprisingly returns -1 if not an integer.

@@ -395,7 +395,19 @@ int readdir(fd_t fd, dirent_t *dirent) {
         );
     return res;
 }
-
+void _test() {
+    int res;
+    asm volatile("\
+        movl $28, %%eax \n \
+        int $0x80 \n \
+        movl %%eax, %0 \n \
+        movl %%ebx, %1"
+        : "=m" (res), "=m" (errno)
+        :
+        : "%ebx", "esi", "edi"
+        );
+    res = res;
+}
 int rewinddir(fd_t fd) {
     int res;
     

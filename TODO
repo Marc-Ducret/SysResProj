@@ -33,7 +33,7 @@ Malloc :
 Shell:
 	- Colors for directories in ls + alignement
 	- tree
-	- Implement fwrite (writes stdin into a file)
+	- Implement fwrite (writes stdin into a file) (append/ no-append mode ?)
 	- Test redirection >
 	- Code cat properly to not display error message ? (special end character ?)
 	- Code commands to accept input from stdin ! (not all)

@@ -4,3 +4,4 @@ bochslog.txt
 *.dump
 programs/bin/**
 -e
+resources/disk.img

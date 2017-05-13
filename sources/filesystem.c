@@ -209,7 +209,8 @@ void set_next_cluster(u32 cluster, u32 next_cluster) {
 }
 
 u32 get_cluster(directory_entry_t *dirent) {
-    return (( dirent->cluster_high) << 16) | (dirent->cluster_low);
+    u32 cluster = (( dirent->cluster_high) << 16) | (dirent->cluster_low);
+    return cluster ? cluster : fs.root_cluster;
 }
 
 void print_dirent(directory_entry_t *dirent, char *buffer) {
@@ -284,7 +285,7 @@ int check_fd(fd_t fd, ftype_t type) {
 }
 
 u32 new_cluster() {
-    static u32 next_free_cluster = 0;
+    static u32 next_free_cluster = 3;
     u8 buffer[fs.cluster_size];
     memset(buffer, 0, fs.cluster_size);
     
@@ -461,17 +462,16 @@ void free_entry(dirent_t *dirent) {
         return;
     }
     // Otherwise, this means that the entry is not alone in its cluster.
+    
+    // A priori, we only need to replace the deleted entries by UNUSED_ENTRY
+    for (u32 i = 0; i < size; i++)
+        content[offset + 32 * i] = UNUSED_ENTRY;
     if (is_last && get_next_cluster(cluster) == END_OF_CHAIN) {
         // We have to extend the END_OF_ENTRIES, because this is the end of the 
         // chain.
         for (u32 i = offset + (size - 1) * 32; content[i] == UNUSED_ENTRY; i -= 32) {
             content[i] = END_OF_ENTRIES;
         }
-    }
-    else {
-        // We only need to replace the deleted entries by UNUSED_ENTRY
-        for (u32 i = 0; i < size; i++)
-            content[offset + 32 * i] = UNUSED_ENTRY;
     }
     
     // Writes the changes on the disk.

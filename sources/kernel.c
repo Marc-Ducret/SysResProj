@@ -165,7 +165,7 @@ int start_process(int parent, char* file, char *args, int chin, int chout) {
     p->page_directory = pd;
     copy_context(global_state.ctx, &p->saved_context);
     p->saved_context.stack.eip = USER_CODE_VIRTUAL;
-    p->saved_context.regs.esp = USER_STACK_VIRTUAL + 0x1000 - sizeof(context_t) - 0x8 + 0x2C;
+    p->saved_context.regs.esp = USER_STACK_VIRTUAL + USER_STACK_SIZE - sizeof(context_t) - 0x8 + 0x2C;
     p->heap_pointer = (void *) USER_HEAP;
     global_state.runqueues[MAX_PRIORITY] = add(pid, global_state.runqueues[MAX_PRIORITY]);
     return pid;
@@ -750,6 +750,11 @@ void load_context(context_t ctx) {
     copy_context(&global_state.processes[global_state.curr_pid].saved_context, &ctx);
 }
 
+int _test(state *s) {
+    s = s;
+    return 0;
+}
+
 void init_syscalls_table(void) {
     for (int i = 0; i < NUM_SYSCALLS; i++) {
         syscall_fun[i] = _default_syscall;
@@ -782,6 +787,7 @@ void init_syscalls_table(void) {
     syscall_fun[25] = _readdir;
     syscall_fun[26] = _rewinddir;
     syscall_fun[27] = _closedir;
+    syscall_fun[28] = _test;
     
     syscall_fun[40] = _get_key_event;
     syscall_fun[41] = _gettimeofday;

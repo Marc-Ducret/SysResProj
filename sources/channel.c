@@ -50,8 +50,7 @@ int free_channel(state *s, int chanid, channel_state_t *channels) {
         return -1;
     
     int kchanid = channels[chanid].chanid;
-    channels_table[kchanid].receiver -= 1;
-    
+    channels_table[kchanid].nb_users -= 1;
     if (channels_table[kchanid].nb_users == 1) {
         // Release with an error the receiver and sender.
         pid_t waiter = channels_table[kchanid].receiver;
@@ -220,7 +219,7 @@ ssize_t wait_channel(state *s) {
         // Looks for some place.
         size_t empty = channels_table[kchanid].size - channels_table[kchanid].len;
         if (empty == 0) {
-            if (channels_table[chanid].nb_users <= 1) {
+            if (channels_table[kchanid].nb_users <= 1) {
                 errno = EALONE;
                 return -1;
             }
@@ -235,7 +234,7 @@ ssize_t wait_channel(state *s) {
         // Looks for some data.
         size_t len = channels_table[kchanid].len;
         if (len == 0) {
-            if (channels_table[chanid].nb_users <= 1) {
+            if (channels_table[kchanid].nb_users <= 1) {
                 errno = EALONE;
                 return -1;
             }

@@ -20,7 +20,8 @@ char *shell_commands[NB_SHELL_CMD] =  {
     "kill",
     "color",
     "clear",
-    "cacatoes"
+    "cacatoes",
+    "fwrite"
 };
 
 #define SHELL_CMD_PATH "/"
@@ -53,6 +54,7 @@ int exec_builtin(char *fun, char *args) {
             if (shell_commands[i])
                 printf("%fg%s\n%pfg", BLUE, shell_commands[i]);
         }
+        printf("Usage : %fgcmd     args     < in     >/>> out     (&)%pfg\n", BLUE);
     }
     else if(strEqual(fun, "exit")) {
         char *exit_string;
@@ -117,6 +119,10 @@ int exec_file(char *file, char *args, int bg) {
         printf("Error: %s\n", strerror(errno));
     else if (!bg) {
         int status;
+        if (ephemeral) {
+            free_channel(STDIN);
+            free_channel(STDOUT);
+        }
         wait(&status);
     }
     return 0;
@@ -159,9 +165,12 @@ int exec_simple_cmd(char *s, int bg) {
                 // Execute a file.
                 return exec_file(first, args, bg);
             }
+            else if (strEqual(first, "t")) {
+                _test();
+            }
             else {
                 if (exec_shell_cmd(first, args, bg) == -1) {
-                    fprintf(STDERR, "Unknown command (%s)\n", s);
+                    fprintf(STDERR, "Unknown command (%s)\n", first);
                     return -1;
                 }
             }
@@ -201,7 +210,7 @@ int exec_pipe(char *cmd1, char *cmd2, int no_wait) {
     if (res1 == -1) {
         fprintf(STDERR, "pipe: Unable to exec: %s\n", strerror(errno));
     }
-    sleep(50);
+    //sleep(50);
     int res2 = exec(SHELL_PATH, cmd2, chan, STDOUT);
     if (res2 == -1) {
         fprintf(STDERR, "pipe: Unable to exec: %s\n", strerror(errno));
@@ -226,8 +235,14 @@ int exec_redir(char *s, int bg) {
     char *cur = s;
     while (*cur) {        
         if (*cur == '>') {
+            int append = 0;
             *cur = 0;
             cur++;
+            if (*cur == '>') {
+                *cur = 0;
+                cur++;
+                append = 1;
+            }
             //printf("Found a redirection to %s\n", cur);
             // Executes '| fwrite' instead
             char *cmd2 = malloc(MAX_PATH_NAME);
@@ -243,10 +258,37 @@ int exec_redir(char *s, int bg) {
             offset += strlen(SHELL_CMD_EXT);
             cmd2[offset] = ' ';
             offset++;
+            if (append) {
+                strCopy("-a ", &cmd2[offset]);
+                offset += strlen("-a ");
+            }
             strCopy(cur, &cmd2[offset]);
-            int res = exec_pipe(s, cmd2, 1);
+            int res = exec_pipe(s, cmd2, bg);
             free(cmd2);
-            return res;;
+            return res;
+        }
+        if (*cur == '<') {
+            *cur = 0;
+            cur++;
+            //printf("Found a redirection to %s\n", cur);
+            // Executes 'cat * |' instead
+            char *cmd1 = malloc(MAX_PATH_NAME);
+            if (cmd1 == NULL) {
+                fprintf(STDERR, "redirection <: Out of memory\n");
+                return -1;
+            }
+            strCopy(SHELL_CMD_PATH, cmd1);
+            int offset = strlen(SHELL_CMD_PATH);
+            strCopy("cat", &cmd1[offset]);
+            offset += strlen("cat");
+            strCopy(SHELL_CMD_EXT, &cmd1[offset]);
+            offset += strlen(SHELL_CMD_EXT);
+            cmd1[offset] = ' ';
+            offset++;
+            strCopy(cur, &cmd1[offset]);
+            int res = exec_pipe(cmd1, s, bg);
+            free(cmd1);
+            return res;
         }
         cur++;  
     }
@@ -255,10 +297,19 @@ int exec_redir(char *s, int bg) {
 }
 
 int exec_cmd(char *s) {
-    //printf("Parsing some cmd\n");
-    //flush(STDOUT);
-    // Search for pipes
+    // Search for seq ';'
     char *cur = s;
+    while(*cur) {
+        if (*cur == ';') {
+            *cur = 0;
+            cur++;
+            exec_cmd(s);
+            return exec_cmd(cur);
+        }
+        cur++;
+    }
+    // Search for pipes
+    cur = s;
     while(*cur) {
         if (*cur == '|') {
             *cur = 0;
@@ -282,7 +333,7 @@ int exec_cmd(char *s) {
             return exec_redir(s, 1);
         }
         else {
-            //printf("Found a &: forking a ephemeral shell\n");
+            //printf("Found a &: forking an ephemeral shell\n");
             //flush(STDOUT);
             int res = exec(SHELL_PATH, s, -1, STDOUT);
             if (res == -1) {

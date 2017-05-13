@@ -24,7 +24,7 @@ ssize_t receive(int chanid, void *buffer, size_t len);
 ssize_t wait_channel(int chanid, int write);
 int new_channel(void);
 int free_channel(int chanid);
-
+void _test();
 int sleep(int time);
 
 int pinfo(pid_t pid, process_info_t *data);

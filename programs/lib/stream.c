@@ -11,17 +11,21 @@ int check_sid(sid_t sid) {
     return 0;
 }
 
-sid_t create_stream(char *path) {
+sid_t create_stream(char *path, int append) {
     // Creates a stream writing at specified file location.
     sid_t sid = NUM_CHANNELS_PROC;
-    while (sid < NUM_CHANNELS_PROC && stream_table[sid].status != S_UNUSED) {
+    while (sid < NUM_STREAMS && stream_table[sid].status != S_UNUSED) {
+        flush(STDOUT);
         sid++;
     }
-    if (sid == NUM_CHANNELS_PROC) {
+    if (sid == NUM_STREAMS) {
         errno = EMSTREAM;
         return -1;
     }
-    oflags_t flags = O_WRONLY | O_CREAT | O_APPEND;
+    oflags_t flags = O_WRONLY | O_CREAT;
+    if (append) flags |= O_APPEND;
+    else flags |= O_TRUNC;
+    
     fd_t file = fopen(path, flags);
     if (file < 0) {
         // Error while opening file.
@@ -77,7 +81,8 @@ int stream_putchar(char c, sid_t sid) {
     }
     stream->buffer[stream->index] = c;
     stream->index ++;
-    if(c == '\n') flush(sid);
+    if(c == '\n') 
+        return flush(sid);
     return 0;
 }
 

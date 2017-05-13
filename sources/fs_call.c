@@ -307,7 +307,7 @@ ssize_t write(fd_t fd, void *buffer, size_t length) {
     size_t nb;
     //fprintf(stderr, "Trying to write %d bytes from offset %d at cluster %d in size %d\n",
     //        remaining, offset, cluster, f->size);
- 
+
     while (remaining > 0) {
         //fprintf(stderr, "Cluster %d\n", cluster);
         if (cluster >= END_OF_CHAIN) {
@@ -425,6 +425,7 @@ int copyfile(char *old_path, char *new_path) {
     fd_t new = fopen(new_path, O_RDONLY);
     if (new >= 0) {
         close(old);
+        close(new);
         errno = EEXIST;
         return -1;
     }
@@ -465,6 +466,8 @@ int copyfile(char *old_path, char *new_path) {
             fprintf(stderr, "Partial copy of file was created, and couldn't be removed.");
             return -1;
         }
+        errno = err;
+        return -1;
     }
     close(old);
     close(new);
@@ -822,7 +825,7 @@ fd_t opendir(char *path) {
     // Now, follows the path until end of it.
     while (*path) {
         path = nextdirname(path, &nextdir);
-        
+
         // Search entry nextdir in the previous directory.
         dirent_p = finddir(fd, nextdir);
         if (dirent_p == NULL) {
@@ -951,8 +954,7 @@ dirent_t *readdir(fd_t fd) {
         next_cluster = get_next_cluster(cluster);
         start_offset = 0;
         
-    } while (next_cluster < 0x0FFFFFF8 && next_cluster != UNUSED_CLUSTER);
-    
+    } while (next_cluster < END_OF_CHAIN && next_cluster != UNUSED_CLUSTER);
     // End of directory.
     file_table[fd].curr_cluster = cluster;
     file_table[fd].curr_offset = fs.cluster_size;
