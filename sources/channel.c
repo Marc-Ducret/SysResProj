@@ -218,11 +218,13 @@ ssize_t wait_channel(state *s) {
     if (write) {
         // Looks for some place.
         size_t empty = channels_table[kchanid].size - channels_table[kchanid].len;
+        
+        if (channels_table[kchanid].nb_users <= 1) {
+            // Don't want to write if nobody can read.
+            errno = EALONE;
+            return -1;
+        }
         if (empty == 0) {
-            if (channels_table[kchanid].nb_users <= 1) {
-                errno = EALONE;
-                return -1;
-            }
             // Blocks the waiter.
             channels_table[kchanid].sender = waiter;
             s->processes[waiter].state = BLOCKEDWRITING;

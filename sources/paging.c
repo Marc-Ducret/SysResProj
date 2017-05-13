@@ -254,6 +254,7 @@ page_directory_t *init_user_page_dir(fd_t fd, char *args, page_directory_t *cur_
     for (u32 i = 0; i < CODE_LEN; i += PAGE_SIZE) {
         map_page(get_page((u32) user_code + i, 1, cur_pd), 0, 1, 1);
     }
+    memset(user_code, 0, CODE_LEN);
     ssize_t len = read(fd, user_code, CODE_LEN);
 
     if (len == -1) {

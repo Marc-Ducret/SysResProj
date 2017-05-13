@@ -295,7 +295,7 @@ int main(char *args) {
     c_put_char('\n');
     pid_t pid = exec(file, args, out, in);
     int run = (pid != -1);
-    for (;;) {
+    while (run) {
         sleep(50);
         key_buffer[index_new] = get_key_event();
         while (key_buffer[index_new] != -1) {
@@ -319,13 +319,17 @@ int main(char *args) {
                 else {
                     char c = getKeyChar(event, shift, alt);
                     if(c) {
-                        stream_putchar(c, out);
+                        if (stream_putchar(c, out) == -1)
+                            run = 0;
                     }
                 }
             }
         }
-        if (index_new)
-            flush(out);
+        if (index_new) {
+            int res = flush(out);
+            if (res == -1)
+                run = 0;
+        }
         index_new = 0;
         int ct;
         while ((ct = receive(in, recv_buff, 512)) > 0) {
@@ -340,6 +344,7 @@ int main(char *args) {
         }
     }
     // Exits.
+    print_string("CONSOLE EXITED.");
     int exit_value = kill(pid) ? EXIT_FAILURE : EXIT_SUCCESS;
     exit(exit_value);
 }

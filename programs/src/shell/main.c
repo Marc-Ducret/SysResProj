@@ -32,12 +32,12 @@ u8 recv_buff[512];
 
 char cmd[CMD_SIZE];
 char cwd[MAX_PATH_NAME];
-char *history[HISTORY_LENGTH] = {0};
-int last_cmd = 0;
-int cur_cmd = 0;
-int first_cmd = 0;
+char *history[HISTORY_LENGTH];
+int last_cmd;
+int cur_cmd;
+int first_cmd;
 
-int pos;
+int pos = 0;
 int run;
 int ephemeral = 0;
 
@@ -434,6 +434,7 @@ void key_typed(u8 c) {
 int main(char *init_cmd) {
     ephemeral = *init_cmd;
     run = 1;
+    pos = 0;
     flush(STDOUT);
     memset(cwd, 0, MAX_PATH_NAME);
     getcwd(cwd);

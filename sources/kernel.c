@@ -903,9 +903,20 @@ void log_state(state* s) {
             kprintf("Priority %d:\n", prio);
             kprintf("%d(%d)\n", q->hd, s->processes[q->hd].state);
             for (list *curr = q->tl; curr != NULL; curr = curr->tl) {
-                kprintf("%d(%d)\n", curr->hd, s->processes[curr->hd].state);
+                kprintf("%d(%d) with ", curr->hd, s->processes[curr->hd].state);
+                for (int i = 0; i < NUM_CHANNELS_PROC; i++) {
+                    int chan = s->processes[curr->hd].channels[i].chanid;
+                    if (chan != -1)
+                        kprintf(" %d : %d;  ", i, chan);
+                }
+                kprintf("\n");
             }
         }
+    }
+    for (int i =0; i < NB_MAX_CHANNELS; i++) {
+        channel_t c = channels_table[i];
+        if (c.data)
+            kprintf("Channel %d: %d users, %d message\n", i, c.nb_users, c.len);
     }
     kprintf("\n");
 }

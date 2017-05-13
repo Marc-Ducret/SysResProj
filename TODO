@@ -26,19 +26,16 @@ User :
 	- User rights ?
 	- Initialisation block ?
 
-Malloc : 
-	- Test
-	- Kernel one ?
-
 Shell:
 	- Colors for directories in ls + alignement
 	- tree
-	- Implement fwrite (writes stdin into a file) (append/ no-append mode ?)
-	- Test redirection >
 	- Code cat properly to not display error message ? (special end character ?)
 	- Code commands to accept input from stdin ! (not all)
 	- Multiple arguments ?
 	- Options ?
 	- Cacatoes -> fg color ? (+print dans un fichier, le stocker, et ne faire que le charger)
 	- Cursor not disappearing when scroll
-	- Scroll with arrows
+	- Scroll
+
+Global:
+	- No global variable uninitialiased !
