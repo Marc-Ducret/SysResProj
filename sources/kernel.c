@@ -742,7 +742,8 @@ void picotimer(context_t *ctx) {
             update_cursor(x, y);
         } else
             focus_next_process();
-    }
+    } else if(global_state.processes[global_state.focus].state == FREE 
+            || global_state.processes[global_state.focus].state == ZOMBIE) focus_next_process();
     picotransition(&global_state, TIMER);
 }
 
@@ -810,7 +811,8 @@ state *picoinit() {
     for (i = 0; i <= MAX_PRIORITY; i++) {
         s->runqueues[i] = NULL;
     }
-    start_process(0, "/console.bin", "/shell.bin", -1, -1);
+    start_process(0, "/scavanger.bin", "", -1, -1);
+    start_process(0, "/splash.bin", "", -1, -1);
     reorder(s);
     kprintf("Init kernel\n");
     return s;
