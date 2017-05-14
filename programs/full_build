@@ -1,7 +1,8 @@
-cd src/
+cd programs/src/
 for p in *
 do
 	cd ../
-    ./build $p
+	./build $p
 	cd src/
 done
+cd ../../
