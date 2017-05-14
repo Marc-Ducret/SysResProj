@@ -74,7 +74,7 @@ void shrink_heap(int size) {
     heap_pointer -= size;
 }
 
-void *over_allign(void *p) {
+void *over_align(void *p) {
     return (void*) (((u32)p-1) | 0xFFF) + 1;
 }
 
@@ -82,7 +82,7 @@ void *malloc(u32 size) {
     size += sizeof(malloc_header_t);
     malloc_header_t *prev_block = NULL;
     for(malloc_header_t *block = first_block; block; block = block->next_block) {
-        void *potential_addr = over_allign((void *)block + block->size + sizeof(malloc_header_t))
+        void *potential_addr = over_align((void *)block + block->size + sizeof(malloc_header_t))
                                                                        - sizeof(malloc_header_t);
         if(block->next_block && (u32) block->next_block >= (u32) potential_addr + size) {
             malloc_header_t *new_block = (malloc_header_t *) (potential_addr);
@@ -94,14 +94,14 @@ void *malloc(u32 size) {
             block->next_block->prev_block = new_block;
             block->next_block = new_block;
             if(((u32) new_block + sizeof(malloc_header_t)) & 0xFFF) {
-                kprintf("Malloc allign failure\n");
+                kprintf("Malloc align failure\n");
                 asm("cli\nhlt");
             }
             return (void *) new_block + sizeof(malloc_header_t);
         }
         prev_block = block;
     }
-    malloc_header_t *new_block = (malloc_header_t *) (over_allign(heap_pointer   + sizeof(malloc_header_t))
+    malloc_header_t *new_block = (malloc_header_t *) (over_align(heap_pointer   + sizeof(malloc_header_t))
                                                                                  - sizeof(malloc_header_t));
     expand_heap((u32) new_block + size - (u32) heap_pointer);
     if(!new_block) return NULL;
@@ -116,7 +116,7 @@ void *malloc(u32 size) {
         first_block = new_block;
     }
     if(((u32) new_block + sizeof(malloc_header_t)) & 0xFFF) {
-        kprintf("Malloc allign failure\n");
+        kprintf("Malloc align failure\n");
         asm("cli\nhlt");
     }
     return (void *) new_block + sizeof(malloc_header_t);

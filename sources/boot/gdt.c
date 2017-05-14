@@ -6,17 +6,6 @@
 #include "gdt.h"
 #include "lib.h"
 
-//u32 x;
-// code pour afficher rip
-/*asm("jmp next3 \n \
-         next2: pop x \n \
-         push x \n \
-         ret \n \
-         next3: \n \
-         call next2 \n \
-         ");
-    putint(x);*/
-
 struct tss default_tss;
 struct gdtdesc kgdt[GDTSIZE];
 struct gdtr kgdtr;
@@ -136,7 +125,7 @@ void init_idt(void) {
     init_idt_desc(46, 0x08, (u32) irq14, INTGATE);
     init_idt_desc(47, 0x08, (u32) irq15, INTGATE);
     
-    init_idt_desc(128, 0x08, (u32) asm_syscall, TRAPGATE);
+    init_idt_desc(128, 0x08, (u32) asm_syscall, TRAPGATE); // Syscall
 
     idtr.limite = IDTSIZE * 8;
     idtr.base = IDTBASE;

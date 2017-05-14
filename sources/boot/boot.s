@@ -25,18 +25,11 @@ stack_top:
 .section .text
 .global _start
 _start:
-	# Hello, World! This processor now belongs to us and we have complete
-	# power of it and do anything we want - but there is nothing but us - if we
-	# want to do anything, we'll have to do the whole job ourselves. Assembly
-	# isn't the best language to write a kernel in, so we'll want to set up
-	# the environment such that we can host a high-level language such as C.
-
 	# First, we'll set the stack pointer to the top of our stack declared above.
 	movl $stack_top, %esp
 	
 	# Now that we have a stack, we can provide the minimal environment needed to
-	# run C code. Note that floating point instructions and other CPU features
-	# currently are disabled. Enable them here once you add support.
+	# run C code.
 
 	# Now that the initial bootstrap environment is set up, call the kernel's
 	# main function using the C calling convention.
@@ -44,14 +37,3 @@ _start:
 	call kmain
 	cli
 	hlt
-
-	# The kernel is done executing, so let's put the computer in an infinite
-	# loop. The halt instruction ('hlt') stops the CPU until an interrupt
-	# happens, and the clear interrupt ('cli') instruction disables interrupts.
-	# The computer remains running - if you want to shut it down, you'll need a
-	# driver for the CPU power interface.
-#	cli
-#hang:
-#	hlt
-#	jmp hang
-

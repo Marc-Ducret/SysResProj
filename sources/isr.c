@@ -7,14 +7,6 @@
 #include "disk.h"
 #include "timer.h"
 
-void test() {
-    putchar('.');
-}
-
-void schedule() {
-    //TODO
-}
-
 void print_reg(registers_t *x) {
     kprintf("Registres : eax %x, ebx %x, ecx %x, edx %x, esp %x, \
                          ebp %x, esi %x, edi %x.\n",

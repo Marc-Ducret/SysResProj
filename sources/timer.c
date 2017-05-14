@@ -6,7 +6,7 @@
 #include "int.h"
 #include "printing.h"
 #include "timer.h"
-
+u32 cur_frequency = 1000;
 void init_timer(u32 frequency) {
     u32 divisor = 1193180 / frequency;
     
@@ -26,6 +26,8 @@ void init_timer(u32 frequency) {
     outportb(0x40, l);
     outportb(0x40, h);
     
+    cur_frequency = frequency;
+    reset_time();
     kprintf("Timer set to frequency %d Hz\n", frequency);
 }
 
@@ -99,8 +101,8 @@ void reset_time() {
 void update_time() {
     // Updates time base on milliseconds and start date.
     rtc_time_t *t = &current_time;
-    while (t->mseconds >= 1000) {
-        t->mseconds -= 1000;
+    while (t->mseconds >= cur_frequency) {
+        t->mseconds -= cur_frequency;
         t->seconds ++;
     }
     while (t->seconds >= 60) {
