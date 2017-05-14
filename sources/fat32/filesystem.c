@@ -155,7 +155,6 @@ void set_long_name(long_file_name_t* lfn, char *buffer) {
 }
 
 void get_short_name(directory_entry_t *dirent, char *buffer) {
-    // TODO Do it more properly.
     memcpy(buffer, dirent->file_name, 11);
     buffer[11] = 0;
     for (u32 i = 10; buffer[i] == ' '; i--)
@@ -211,40 +210,6 @@ void set_next_cluster(u32 cluster, u32 next_cluster) {
 u32 get_cluster(directory_entry_t *dirent) {
     u32 cluster = (( dirent->cluster_high) << 16) | (dirent->cluster_low);
     return cluster ? cluster : fs.root_cluster;
-}
-
-void print_dirent(directory_entry_t *dirent, char *buffer) {
-    // Prints this directory entry with long name in buffer.
-    // If buffer is NULL, then uses normal name.
-    char tmp_buffer[12];
-    if (buffer == NULL) {
-        // Normal name.
-        for (int i = 0; i < 11; i++) {
-            tmp_buffer[i] = dirent->file_name[i];
-        }
-        tmp_buffer[11] = 0x0;
-        buffer = tmp_buffer;
-    }
-    attributes_t *attr = &(dirent->attributes);
-    kprintf(buffer);
-    kprintf(" (");
-    if (attr->dir) {
-        kprintf("Directory");
-    }
-    else {
-        kprintf("File");
-    }
-    if (attr->rd_only) {
-        kprintf(", RO");
-    }
-    else {
-        kprintf(", RW");
-    }
-    kprintf(", Size %d ko", dirent->file_size / 1024 + 
-                            (dirent->file_size % 1024 ? 1 : 0));
-    kprintf(", Cluster %d", get_cluster(dirent));
-    
-    kprintf(")\n");   
 }
 
 fd_t new_fd() {

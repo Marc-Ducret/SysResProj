@@ -6,16 +6,9 @@ long_file_name_t static_longnames[MAX_FILE_NAME / 13 + 2];
 directory_entry_t static_entry;
 fd_t cwd; // Current working directory
 dirent_t root_dirent;
-// TODO
-int usermod = 0; // Global variable with rights of current processs
-
-void print_short_dirent(dirent_t *dirent) {
-    kprintf("%s %s at offset %d, %d entries;\n", 
-            (dirent->type == DIR) ? "Directory" : "File",
-            dirent->name,
-            dirent->ent_offset,
-            dirent->ent_size);
-}
+int usermod = 0; // Global variable with rights of current process
+                 // (Everything is implemented with this variable,
+                 // but usermod is never set)
 
 fd_t fopen_ent(dirent_t *dirent, oflags_t flags) {
     // Checks it isn't a directory
@@ -532,6 +525,8 @@ char *get_fresh_name() {
     write_int(buffer+1, count);
     count++;
     next_name_id = count;
+    if (count % 10 == 0)
+        save_filename_gen();
     return buffer;
 }
 
@@ -1046,98 +1041,6 @@ dirent_t *cluster_findfile(fd_t dir, u32 cluster) {
     return cluster_findent(dir, cluster, FILE);
 }
 
-void print_chain(u32 cluster) {
-    kprintf("Cluster chain : ");
-    while (cluster < END_OF_CHAIN) {
-        kprintf("%d -> ", cluster);
-        cluster = get_next_cluster(cluster);
-    }
-    kprintf("END\n");
-}
-
-void test_dir() {
-    cwd = opendir(ROOT_NAME_STR);
-    kprintf("Testing Directory Calls :\n");
-    kprintf("Content of root directory : \n");
-    fd_t root = opendir("/");
-    dirent_t *dirent;
-    while ((dirent = readdir(root))) {
-        print_short_dirent(dirent);
-    }
-    
-    kprintf("\nContent of boot directory : \n");
-    fd_t boot = opendir("/boot");
-    kprintf("Cluster %d\n", file_table[boot].start_cluster);
-    while ((dirent = readdir(boot))) {
-        print_short_dirent(dirent);
-    }
-    closedir(boot);
-    
-    kprintf("\nContent of grub directory : \n");
-    fd_t grub = opendir("boot//grub/");
-    kprintf("Cluster %d\n", file_table[grub].start_cluster);
-    while ((dirent = readdir(grub))) {
-        print_short_dirent(dirent);
-    }
-    closedir(grub);
-    
-    kprintf("\nTest of getcwd at root directory : %s\n", getcwd()); 
-    
-    kprintf("Test de chdir dans fonts/ :\n");
-    chdir("/boot/grub/fonts/");
-    fd_t fonts = opendir("");
-    while ((dirent = readdir(fonts))) {
-        print_short_dirent(dirent);
-    }
-    kprintf("getcwd() : %s \n", getcwd());
-    //for (int i = 0; i < 5; i++)
-    //    rmdir("test1");
-
-    //kprintf("Cluster %d\n", file_table[fd].start_cluster);
-    print_chain(4506);
-    oflags_t flags = O_APPEND | O_CREAT | O_RDWR;
-    //flags.trunc = 1;
-    fd_t file = fopen("testfile", flags);
-    char buffer[500];
-    strCopy("Hello world ! I'm not happy", buffer);
-    kprintf("Wrote %d bytes\n", write(file, buffer, 511));
-    //file_table[file].size = 200;
-    memset(buffer, 0, 500);
-    seek(file, SEEK_SET, 0);
-    kprintf("Read : %d\n", read(file, buffer, 201));
-    kprintf("Content : %s\n", buffer);
-    kprintf("Size : %d\n", file_table[file].size);
-    kprintf("Copy succeeded ? %d\n", copyfile("testfile", "testfile_copy"));
-    kprintf("Errir : %s\n", strerror(errno));
-    remove("testfile");
-    rewinddir(fonts);
-    while ((dirent = readdir(fonts))) {
-        print_short_dirent(dirent);
-    }
-    kprintf("Ready to read the copy :\n");
-    fd_t testfd = fopen("testfile_copy", flags);
-    kprintf("Fd %d\n", testfd);
-    kprintf("Size : %d\n", file_table[testfd].size);
-    kprintf("Read : %d\n", read(testfd, buffer, 201));
-    kprintf("COntent :%s\n", buffer);
-    remove("testfile_copy");
-    rewinddir(root);
-    while ((dirent = readdir(root))) {
-        print_short_dirent(dirent);
-    }
-    closedir(root);
-    //init_stderr(NULL);
-    fprintf(stderr, "I'm finally debugging normally !\n");
-    flush(stderr);
-    fd_t err = fopen("/error/stderr", flags);
-    kprintf("Read %d from error \n", read(err, buffer, 400));
-    kprintf("Errno : %s\n", strerror(errno));
-    fprintf(NULL, "Content : (* %s *)\n", buffer);
-    kprintf("Error %d : %s\n", 42, strerror(42));
-    kprintf("stderr %x\n", stderr);
-    kprintf("Next filename id : %d\n", next_name_id);
-}
-
 int init_filename_gen() {
     // Saves in a file the next 8.3 filename.
     fd_t names = fopen("/boot/filenames", O_CREAT | O_RDWR);
@@ -1161,13 +1064,13 @@ int init_filename_gen() {
 }
 
 int save_filename_gen() {
-    fd_t names = fopen("/boot/filenames", O_CREAT | O_RDWR);
+    fd_t names = fopen("/boot/filenames", O_CREAT | O_RDWR | O_TRUNC);
     int id = next_name_id;
     if (write(names, (u8*) &id, 4) == -1) {
-        kprintf("Failed to save new filename id.\n");
+        fprintf(stderr, "Failed to save new filename id.\n");
         return -1;
     }
-    kprintf("8.3 filenames successfully saved.\n");
+    fprintf(stderr, "8.3 filenames successfully saved.\n");
     return 0;
 }
 

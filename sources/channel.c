@@ -4,6 +4,7 @@ u8 static_data[NB_MAX_CHANNELS * CHANNEL_SIZE];
 channel_t channels_table[NB_MAX_CHANNELS];
 
 int check_channel(int chanid, channel_state_t *channels) {
+    // Check if the given channel is valid in the given channel state table.
     if (chanid < 0 || chanid >= NUM_CHANNELS_PROC || channels[chanid].chanid < 0) {
         errno = EINVAL;
         return -1;

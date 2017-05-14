@@ -1,12 +1,11 @@
 #include "file_name.h"
 
-// TODO malloc, details witt trailing '/' and root '/' ?
-// Below these are very naive implementations !
+// These are very naive implementations  with static buffers !
 char static_dirname[MAX_PATH_NAME];
 char static_filename[MAX_PATH_NAME];
 
 char *basename(char *path) {
-    //TODO with malloc
+    // TODO with malloc
     // The three functions coming use a single static buffer !
     char *p = path;
     for (; *p; p++) {}

@@ -18,7 +18,3 @@ u16 inportw (u16 _port) {
 void outportw (u16 _port, u16 _data) {
     asm volatile ("outw %1, %0" : : "dN" (_port), "a" (_data));
 }
-
-void wait_key(u8 k) {
-    while(inportb(0x60) != k) {}
-}

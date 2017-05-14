@@ -9,7 +9,6 @@
 #include "timer.h"
 #include "paging.h"
 #include "lib.h"
-#include "multiboot.h"
 #include "disk.h"
 #include "filesystem.h"
 #include "partition.h"
@@ -27,7 +26,6 @@ void dieSlowly() {
 
 void init() {
     terminal_initialize();
-    initCharTable();
     kprintf("Init\n");
     init_gdt();
     init_idt();
@@ -39,13 +37,11 @@ void init() {
     init_root();
     init_stderr(NULL);
     init_filename_gen();
-    //test_dir();
 }
 
 void kmain(multiboot_info_t *mbinfo) {
     multiboot_info = mbinfo;
     init();
-    reset_time();
     asm("sti");
     for(;;) asm("hlt");
     save_filename_gen();

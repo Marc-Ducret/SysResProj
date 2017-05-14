@@ -308,8 +308,6 @@ u8 page_fault(context_t* context) {
         kprintf("reserved ");
     kprintf(") id=%d at %x (eip = %x pid = %d)\n", id, faulting_address, 
                             context->stack.eip, get_global_state()->curr_pid);
-    asm("cli");
-    asm("hlt");
     return 1;
 }
 

@@ -19,14 +19,7 @@ void print_stack(stack_state_t *x) {
 }
 
 void syscall(u32 id, context_t *context) {
-    id = id;
-    /*registers_t *regs = &(context->regs);
-    stack_state_t *stack = &(context->stack);
-    
-    kprintf("Caught syscall %d \n", id);
-    print_reg(regs);
-    print_stack(stack);*/
-    
+    id = id; // To avoid compilation warning.
     picosyscall(context);
 }
 
@@ -68,8 +61,8 @@ void irq_handler(u32 id, context_t *ctx) {
         while ((inportb(0x64) & 0x01) == 0);
         provideKeyEvent(inportb(0x60));
     }
-    else if (id == 14) { // HDD
-        //kprintf("HDD Interrupt\n");
+    else if (id == 14) { 
+        // HDD
     }
     else if (id == 7) {
         // Strange IRQ happening (with bochs, not QEMU).

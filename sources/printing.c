@@ -218,13 +218,10 @@ void kprintf(const char* data, ...) {
 }
 
 void fprintf(stream_t *stream, const char *data, ...) {
-    //putchar('x');
     va_list args;
     va_start(args, data);
-    //vkprintf(NULL, data, args);
     vkprintf(stream, data, args);
     va_end(args);
-    //putchar('y');
 }
 
 char *write_int(char *buffer, int x) {

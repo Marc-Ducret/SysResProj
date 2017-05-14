@@ -37,7 +37,7 @@ typedef struct {
 bus *pbus;
 void create_bus();
 int disk_identify();
-void init_disk(int test);
+void init_disk();
 void read_sectors(u32 sector, u8 sector_count, void* buffer);
 void read_address(u32 address, u32 length, void* buffer);
 void write_sectors(u32 sector, u8 sector_count, void* buffer);

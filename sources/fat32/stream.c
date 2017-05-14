@@ -3,7 +3,7 @@ stream_t static_stream; // TODO malloc or stream table
 
 stream_t *create_stream(char *path, u8 *buffer) {
     // Creates a stream writing at specified location.
-    oflags_t flags = O_WRONLY | O_CREAT | O_APPEND;
+    oflags_t flags = O_WRONLY | O_CREAT | O_TRUNC;
     fd_t file = fopen(path, flags);
     if (file < 0) {
         // Error while opening file.
