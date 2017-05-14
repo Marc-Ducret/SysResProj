@@ -608,13 +608,9 @@ void reorder(state *s) {
             }
 
         }
-        //kprintf("No process to run...\n");
-        //log_state(&global_state);
-        //asm("hlt");
-        // TODO check this would be correct :
         no_process = 1;
         asm("sti");
-        for (int i =0; i < 10; i++)
+        for (int i = 0; i < 10; i++)
             asm("hlt");
         asm("cli");
         no_process = 0;
@@ -823,56 +819,6 @@ state *picoinit() {
     return s;
 }
 
-/*
-char* process_to_str(process p) {
-    char* state = malloc(100 * sizeof(char));
-    switch (p.state.state) {
-        case FREE:
-            sprintf(state, "Free");
-            break;
-
-        case BLOCKEDWRITING:
-            sprintf(state, "BlockedWriting (on chan %d)", p.state.ch);
-            break;
-
-        case BLOCKEDREADING:
-            sprintf(state, "BlockedReading");
-            break;
-
-        case WAITING:
-            sprintf(state, "Waiting");
-            break;
-
-        case RUNNABLE:
-            sprintf(state, "Runnable");
-            break;
-
-        case ZOMBIE:
-            sprintf(state, "Zombie");
-            break;
-    }
-
-    return state;
-}
-
-char* channel_to_str(channel_state c) {
-    char* state = malloc(100 * sizeof(char));
-    switch (c.state) {
-        case UNUSED:
-            sprintf(state, "Unused");
-            break;
-
-        case SENDER:
-            sprintf(state, "%d is sending the value %d", c.s_pid, c.s_value);
-            break;
-
-        case RECEIVER:
-            sprintf(state, "Receivers");
-            break;
-    }
-    return state;
-}
-*/
 int get_pinfo(pid_t pid, process_info_t *data) {
     state *s = &global_state;
     if (pid < 0 || pid >= NUM_PROCESSES) {

@@ -6,7 +6,7 @@
 #include "error.h"
 
 #define CHANNEL_SIZE 512
-#define NB_MAX_CHANNELS 100
+#define NB_MAX_CHANNELS 128
 
 typedef struct {
     u8 *data;

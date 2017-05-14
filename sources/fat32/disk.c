@@ -6,8 +6,6 @@ bus secondary_bus;
 bus *pbus = &primary_bus;
 bus *sbus = &secondary_bus;
 
-// TODO Clear control register ?
-
 void init_bus(bus *bus, u16 base_port) {
     bus->data_port = base_port;
     bus->error_port = base_port + 1;
@@ -99,12 +97,6 @@ int is_ready(status_byte status) {
 int poll(bus *bus) {
     // Just polls until drive is ready.
     while(is_busy(get_status(bus))) {}
-    //do {
-        //inportb(bus->command_port);
-        //inportb(bus->command_port);
-        //inportb(bus->command_port);
-        //inportb(bus->command_port);
-    //} while (is_busy(get_status(bus)));
     return is_ready(get_status(bus));
 }
 
@@ -126,13 +118,10 @@ void read_address(u32 address, u32 length, void *buffer) {
     u32 end_sector = (address + length - 1) / 512;
     u32 sector_count = end_sector - start_sector + 1;
     u32 start_offset = address % 512;
-    //kprintf("Start sector %d, End_sector %d, Sector_count %d, Start_offset %d\n",
-    //        start_sector, end_sector, sector_count, start_offset);
     assert(sector_count < 256, "IO Error : exceeds maximum read size");
 
     // Sends the read command.
     outportb(bus->drive_select, 0xE0 | ((start_sector >> 24) & 0x0F));
-    //outportb(bus->error_port, 0x0);
     outportb(bus->sector_count, (u8) sector_count);
     outportb(bus->lba_lo, (u8) start_sector);
     outportb(bus->lba_mid, (u8) (start_sector >> 8));
@@ -223,8 +212,6 @@ void write_address(u32 address, u32 length, void *buffer) {
     u32 end_sector = (address + length - 1) / 512;
     u32 sector_count = end_sector - start_sector + 1;
     u32 start_offset = address % 512;
-    //kprintf("Start sector %d, End_sector %d, Sector_count %d, Start_offset %d\n",
-    //        start_sector, end_sector, sector_count, start_offset);
     assert(sector_count < 256, "IO Error : exceeds maximum write size");
 
     u8 tmp_buffer[512];
@@ -256,29 +243,12 @@ void write_address(u32 address, u32 length, void *buffer) {
     }
 }
 
-void init_disk(int test) {
+void init_disk() {
     kprintf("Initialising Disk \n");
     create_bus();
     software_reset(pbus);
     assert(disk_identify() == 2, "Not ATA Drive"); // Asserts that it is an ATA drive.
     outportb(pbus->control_register, 0x0);  // Sets control register to 0.
-    
-    
-    if (test) {
-        u16 buffer[256];
-        memset(buffer, 0x0, 512);
-        read_address(0x130, 5, buffer);
-        kprintf("Status after first read : %x\n", inportb(pbus->command_port));
-        
-        for (int i = 0; i < 20; i++) {
-            kprintf("%h ", buffer[i]);
-        }
-        kprintf("...\n");
-        
-        memset((void*)buffer, 0x55, 512);
-        write_address(0x13000, 0x200, buffer);
-        kprintf("Status after writing : %x\n", inportb(pbus->control_register));
-    }
     
     kprintf("Disk initialised.\n");
 }

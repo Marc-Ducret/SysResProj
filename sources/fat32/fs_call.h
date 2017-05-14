@@ -8,10 +8,11 @@
 #include "memory.h"
 
 /*
- * Root directory doesn't have any "." or ".." entries.
+ * At beginning, root directory doesn't have any "." or ".." entries.
  * Root directory cluster is written as "0" on the disk, so a cluster is 
  * considered as root cluster when cluster <= root_cluster
  */
+
 fd_t cwd;
 
 fd_t fopen(char *path, oflags_t flags);

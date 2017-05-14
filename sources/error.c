@@ -80,7 +80,7 @@ void init_error_msg() {
     error_msg[72] = "Too many open channels";
 }
 
-int init_stderr(char *path) { // TODO Really place this here ?
+int init_stderr(char *path) {
     // Creates the error stream writing at specified location.
     // If path is NULL, chooses default path.
     init_error_msg();

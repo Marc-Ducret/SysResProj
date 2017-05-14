@@ -97,8 +97,7 @@ struct elt_c_list {
 
 struct elt_c_list c_list_memory[MAX_SIZE_C_LIST];
 
-typedef struct state state;
-struct state {
+typedef struct  {
     pid_t curr_pid;
     pid_t focus;
     priority curr_priority;
@@ -106,10 +105,11 @@ struct state {
     process processes[NUM_PROCESSES];
     list* runqueues[MAX_PRIORITY+1];
     c_list *sleeping;
-};
+} state;
 
-typedef enum event 
-{ TIMER, SYSCALL } event;
+typedef enum {
+    TIMER, SYSCALL 
+} event;
 
 typedef int (*syscall_fun_t)(state* s);
 

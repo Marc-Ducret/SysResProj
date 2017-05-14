@@ -26,7 +26,6 @@ void dieSlowly() {
 
 void init() {
     terminal_initialize();
-    initCharTable();
     kprintf("Init\n");
     init_gdt();
     init_idt();
@@ -38,12 +37,10 @@ void init() {
     init_root();
     init_stderr(NULL);
     init_filename_gen();
-    //test_dir();
 }
 
 void kmain() {
     init();
-    reset_time();
     asm("sti");
     for(;;) asm("hlt");
     save_filename_gen();

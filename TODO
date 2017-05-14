@@ -1,30 +1,14 @@
 File system :
 	- Choose clear types and notations (dirent_t, direcotry_entry_t, ..)
-	- Use a real malloc on some heap without page-fault, or use some pointer arg
-		(in readdir for instance)
-	- Rigorous and clever implementation of basename, dirname and so on.
-	- Duplication of function finddir
 	- Directories Improvement : open them as streams ?
 	- Add some malloc and free instead of 'buffer', but this will make unsafe a lot of currently safe functions !
-	- BUg of mv a b; rm b -> crash ? (twice)!!!
-
-Global organisation :
-	- Folders ?
-	- Manage includes !
-	- Separate user and kernel code ?
 
 Screen : 
 	- Only certains process ?
 	- Refresh when sleeping ? (not good)
 
-Channels :
-	- Init stream channels for stdin / stdout ?
-	- Flush at \n ?
-	- Non blocking syscalls ? (except if full)
-
 User :
 	- User rights ?
-	- Initialisation block ?
 
 Shell:
 	- Colors for directories in ls + alignement
@@ -38,4 +22,4 @@ Shell:
 	- Scroll
 
 Global:
-	- No global variable uninitialiased !
+	- No global variable uninitialised !
