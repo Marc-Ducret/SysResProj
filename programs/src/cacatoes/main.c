@@ -70,6 +70,7 @@ int main(char *args) {
         if (x == 130)
             break;
     }
+    printf("\n%fg", WHITE);
     flush(STDOUT);
     exit(EXIT_SUCCESS);
     return 0;

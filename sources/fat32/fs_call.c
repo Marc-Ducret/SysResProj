@@ -206,8 +206,7 @@ ssize_t read(fd_t fd, void *buffer, size_t length) {
     // Checks if offset is past the end of file.
     if (f->global_offset >= f->size)
         return 0;
-    fprintf(stderr, "Is the global_offset equal to old_offset ? %d\n",
-            f->global_offset == f->old_offset);
+
     // Otherwise reads the asked length.
     size_t done = 0;
     size_t remaining = umin(length, f->size - f->global_offset);
@@ -216,17 +215,14 @@ ssize_t read(fd_t fd, void *buffer, size_t length) {
     u32 prev_cluster = END_OF_CHAIN;
     u32 offset = f->curr_offset;
     size_t nb;
-    fprintf(stderr, "Trying to read %d bytes from offset %d at cluster %d in size %d\n",
-            remaining, offset, cluster, f->size);
     while (remaining > 0) {
-        fprintf(stderr, "Cluster %d\n", cluster);
+        //fprintf(stderr, "Cluster %d\n", cluster);
         if (cluster >= END_OF_CHAIN) {
             errno = ECORRF;
             return -1;
         }
         read_cluster(cluster, content);
         nb = umin(remaining, fs.cluster_size - offset);
-        fprintf(stderr, "Have just read %d bytes from %d to %d\n", nb, offset, offset+nb);
         memcpy(buffer, content + offset, nb);
         remaining -= nb;
         done += nb;
@@ -238,7 +234,6 @@ ssize_t read(fd_t fd, void *buffer, size_t length) {
             offset = 0;
         }
     }
-    fprintf(stderr, "Finished at offset %d in cluster %d\n", offset, cluster);
     f->curr_cluster = cluster;
     f->curr_offset = offset;
     f->global_offset += done;

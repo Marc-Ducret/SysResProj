@@ -5,7 +5,6 @@
 #include "printing.h"
 #include "io.h"
 #include "gdt.h"
-#include "keycode.h"
 #include "timer.h"
 #include "paging.h"
 #include "lib.h"

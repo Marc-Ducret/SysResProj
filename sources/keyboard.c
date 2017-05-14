@@ -1,9 +1,10 @@
 #include "io.h"
-#include "keycode.h"
 #include "kernel.h"
 #include "paging.h"
 
 #define BUFFER_SIZE 0x800
+#define KEY_SQUARE_SUPERSCRIPT 41  
+#define KEY_STAR 43
 
 u8 eventBuffer[BUFFER_SIZE];
 u16 writeCursor = 0;

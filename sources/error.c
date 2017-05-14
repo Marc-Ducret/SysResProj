@@ -105,6 +105,8 @@ int init_stderr(char *path) {
         return -1;
     }
     kprintf("stderr initialised.\n");
+    fprintf(stderr, "Stderr initialised\n");
+    flush(stderr);
     return 0;
 }
 

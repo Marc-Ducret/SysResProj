@@ -25,7 +25,6 @@ build/file_name.o \
 build/fs_call.o \
 build/stream.o \
 build/error.o \
-build/keycode.o \
 build/keyboard.o \
 build/lib.o \
 build/main.o
@@ -100,6 +99,7 @@ file_syst:
 	sudo mkdosfs -F32 -f 2 /dev/loop1
 
 mount:
+	sudo rm -rf /mnt/test
 	sudo mkdir /mnt/test
 	sudo mount /dev/loop1 /mnt/test
 

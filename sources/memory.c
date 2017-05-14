@@ -16,7 +16,7 @@ void print_malloc() {
 
 void init_malloc() {
     kprintf("Init malloc\n");
-    start_heap = free_address;
+    start_heap = (void*) free_address;
     heap_pointer = start_heap;
     first_block = NULL;
     malloc(0);
