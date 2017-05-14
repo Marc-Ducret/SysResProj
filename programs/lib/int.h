@@ -27,6 +27,8 @@ typedef enum {
 #define O_TRUNC  64
 #define O_RDWR 12
 #define O_CMODE 3
+#define SYSTEM 2
+#define RDONLY 1
 
 typedef u8 oflags_t;
 

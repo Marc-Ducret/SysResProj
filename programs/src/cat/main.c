@@ -43,6 +43,7 @@ int main(char *args) {
                 nb -= written;
             }
         }
+        flush(STDOUT);
     }
     if (nb_args == 1) {
         fd_t fd = fopen(path, O_RDONLY);

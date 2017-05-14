@@ -520,7 +520,7 @@ char *get_fresh_name() {
     write_int(buffer+1, count);
     count++;
     next_name_id = count;
-    if (count % 10 == 0)
+    if (count % 3 == 0)
         save_filename_gen();
     return buffer;
 }
@@ -913,7 +913,7 @@ dirent_t *readdir(fd_t fd) {
                 *(name_end + 1) = 0;
                 
                 size ++;
-                //dirent_t *dirent_p = kmalloc(sizeof(dirent_t)); // TODO !
+                //dirent_t *dirent_p = malloc(sizeof(dirent_t)); // TODO !
                 // if (dirent_p == NULL)
                 //      return -1;
                 dirent_t *dirent_p = &static_dirent; // TODO !

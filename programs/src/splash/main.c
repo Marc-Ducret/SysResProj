@@ -45,12 +45,15 @@ void draw() {
 
 u8 tick() {
     u8 keep_running = 0;
+    u32 static nb_remaining = 4 * SIZE * SIZE;
     for(u8 y = 0; y < SIZE; y ++) {
         for(u8 x = 0; x < SIZE; x ++) {
             if(opacity[x + y * SIZE] < 4 && cacatoes[y][x]) {
                 keep_running = 1;
-                if(!(rand() % 10))
+                if(!(rand() % min(nb_remaining/4/25, 10))) {
                     opacity[x + y * SIZE] ++;
+                    nb_remaining++;
+                }
             }
         }
     }
