@@ -106,7 +106,6 @@ list *filter(list *l, int elt) {
 
 volatile u32 user_esp;
 volatile page_directory_t *user_pd;
-volatile multiboot_info_t *multiboot_info;
 
 state *get_global_state() {
     return &global_state;

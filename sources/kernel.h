@@ -5,7 +5,6 @@
 #include <stdint.h>
 #include "int.h"
 #include "context.h"
-#include "multiboot.h"
 #include "printing.h"
 #include "lib.h"
 #include "memory.h"
@@ -115,7 +114,6 @@ typedef enum event
 typedef int (*syscall_fun_t)(state* s);
 
 state global_state;
-volatile multiboot_info_t *multiboot_info;
 
 void launch();
 state *picoinit();

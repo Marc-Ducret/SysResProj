@@ -101,7 +101,7 @@ void reset_time() {
 void update_time() {
     // Updates time base on milliseconds and start date.
     rtc_time_t *t = &current_time;
-    while (t->mseconds >= cur_frequency) {
+    while (t->mseconds >= (int) cur_frequency) {
         t->mseconds -= cur_frequency;
         t->seconds ++;
     }

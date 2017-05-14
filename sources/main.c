@@ -9,7 +9,6 @@
 #include "timer.h"
 #include "paging.h"
 #include "lib.h"
-#include "multiboot.h"
 #include "disk.h"
 #include "filesystem.h"
 #include "partition.h"
@@ -42,8 +41,7 @@ void init() {
     //test_dir();
 }
 
-void kmain(multiboot_info_t *mbinfo) {
-    multiboot_info = mbinfo;
+void kmain() {
     init();
     reset_time();
     asm("sti");

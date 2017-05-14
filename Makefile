@@ -31,17 +31,26 @@ build/lib.o \
 build/main.o
 
 
-all: build/os.bin
+all: copy-src build/os.bin
 
 .PHONY: all clean iso run-qemu-disk
 
-build/os.bin: $(OBJS) sources/linker.ld
-	$(CC) -T sources/linker.ld -o $@ $(CFLAGS) $(OBJS) $(LIBS)
+copy-src:
+	mkdir -p build/src/
+	cp sources/*.c build/src/
+	cp sources/*.h build/src/
+	#cp sources/*.s build/src/
+	cp sources/*/*.c build/src/
+	cp sources/*/*.h build/src/
+	cp sources/*/*.s build/src/
 
-build/%.o: sources/%.c build
+build/os.bin: $(OBJS) sources/boot/linker.ld
+	$(CC) -T sources/boot/linker.ld -o $@ $(CFLAGS) $(OBJS) $(LIBS)
+
+build/%.o: build/src/%.c build
 	$(CC) $< -c -o $@  $(CFLAGS) $(CPPFLAGS)
 
-build/%.o: sources/%.s build
+build/%.o: build/src/%.s build
 	$(AS) $< -o $@
 
 clean:
@@ -55,7 +64,7 @@ build build/isodir build/isodir/boot build/isodir/boot/grub:
 build/isodir/boot/os.bin: build/os.bin build/isodir/boot
 	cp $< $@
 
-build/isodir/boot/grub/grub.cfg: sources/grub.cfg build/isodir/boot/grub
+build/isodir/boot/grub/grub.cfg: sources/boot/grub.cfg build/isodir/boot/grub
 	cp $< $@
 
 build/os.iso: build/isodir/boot/os.bin build/isodir/boot/grub/grub.cfg
