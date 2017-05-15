@@ -3,7 +3,9 @@
 
 #define CMD_SIZE 0x200
 #define HISTORY_LENGTH 512
+
 #define NB_SHELL_CMD 28
+#define NB_BUILTIN 13
 
 char *shell_commands[NB_SHELL_CMD] =  {
     "ls",
@@ -24,7 +26,17 @@ char *shell_commands[NB_SHELL_CMD] =  {
     "cacatoes",
     "fwrite",
     "time",
-    "shell"
+    "shell", 
+    "sl"
+};
+
+char *builtin_commands[NB_BUILTIN] = {
+    "cd",
+    "set-user",
+    "exit",
+    "help",
+    "pwd",
+    "clear"
 };
 
 #define SHELL_CMD_PATH "/bin/"
@@ -39,13 +51,15 @@ char *history[HISTORY_LENGTH];
 int last_cmd;
 int cur_cmd;
 int first_cmd;
-
+char user_name[512];
+char *default_user = "Ez";
 int pos = 0;
 int run;
 int ephemeral = 0;
 
 void new_cmd() {
-    printf("%fgwhateveryouwant@CacatOez:%pfg%fg%s%pfg>", GREEN, BLUE, cwd);
+    printf("%fg%s%pfg%fg@%pfg%fgCacatOS:%pfg%fg%s%pfg>",
+            GREEN, user_name, BLUE, GREEN, BLUE, cwd);
     flush(STDOUT);
 }
 
@@ -108,6 +122,11 @@ int exec_builtin(char *fun, char *args) {
     }
     else if (strEqual(fun, "clear")) {
         esc_seq(ESC_CLEAR);
+    }
+    else if (strEqual(fun, "set-user")) {
+        if (!*args)
+            args = default_user;
+        strCopy(args, user_name);
     }
     else {
         // Not a known builtin.
@@ -445,6 +464,7 @@ int main(char *init_cmd) {
         //printf("EPHEMERAL\n");
         exit(exec_cmd(init_cmd));
     }
+    strCopy(default_user, user_name);
     new_cmd();
     while(run) {
         int ct;

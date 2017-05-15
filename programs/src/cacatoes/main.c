@@ -1,5 +1,6 @@
 #include "lib.h"
 #include "parsing.h"
+#include "int.h"
 
 u8 cacatoes[25][25] = 
     {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },

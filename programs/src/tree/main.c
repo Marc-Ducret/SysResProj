@@ -40,10 +40,12 @@ void print_folder(char *file, int mode, int size, int offset) {
     }
     int res = readdir(fd, &dirent);
     while (res == 0) {
+        dirent_t next;
+        
         if(dirent.name[0] != '.') {
             if (dirent.type == FILE) {
-                for(int i = 0; i < offset; i ++) printf("  ");
-                printf("%s", dirent.name);
+                for(int i = 0; i < offset; i ++) printf("\xB3 ");
+                printf("%c%s", 0xC3, dirent.name);
                 if (mode || size) printf("(");
                 if (size) print_size(dirent.size);
                 if (mode && size) printf(", ");
@@ -51,10 +53,10 @@ void print_folder(char *file, int mode, int size, int offset) {
                     printf("%s, %s", dirent.mode & SYSTEM ? "S":"U", 
                                       dirent.mode & RDONLY ? "RO":"RW");
                 }
-                printf(")\n");
+                printf("\n");
             } else {
-                for(int i = 0; i < offset; i ++) printf("  ");
-                printf("%fg%s%pfg", BLUE, dirent.name);
+                for(int i = 0; i < offset; i ++) printf("\xB3 ");
+                printf("\xC3\xC4\xC2%fg%s%pfg", BLUE, dirent.name);
                 if (mode)
                     printf("(%s, %s)", dirent.mode & SYSTEM ? "S":"U", 
                                       dirent.mode & RDONLY ? "RO":"RW");
@@ -66,7 +68,9 @@ void print_folder(char *file, int mode, int size, int offset) {
                 }
             }
         }
-        res = readdir(fd, &dirent);
+        res = readdir(fd, &next);
+        printf("cur %s, next %s\n", dirent.name, next.name);
+        dirent = next;
     }
     int err = errno;
     closedir(fd);
@@ -80,19 +84,14 @@ int main(char *a) {
     args_t args;
     int res = parse(a, &args);
     if (res == -1)
-        too_many_args("ls");
+        too_many_args("tree");
 
     int mode = eat_option(&args, "m");
     int size = eat_option(&args, "s");
-    remain_option(&args, "ls");
+    remain_option(&args, "tree");
     
-    /*args.nb_args = 1;
-    args.args[0] = ".";
-    for (int i = 0; i < args.nb_args; i++) {*/ls
+    print_folder(".", mode, size, 0);
     
-        //char *file = args.args[i];
-        print_folder(".", mode, size, 0);
-    //}
     flush(STDOUT);
     exit(EXIT_SUCCESS);
     return 0;
