@@ -30,11 +30,11 @@ build/lib.o \
 build/main.o
 
 
-all: copy-src build/os.bin
+all: build/os.bin
 
 .PHONY: all clean iso run-qemu-disk
 
-copy-src:
+build/src/:
 	mkdir -p build/src/
 	cp sources/*.c build/src/
 	cp sources/*.h build/src/
@@ -43,17 +43,18 @@ copy-src:
 	cp sources/*/*.h build/src/
 	cp sources/*/*.s build/src/
 
-build/os.bin: $(OBJS) sources/boot/linker.ld
+build/os.bin: $(OBJS) sources/boot/linker.ld build/src/ 
 	$(CC) -T sources/boot/linker.ld -o $@ $(CFLAGS) $(OBJS) $(LIBS)
 
-build/%.o: build/src/%.c build
+build/%.o: build/src/%.c build build/src/
 	$(CC) $< -c -o $@  $(CFLAGS) $(CPPFLAGS)
 
-build/%.o: build/src/%.s build
+build/%.o: build/src/%.s build build/src/
 	$(AS) $< -o $@
 
 clean:
 	rm -rf build
+	make build/src/
 
 iso: os.iso
 
@@ -112,6 +113,9 @@ grub_inst:
 
 cp_iso_to_img:
 	sudo rsync -r build/isodir/ /mnt/test/
+	
+user_programs:
+	./programs/full_build
 
 clean_img: clean build/os.iso build/disk.img partition load_dev file_syst mount grub_inst umount unload_dev save_img
 
@@ -121,4 +125,4 @@ save_img:
 load_img:
 	cp resources/disk.img build/disk.img
 
-update_img: build/os.iso load_dev mount cp_iso_to_img umount unload_dev
+update_img: build/os.iso load_img user_programs load_dev mount cp_iso_to_img umount unload_dev
