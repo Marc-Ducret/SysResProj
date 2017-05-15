@@ -17,6 +17,12 @@ u8 keyboardState() {
 void provideKeyEvent(u8 event) {    
     if(event < 0x80 && event == KEY_SQUARE_SUPERSCRIPT) focus_next_process();
     else if (event == KEY_STAR) {
+        terminal_color = make_color(COLOR_WHITE, COLOR_BLUE);
+        for (int i = 0; i < 25; i++){
+            kprintf("\n");
+        }
+        terminal_row = 0;
+        terminal_column = 0;
         log_state(&global_state);
         print_malloc();
         asm("hlt");

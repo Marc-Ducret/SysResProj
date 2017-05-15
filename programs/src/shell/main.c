@@ -4,8 +4,8 @@
 #define CMD_SIZE 0x200
 #define HISTORY_LENGTH 512
 
-#define NB_SHELL_CMD 28
-#define NB_BUILTIN 13
+#define NB_SHELL_CMD 22
+#define NB_BUILTIN 7
 
 char *shell_commands[NB_SHELL_CMD] =  {
     "ls",
@@ -26,8 +26,10 @@ char *shell_commands[NB_SHELL_CMD] =  {
     "cacatoes",
     "fwrite",
     "time",
-    "shell", 
-    "sl"
+    "shell",
+    "console",
+    "sl",
+    "splash"
 };
 
 char *builtin_commands[NB_BUILTIN] = {

@@ -26,6 +26,10 @@
 #define SCROLL_HEIGHT 256
 #define SCREEN_SIZE (VGA_WIDTH * VGA_HEIGHT * 2)
 
+int terminal_row;
+int terminal_column;
+u8 terminal_color;
+
 u8 make_color(u8 fg, u8 bg);
 void terminal_initialize();
 void terminal_setcolor(u8 color);

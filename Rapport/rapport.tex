@@ -1,7 +1,7 @@
 \documentclass[a4paper,10pt, french]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-
+\usepackage{graphicx}
 \newcommand{\code}[1]{\texttt{#1}}
 \newcommand{\chan}{\texttt{channel} }
 % Title Page
@@ -23,7 +23,7 @@ dans le fichier \code{main.c}:
 
 \begin{itemize}
  \item \code{terminal\_initialize} : Initialise l'écran 80x25 que l'on utilisera tout au long du projet.
- Pour y afficher du texte, nous avons recodé une fonction kprintf, qui par défaut affiche à l'écran.
+ Pour y afficher du texte, nous avons recodé une fonction \code{kprintf}, qui par défaut affiche à l'écran.
  \item \code{init\_gdt} : Définit les segments et leurs autorisations. Puisque nous utilisons le paging, 
  la segmentation n'est pas utile, on ne fait donc que redéfinir des segments user et kernel de 4 Go. Cela ne
  sert qu'à savoir où est située la Global Descriptor Table résultante, pour ne pas l'écraser par erreur.
@@ -97,14 +97,17 @@ Les informations sur un fichier sont contenues dans les entrées du répertoire 
 extraire à chaque opération sur le fichier, on sauvegarde donc tout cela dans la table des fichiers.
 
 Nous n'avons pas eu le temps d'implémenter une table de fichiers propre à chaque processus (comme nous l'avons fait avec les
-channels, décrits ci-après), ainsi, un processus peut ouvrir plusieurs fois le même fichier, et accéder, s'il connaît le numéro 
-du file descriptor, à n'importe quel autre fichier ouvert. Il suffirait de mémoriser les fichiers ouverts par chaque processus,
-ce qui permettrait de plus de les fermer si un processus oublie de le faire avant de mourir. Puisque cela
-n'est actuellement pas réalisé, si un processus oublie de fermer un fichier ouvert, celui-ci n'est jamais fermé.
-Cela peut donc conduire à l'atteinte du nombre maximal de fichiers supporté par notre OS (fixé arbitrairement à 256).
+channels, décrits ci-après), ainsi, un processus peut ouvrir plusieurs fois le même fichier. Toutefois, nous avons tout juste eu le temps
+de rajouter le champ \code{process} dans chaque file descriptor, qui indique à quel processu un fichier 
+appartient. On peut ainsi fermer tous les fichiers ouverts par un processus lorsqu'il meurt. Toutefois,
+certains fichiers (tels que \code{error/stderr}) peuvent être utilisés par tous les processus pendant un appel
+système (pour le débug), j'ai donc choisi de le rendre accessible à tous les processus en mettant la 
+valeur de processus \code{-1}. (En particulier, un programme peut fermer \code{stderr} s'il en connaît 
+le file descriptor.
 
 Dans le système de fichiers FAT32, il existe pour chaque fichier un nom court et éventuellement un nom ong. Pour simplifier, le nom court est généré à l'aide
-d'un compteur, tandis que le nom long contient le nom véritable.
+d'un compteur, tandis que le nom long contient le nom véritable. Cela explique les fichiers avec des noms
+du type \code{f0}, lorsque l'on monte l'image disque sous Linux.
 
 Dans de nombreuses fonctions du système de fichiers, nous utilisons des buffers déclarés localement, et donc alloués sur la pile.
 On pourrait remplacer cela par des appels à \code{malloc}, mais puisque la taille de pile est en pratique suffisante, nous ne l'avons pas fait.
@@ -250,7 +253,12 @@ Une console se suicide lorsqu'elle se retrouve seule sur un ses \code{channels} 
 Nous avons codé un shell minimal, avec les fonctions de base, à ce jour les suivantes : \code{ls},
 \code{mkdir}, \code{rmdir}, \code{cp}, \code{rm}, \code{mv}, \code{ps}, \code{pwd}, \code{cat},
 \code{touch}, \code{kill}, \code{color}, \code{clear}, \code{fwrite}, 
-\code{time}, et enfin \code{splash} et \code{cacatoes}.
+\code{time}, \code{tree}, \code{cd}, \code{set-user}, \code{clock} et enfin \code{splash} et \code{cacatoes}.
+Tous ces fichiers sont contenus dans des répertoires séparés dans \code{programs/src/}.
+
+Le shell en lui même n'a pas d'écran mais seulement un \chan d'entrée et un de sortie. Il fonctionne
+typiquement à partir d'une console (commande \code{/bin/console.bin /bin/shell.bin \&}), ou dans un shell
+existant (seulement \code{/bin/shell.bin}).
 
 Nous avons implémenté un simple historique des commandes, et la possibilité d'utiliser des pipe : ``\code{|}'',
 des redirections ``\code{>}'', ``\code{>>}'' et ``\code{<}'', ainsi que l'exécution en arrière 
@@ -267,14 +275,17 @@ de faire défiler le texte, vers le heut ou le bas.
  \item Chargement des programmes : nous compilons vers des simples binaires, et nous allouons une 
  taille constante pour le code et le segment de données. Une amélioration simple serait
  d'utiliser, comme les autres groupes des fichiers \code{.elf}, que l'on parserait
- \item Utiliser plus d'allocation dynamique pour s'affranchir des allocations statiques bornées, par exemple pour les channels. Le fichier
+ \item Utiliser plus d'allocation dynamique pour s'affranchir des allocations statiques bornées, par exemple pour les \code{channels}. Le fichier
  \code{kernel.c} a été écrit au début, sans malloc, et n'utilise donc que des fonctions d'allocation dédiées dans des tableaux statiques
  \item Si un processus est en état \code{ZOMBIE} et que son père meurt, si \code{scavanger} est 
  déjà en attente, ce dernier n'est pas mis à jour. Des \code{ZOMBIES} orphelins peuvent donc temporairement (jusqu'au prochain \code{wait} de \code{scavenger}) persister
- \item Implémenter une table de fichiers ouverts pour chaque processus
+ \item Améliorer la gestion des fichiers ouverts par processus
  \item Ouvrir les répertoires comme des sortes de \code{stream} en lecture, pour éviter de relire le disque pour chaque
  entrée, mais lire par blocs et sauvegarder les blocs lus jusqu'à consommation. (Un peu comme ce que fait le
  programme \code{cat})
+ \item Un autre regret est de ne pas avoir finalement produit d'interface vraiment unifiée, à travers un
+ système de fichiers virtuel, des notions de \code{channels}, fichiers, \code{streams}, comme c'est le cas
+ dans Unix.
 \end{itemize}
 
 \section{Compilation et exécution de CacatOS}
@@ -301,7 +312,37 @@ est disponible dans \code{resources/disk.img} sur notre Git :
 \end{center}
 Cela remplace l'étape \code{make disk} en copiant ce fichier dans \code{resources/}. De même, il y a une image du disque avec déjà tous les fichiers compilés
 synchronisés dessus : \code{resources/disk\_ready.img}.
-Cela remplace les étapes \code{make disk} et \code{make}, en copiant ce fichier (renommé) \code{build/disk.img}.
+Ce dernier remplace les étapes \code{make disk} et \code{make}, en copiant ce fichier (renommé) \code{build/disk.img}.
 
+\section{Utilisation de CacatOS}
+Voici un bref rappel des touches et commandes utiles :
+\begin{itemize}
+ \item ``$^2$'' (\code{superscript two}) pour changer le processus affiché à l'écran. (A priori, seuls les processus
+ utilisant un écran peuvent être affichés)
+ \item ``\code{*}'' stoppe l'OS et affiche une description de l'état du noyau.
+ \item Pour signaler la fin du texte entré lors de l'exécution de \code{cat > foo}, il faut utiliser 
+ la combinaison \code{Ctrl + D}.
+ \item Les flèches verticales servent pour l'historique du \code{shell}, celles horizontales pour le scroll
+ de la \code{console}
+ \item \code{clock} désactive l'affichage du temps.
+ \item \code{set-user} permet de se sentir chez soi en changeant le nom de l'utilisateur.
+ \item L'animation de démarrage peut être accélérée en tapant sur n'importe quelle touche.
+ \item Les exécutables se trouvent dans \code{/bin/} et peuvent être exécutés en tapant leur chemin.
+\end{itemize}
+
+\begin{center}
+ \emph{Voilà, bonne visite du CacatOS et bon courage pour lire le code !}
+ 
+ (En espérant ne pas avoir été trop longs)
+\end{center}
+
+
+
+\begin{figure}[h]
+ \includegraphics[scale = 0.2]{cacatoes.jpg}
+ \centering
+ 
+ \emph{Notre source d'inspiration majeur durant ce projet}
+\end{figure}
 
 \end{document}          

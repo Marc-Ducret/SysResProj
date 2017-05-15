@@ -170,6 +170,22 @@ int main(char *args) {
         u8 bg = cacatoes[y][(x+j - 15) / 2];
         set_char_at(message[j], fg, bg, x+j, y);
     }
+    int r = 60;
+    u32 tot = 500;
+    while (r > 0) {
+        r--;
+        while (get_key_event() != -1)
+            speed_up+= 3;
+        
+        if (speed_up > 0)
+            speed_up--;
+        else
+            sleep(13);
+        for (int j = 0; j <= tot; j++) {
+            plot((j * norm) / tot, r, r/2, 40, 12, 0, BLACK);
+            plot((j * norm) / tot, r, r/2, 40, 12, 1, BLACK);
+        }
+    }
     exec("/bin/console.bin", "/bin/shell.bin", -1, -1);
     exit(0);
 }

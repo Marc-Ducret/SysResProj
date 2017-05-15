@@ -3,7 +3,7 @@
 
 #include "int.h"
 #include "context.h"
-#include "filesystem.h"
+
 
 #define PAGE_SIZE 0x1000
 #define CODE_LEN 0x20000
@@ -59,7 +59,7 @@ typedef struct page_directory
     //may be in a different location in virtual memory.
     u32 physicalAddr;
 } page_directory_t;
-
+#include "filesystem.h"
 void init_paging();
 page_directory_t *init_user_page_dir(fd_t fd, char *args, page_directory_t *cur_pd);
 void switch_page_directory(page_directory_t *directory);

@@ -240,7 +240,7 @@ int check_fd(fd_t fd, ftype_t type) {
     // Checks either fd is valid or not. Return -1 if not, 0 otherwise.
     // If type is F_UNUSED, only check existence.
     errno = EBADF;
-    if (fd < 0 || fd >= MAX_NB_FILE || file_table[fd].type == F_UNUSED)
+    if (fd < 0 || fd >= MAX_NB_FILE || file_table[fd].type == F_UNUSED || (file_table[fd].process != global_state.curr_pid && file_table[fd].process >=0))
         return -1;
     if (type != F_UNUSED && file_table[fd].type != type) {
         errno = (type == DIR) ? ENOTDIR : EISDIR;

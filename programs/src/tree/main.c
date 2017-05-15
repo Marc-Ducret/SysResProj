@@ -90,7 +90,7 @@ int main(char *a) {
 
     int mode = eat_option(&args, "m");
     int size = eat_option(&args, "s");
-    remain_option(&args, "t");
+    remain_option(&args, "tree");
     
     print_folder(".", mode, size, 0);
     

@@ -156,6 +156,7 @@ typedef struct {
     u32 ent_offset;
     u32 ent_size;
     u8 mode;
+    pid_t process; // -1 if needed for all processes.
     union {
         dir_handler_t;
         file_descr_t;

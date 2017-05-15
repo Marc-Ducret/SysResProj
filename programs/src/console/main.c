@@ -1,7 +1,7 @@
 #include "lib.h"
 #include "parsing.h"
 
-#define SCROLL_HEIGHT 0x100
+#define SCROLL_HEIGHT 0x200
 #define SCREEN_SIZE (VGA_WIDTH * VGA_HEIGHT * 2)
 
 u8 cursor_x;

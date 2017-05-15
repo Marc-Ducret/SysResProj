@@ -44,6 +44,7 @@ fd_t fopen_ent(dirent_t *dirent, oflags_t flags) {
     file_table[fd].flags = flags;
     file_table[fd].size = dirent->size;
     file_table[fd].mode = dirent->mode;
+    file_table[fd].process = global_state.curr_pid;
     
     if ((flags & O_TRUNC) && (flags & O_WRONLY)) {
         // Truncates the file
@@ -82,6 +83,9 @@ fd_t fopen(char *path, oflags_t flags) {
         // No such file.
         if (errno == EISDIR) {
             // It is a directory !
+            int err = errno;
+            closedir(dir);
+            errno = err;
             return -1;
         }
         else if (flags & O_CREAT) {
@@ -89,32 +93,41 @@ fd_t fopen(char *path, oflags_t flags) {
             //int rdonly = file_table[dir].mode & RDONLY;
             //if ((usermod && (system || rdonly)) || (system && rdonly)) {
             if (usermod && system) {
+                closedir(dir);
                 errno = EACCES;
                 return -1;
             }
             if (usermod && (flags & O_CSYSTEM)) {
                 // Can't create a file with higher permissions than user !
+                closedir(dir);
                 errno = EBADPERM;
                 return -1;
             }
             // Creates the file
             int res = create_entries(dir, file_name, FILE, flags & O_CMODE);
-            if (res < 0)
+            if (res < 0) {
+                int err = errno;
+                closedir(dir);
+                errno = err;
                 return -1;
+            }
             
             file = findfile(dir, file_name);
             if (file == NULL) {
                 fprintf(stderr, "Failed to find this file, even after creation.\n");
+                closedir(dir);
                 errno = ECORRF;
                 return -1;
             }
         }
         else {
             // No such file, no O_CREATE, fails.
+            closedir(dir);
             errno = ENOENT;
             return -1;
         }
     }
+    closedir(dir);
     return fopen_ent(file, flags);
 }
 
@@ -644,6 +657,7 @@ int mkdir(char *path, u8 mode) {
     if (fd < 0)
         return -1;
     if ((file_table[fd].mode & SYSTEM) && usermod) {
+        closedir(fd);
         errno = EACCES;
         return -1;
     }
@@ -708,7 +722,6 @@ int rmdir(char *path) {
     // Finds the directory entry corresponding to fd, and removes it.
     dirent = cluster_finddir(parent, cluster);
     if (dirent == NULL) {
-        closedir(dir);
         closedir(parent);
         errno = ECORRF;
         return -1;
@@ -856,6 +869,7 @@ fd_t opendir_ent(dirent_t *dirent) {
     file_table[fd].ent_offset = dirent->ent_offset;
     file_table[fd].ent_size = dirent->ent_size;
     file_table[fd].mode = dirent->mode;
+    file_table[fd].process = global_state.curr_pid;
     return fd;
 }
 
@@ -1062,9 +1076,12 @@ int save_filename_gen() {
     fd_t names = fopen("/boot/filenames", O_CREAT | O_RDWR | O_TRUNC);
     int id = next_name_id;
     if (write(names, (u8*) &id, 4) == -1) {
-        fprintf(stderr, "Failed to save new filename id.\n");
+        int err = errno;
+        close(names);
+        fprintf(stderr, "Failed to save new filename id: %s.\n", strerror(err));
         return -1;
     }
+    close(names);
     fprintf(stderr, "8.3 filenames successfully saved.\n");
     return 0;
 }
@@ -1083,6 +1100,7 @@ int init_root() {
     dirent->ent_size = 1;
     
     fd_t fd = opendir("/");
+    file_table[fd].process = -1;
     if (fd == -1) {
         kprintf("Failed to open root directory.\n");
         return -1;

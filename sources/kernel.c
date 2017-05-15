@@ -158,6 +158,12 @@ int start_process(int parent, char* file, char *args, int chin, int chout) {
         channels_table[chout].nb_users += 1;
     
     p->cwd = opendir(CUR_DIR_NAME);
+    if (p->cwd == -1) {
+        fprintf(stderr, "Process %d: cannot open current working directory.\n", pid);
+    }
+    else {
+        file_table[p->cwd].process = pid;
+    }
     if (strlen(file) >= 255)
         file[255] = 0;
     strCopy(file, p->name);
@@ -202,8 +208,13 @@ void kill_process(pid_t pid) {
     for (int i = 0; i < NUM_CHANNELS_PROC; i++) {
         free_channel(s, i, s->processes[pid].channels);
     }
-    close(s->processes[pid].cwd);
-    // TODO Files property -> close opened files ?
+    
+    // We close all the files the process opened.
+    // This only means we free all the file descriptors the process owns.
+    for (fd_t i = 0; i < MAX_NB_FILE; i++) {
+        if (file_table[i].process == pid)
+            free_fd(i);
+    }
 }
 
 int _exit(state *s) {
@@ -840,6 +851,50 @@ int get_pinfo(pid_t pid, process_info_t *data) {
     return 0;
 }
 
+char *state_to_str(p_state s) {
+    switch (s) {
+        case FREE:
+            return "     Free      ";
+        case BLOCKEDWRITING:
+            return "Blocked Writing";
+        case BLOCKEDREADING:
+            return "Blocked Reading";
+        case WAITING:
+            return "    Waiting    ";
+        case RUNNABLE:
+            return "   Runnable    ";
+        case ZOMBIE:
+            return "    Zombie     ";
+        case SLEEPING:
+            return "   Sleeping    ";
+    }
+    return         "    Unknown    ";
+}
+
+char *pad(int a) {
+    if (a < 10)
+        return "  ";
+    if (a < 100)
+        return " ";
+    if (a < 1000)
+        return "";
+    return "";
+}
+
+void log_process() {
+    pid_t pid = 0;
+    kprintf("Existing processes:\n");
+    kprintf("PID   PARENT       STATE             NAME");
+    while (pid < NUM_PROCESSES) {
+        process *p = &global_state.processes[pid];
+        if (p->state != FREE)
+            kprintf("\n %d%s    %d%s   %s    %s", pid, pad(pid), p->parent_id, pad(p->parent_id), state_to_str(p->state), p->name);
+        pid++;
+    }
+    kprintf("\n");
+
+}
+
 void log_state(state* s) {
     kprintf("Current process is %d (priority %d, %d slices left)\n",
         s->curr_pid, s->curr_priority, s->processes[s->curr_pid].slices_left);
@@ -848,7 +903,9 @@ void log_state(state* s) {
     
     kprintf("Registers are: r0=%d, r1=%d, r2=%d, r3=%d, r4=%d\n",
         regs->eax, regs->ebx, regs->ecx, regs->edx, regs->esi);
-
+    
+    kprintf("\n");
+    log_process();
     kprintf("\nRunqueues:\n");
     for (priority prio = MAX_PRIORITY; prio >= 0; prio--) {
         list* q = s->runqueues[prio];
@@ -872,4 +929,28 @@ void log_state(state* s) {
             kprintf("Channel %d: %d users, %d message\n", i, c.nb_users, c.len);
     }
     kprintf("\n");
+
+    for (int i = 0; i < MAX_NB_FILE; i++) {
+        if (file_table[i].type != F_UNUSED) {
+            kprintf("%s %s (%s-%s)", file_table[i].type == FILE ? "File":"Directory",
+                    file_table[i].name, file_table[i].mode & SYSTEM ? "S":"U",
+                    file_table[i].mode & RDONLY ? "RO":"RW");
+            kprintf(" opened by process %d (maybe %s)", file_table[i].process, s->processes[file_table[i].process].name);
+            if (file_table[i].type == FILE) {
+                kprintf(" with flags : ");
+                oflags_t f = file_table[i].flags;
+                if (f & O_RDONLY)
+                    kprintf("Read ");
+                if (f & O_WRONLY)
+                    kprintf("Write ");
+                if (f & O_CREAT)
+                    kprintf("Create ");
+                if (f & O_APPEND)
+                    kprintf("Append ");
+                if (f & O_TRUNC)
+                    kprintf("Truncate ");
+            }
+            kprintf("\n");
+        }
+    }
 }

@@ -33,7 +33,7 @@ build/main.o
 all:
 	make build/src/; make build/os.iso; make update_img
 
-.PHONY: all clean iso run
+.PHONY: all clean iso run build/src/
 
 build/src/:
 	mkdir -p build/src/
@@ -43,13 +43,13 @@ build/src/:
 	cp sources/*/*.h build/src/
 	cp sources/*/*.s build/src/
 
-build/os.bin: $(OBJS) sources/boot/linker.ld build/src/
+build/os.bin: $(OBJS) sources/boot/linker.ld
 	$(CC) -T sources/boot/linker.ld -o $@ $(CFLAGS) $(OBJS) $(LIBS)
 
-build/%.o: build/src/%.c build build/src/
+build/%.o: build/src/%.c build
 	$(CC) $< -c -o $@  $(CFLAGS) $(CPPFLAGS)
 
-build/%.o: build/src/%.s build build/src/
+build/%.o: build/src/%.s build
 	$(AS) $< -o $@
 
 clean:
@@ -114,7 +114,8 @@ user_programs:build build/isodir
 clean_img: build/disk.img partition load_dev file_syst mount grub_inst umount unload_dev save_img
 
 save_img:
-	rm resources/disk.img
+	mkdir -p resources/
+	rm -f resources/disk.img
 	cp build/disk.img resources/disk.img
 load_img:
 	cp resources/disk.img build/disk.img

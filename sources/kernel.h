@@ -58,8 +58,7 @@ typedef struct channel_state
     int write;
 } channel_state_t;
 
-typedef struct process process;
-struct process {
+typedef struct {
     pid_t parent_id;
     p_state state;
     int slices_left;
@@ -69,7 +68,7 @@ struct process {
     fd_t cwd;
     char name[256];
     void *heap_pointer;
-};
+} process;
 
 typedef struct {
     pid_t pid;

@@ -9,6 +9,7 @@ stream_t *create_stream(char *path, u8 *buffer) {
         // Error while opening file.
         return NULL;
     }
+    file_table[file].process = -1; // To be accessible by every process while kernel mode.
     stream_t *stream = &static_stream;
     kprintf("Warning : only one stream may exist at a time.\n");
     

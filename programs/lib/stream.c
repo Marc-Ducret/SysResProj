@@ -125,10 +125,7 @@ int flush(sid_t sid) {
 
 int close_stream(sid_t sid) {
     // Closes the stream after flushing it a last time.
-    if (flush(sid) == -1) {
-        // Error while flush
-        return -1;
-    }
+    flush(sid);
     stream_t *stream = &(stream_table[sid]);
     if (stream->status == S_FILE) {
         close(stream->file);

@@ -42,5 +42,7 @@ void test_dir();
 int init_root();
 int init_filename_gen();
 int save_filename_gen();
+
+#include "kernel.h"
 #endif /* FS_CALL_H */
 
