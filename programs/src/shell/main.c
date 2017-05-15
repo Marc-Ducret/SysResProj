@@ -64,12 +64,17 @@ void new_cmd() {
 int exec_builtin(char *fun, char *args) {
     
     if(strEqual(fun, "help")) {
-        printf("Available commands:\n");
+        printf("Available BuiltIns:\n");
+        for (int i = 0; i < NB_BUILTIN; i++) {
+            if (builtin_commands[i])
+                printf("%fg%s\n%pfg", GREEN, builtin_commands[i]);
+        }
+        printf("\nAvailable commands:\n");
         for (int i = 0; i < NB_SHELL_CMD; i++) {
             if (shell_commands[i])
                 printf("%fg%s\n%pfg", BLUE, shell_commands[i]);
         }
-        printf("Usage : %fgcmd     args     < in     >/>> out     (&)%pfg\n", BLUE);
+        printf("\nUsage : %fgcmd     args     < in     >/>> out     (&)%pfg\n", BLUE);
     }
     else if(strEqual(fun, "exit")) {
         char *exit_string;

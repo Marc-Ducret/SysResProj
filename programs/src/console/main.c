@@ -19,10 +19,10 @@ u16 scroll_buffer[VGA_WIDTH * SCROLL_HEIGHT];
 void c_put_char(u8 c);
 
 void init() {
-    clear_screen(WHITE);
+    clear_screen(BLACK);
     cursor_x = cursor_y = scroll_off = scroll = max_scroll = 0;
-    fg_color = old_fg_color = GREEN;
-    bg_color = old_bg_color = WHITE;
+    fg_color = old_fg_color = WHITE;
+    bg_color = old_bg_color = BLACK;
     for(int i = 0; i < VGA_WIDTH * SCROLL_HEIGHT; i ++)
         scroll_buffer[i] = (bg_color << 0xC) + (fg_color << 0x8);
 }
