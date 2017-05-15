@@ -30,20 +30,20 @@ build/lib.o \
 build/main.o
 
 
-all: build/os.bin
+all:
+	make build/src/; make build/os.iso; make update_img
 
-.PHONY: all clean iso run-qemu-disk
+.PHONY: all clean iso run
 
 build/src/:
 	mkdir -p build/src/
 	cp sources/*.c build/src/
 	cp sources/*.h build/src/
-	#cp sources/*.s build/src/
 	cp sources/*/*.c build/src/
 	cp sources/*/*.h build/src/
 	cp sources/*/*.s build/src/
 
-build/os.bin: $(OBJS) sources/boot/linker.ld build/src/ 
+build/os.bin: $(OBJS) sources/boot/linker.ld build/src/
 	$(CC) -T sources/boot/linker.ld -o $@ $(CFLAGS) $(OBJS) $(LIBS)
 
 build/%.o: build/src/%.c build build/src/
@@ -54,8 +54,6 @@ build/%.o: build/src/%.s build build/src/
 
 clean:
 	rm -rf build
-	make build/src/
-
 iso: os.iso
 
 build build/isodir build/isodir/boot build/isodir/boot/grub:
@@ -70,14 +68,8 @@ build/isodir/boot/grub/grub.cfg: sources/boot/grub.cfg build/isodir/boot/grub
 build/os.iso: build/isodir/boot/os.bin build/isodir/boot/grub/grub.cfg
 	grub-mkrescue -o $@ build/isodir
 
-iso-run-qemu: build/os.iso
-	qemu-system-i386 -cdrom build/os.iso
-
-run-qemu-disk: build/os.iso update_img
+run:
 	qemu-system-i386 -boot c -drive format=raw,file=build/disk.img -m 512 -s
-
-debugbochs: build/os.iso update_img
-	bochs
 
 
 ####### DISK IMAGE #########
@@ -113,11 +105,11 @@ grub_inst:
 
 cp_iso_to_img:
 	sudo rsync -r build/isodir/ /mnt/test/
-	
+
 user_programs:
 	./programs/full_build
 
-clean_img: clean build/os.iso build/disk.img partition load_dev file_syst mount grub_inst umount unload_dev save_img
+clean_img: build/disk.img partition load_dev file_syst mount grub_inst umount unload_dev save_img
 
 save_img:
 	rm resources/disk.img
@@ -125,4 +117,16 @@ save_img:
 load_img:
 	cp resources/disk.img build/disk.img
 
-update_img: build/os.iso load_img user_programs load_dev mount cp_iso_to_img umount unload_dev
+update_img: build/os.iso load_img user_programs add_sources load_dev mount cp_iso_to_img umount unload_dev
+
+disk: build clean_img
+
+############# Copy sources to disk image ############
+add_sources:
+	mkdir -p build/
+	mkdir -p build/isodir/
+	mkdir -p build/isodir/CacatOS
+	cp -R sources/ build/isodir/CacatOS
+	mkdir -p build/isodir/CacatOS/programs
+	cp -R programs/lib build/isodir/CacatOS/programs/lib
+	cp -R programs/src build/isodir/CacatOS/programs/src

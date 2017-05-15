@@ -3,7 +3,6 @@ build/*
 bochslog.txt
 *.dump
 programs/bin/**
--e
 resources/disk.img
 Rapport/rapport.aux
 Rapport/rapport.log

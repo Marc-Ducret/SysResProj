@@ -65,7 +65,7 @@ int main(char *args) {
     for (;;) {
         x+=2; // TODO Why does +=1 not work ?
         y+=1;
-        sleep(50);
+        sleep(10);
         display(x-25, y-25, 25, 25, 1, 3, BLACK, (u8*) cacatoes);
         if (x == 130)
             break;

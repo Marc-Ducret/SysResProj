@@ -285,11 +285,23 @@ Cela utilise donc les outils préexistants, et demande de monter l'image du disq
 On suppose que le dossier \code{/mnt/test} est libre.
 Il y a donc besoin de permissions pour monter cette image.
 
-La commande \code{make} est supposée créer tout cela, et lancer QEMU sur cette image disque.
+Pour ne pas recréer une image disque à chaque \code{make}, nous la créons une seule fois, et la sauvegardons dans \code{resources/}.
+Ainsi :
+\begin{itemize}
+ \item \code{make disk} recrée l'image disque, la sauvegarde dans \code{resources}.
+ \item \code{make} compile les sources, synchronise les fichiers compilés avec le disque. Pour réussir, \code{resources/disk.img} doit exister au préalable.
+ \item \code{make run} lance QEMU sur \code{build/disk.img}. Cela nécessite donc \code{build/disk.img} au préalable.
+\end{itemize}
+
+Ainsi, à partir de rien : \code{make clean}, \code{make disk}, \code{make}, \code{make run}. Puis pour les fois suivantes, seul \code{make run} suffit.
 En cas de problème de compilation / création du disque, une image vierge du disque avec seulement GRUB d'installé
-est disponible sur notre Git \code{https://github.com/VengeurK/SysResProj} (\code{resources/disk.img}). De même, il y a une image du disque avec déjà tous les fichiers compilés
+est disponible dans \code{resources/disk.img} sur notre Git :
+\begin{center}
+ \code{https://github.com/VengeurK/SysResProj}
+\end{center}
+Cela remplace l'étape \code{make disk} en copiant ce fichier dans \code{resources/}. De même, il y a une image du disque avec déjà tous les fichiers compilés
 synchronisés dessus : \code{resources/disk\_ready.img}.
-Il suffit de copier l'image souhaitée dans \code{resources/}, et ensuite relancer \code{make}.
+Cela remplace les étapes \code{make disk} et \code{make}, en copiant ce fichier (renommé) \code{build/disk.img}.
 
 
 \end{document}          
