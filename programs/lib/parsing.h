@@ -18,6 +18,7 @@ int get_args(char *src, char **table, size_t size);
 int parse(char *data, args_t *args);
 int string_to_int(char *src);
 void too_many_args(char *fun);
-
+int remain_option(args_t *args, char *fun);
+int eat_option(args_t *args, char *option);
 #endif /* PARSING_H */
 

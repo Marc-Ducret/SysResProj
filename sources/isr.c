@@ -8,13 +8,13 @@
 #include "timer.h"
 
 void print_reg(registers_t *x) {
-    kprintf("Registres : eax %x, ebx %x, ecx %x, edx %x, esp %x, \
-                         ebp %x, esi %x, edi %x.\n",
+    fprintf(stderr, "Registers State: eax %x, ebx %x, ecx %x, edx %x, esp %x,\
+ebp %x, esi %x, edi %x.\n",
             x->eax, x->ebx, x->ecx, x->edx, x->esp, x->ebp, x->esi, x->edi);
 }
 
 void print_stack(stack_state_t *x) {
-    kprintf("ss %x, esp %x, eflags %x, cs %x, eip %x\n", 
+    fprintf(stderr, "Stack State: ss %x, esp %x, eflags %x, cs %x, eip %x\n", 
         x->ss, x->useresp, x->eflags, x->cs, x->eip);
 }
 
@@ -27,29 +27,23 @@ void isr_handler(u32 id, context_t *context) {
     //TODO Gérer les interruptions importantes !
     registers_t *regs = &(context->regs);
     stack_state_t *stack = &(context->stack);
+    state *s = get_global_state();
     
-    u8 print = 1;
-    u8 die = 0;
-    
-    if (id == 13) {
-        kprintf("General Protection Fault, must die.");
-        die = 1;
-    } else if (id == 14) {
-        if(page_fault(context)) die = 1;
-        else print = 0;
+    if (id == 14) {
+        page_fault(context);
+        fprintf(stderr, "Process %d was killed because of this Page Fault\n");
     }
-    if(print) {
-        kprintf("Caught interruption %d, error code %x\n", id, context->err_code);
+    else {
+        fprintf(stderr, "Process %d was killed because of :\n%s\n",
+                s->curr_pid, exceptions_msg[id]);
         print_reg(regs);
         print_stack(stack);
     }
-    if(die) {
-        state *s = get_global_state();
-        if(s->curr_pid >= 0) {
-            kill_process(s->curr_pid);
-            reorder(s);
-        } else asm("hlt");
-    }
+    flush(stderr);
+    if(s->curr_pid >= 0) {
+        kill_process(s->curr_pid);
+        reorder(s);
+    } else asm("hlt");
 }
 
 void irq_handler(u32 id, context_t *ctx) {

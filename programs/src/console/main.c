@@ -29,8 +29,8 @@ void init() {
 
 void update_cursor(void) {
     u8 *screen = (u8*) get_screen();
-    *(screen + SCREEN_SIZE) = cursor_x;
-    *(screen + SCREEN_SIZE + 1) = cursor_y;    
+    *(screen + SCREEN_SIZE) = scroll ? -1 : cursor_x;
+    *(screen + SCREEN_SIZE + 1) = scroll ? -1 : cursor_y;    
 }
 
 int index(u8 x, u8 y) {
@@ -279,7 +279,7 @@ int test_ls() {
 }
 
 u8 recv_buff[512];
-u8 shift, alt;
+u8 shift, alt, ctrl;
 int key_buffer[10];
 int index_new = 0;
 
@@ -307,15 +307,11 @@ int main(char *args) {
             if      ((event & 0x7F) == KEY_SHIFT ) shift = !(event & 0x80);
             else if ((event & 0x7F) == KEY_RSHIFT ) shift = !(event & 0x80);
             else if ((event & 0x7F) == KEY_ALT_GR) alt   = !(event & 0x80);
-            //else if (event == KEY_COLON) test_ls();
+            else if ((event & 0x7F) == KEY_CTRL) ctrl = !(event & 0x80);
             else if(event >= 0 && event < 0x80) {
-                /*if(event == KEY_SHIFT) scroll_up();
-                else if(event == KEY_CTRL) scroll_down();
-                else if(event == KEY_ESCAPE) exec("/console.bin", in, out);
-                else if(event == KEY_COLON) test_create();
-                else if(event == KEY_HAT) test_send();
-                else if(event == KEY_RPAR) test_receive();*/
-                if(event == KEY_CTRL) scroll_up(); 
+                if (event == KEY_D && ctrl) stream_putchar(TERMINATION_KEY, out);
+                else if(event == KEY_LEFT) scroll_up();
+                else if (event == KEY_RIGHT) scroll_down();
                 else {
                     char c = getKeyChar(event, shift, alt);
                     if(c) {

@@ -86,6 +86,27 @@ int parse(char *data, args_t *args) {
     return 0;
 }
 
+int eat_option(args_t *args, char *option) {
+    int res = 0;
+    for (int i = 0; i < args->nb_opts; i++) {
+        if (args->opts[i] && strEqual(args->opts[i], option)) {
+            args->opts[i] = NULL;
+            res = 1;
+        }
+    }
+    return res;
+}
+
+int remain_option(args_t *args, char *fun) {
+    for (int i = 0; i < args->nb_opts; i++) {
+        if (args->opts[i]) {
+            fprintf(STDERR, "%s: Unknown option -%s\n", fun, args->opts[i]);
+            exit(EXIT_FAILURE);
+        }
+    }
+    return 0;
+}
+
 int string_to_int(char *src) {
     // Tries to parse an int.
     // Suprisingly returns -1 if not an integer.

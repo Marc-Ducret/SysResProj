@@ -381,7 +381,7 @@ fd_t opendir(char *path) {
 
 int readdir(fd_t fd, dirent_t *dirent) {
     int res;
-    
+
     asm volatile("\
         movl $25, %%eax \n \
         movl %2, %%ebx \n \

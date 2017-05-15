@@ -113,7 +113,7 @@ typedef struct {
 
 fs_t fs;
 
-#define MAX_FILE_NAME 64
+#define MAX_FILE_NAME 256
 #define MAX_NB_FILE 256
 #define MAX_PATH_NAME 1024
 #define O_CRDONLY 1
@@ -128,13 +128,8 @@ fs_t fs;
 
 typedef u8 oflags_t;
 
-typedef struct {
-    int system : 1;
-    int rdonly : 1;
-} __attribute__ ((packed)) mode_t;
-
 #define RDONLY 1
-#define SYSTEM 1
+#define SYSTEM 2
 
 typedef enum {
     F_UNUSED, FILE, DIR
