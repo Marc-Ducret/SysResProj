@@ -3,10 +3,11 @@
 
 #define CMD_SIZE 0x200
 #define HISTORY_LENGTH 512
-#define NB_SHELL_CMD 27
+#define NB_SHELL_CMD 28
 
 char *shell_commands[NB_SHELL_CMD] =  {
     "ls",
+    "tree",
     "mkdir",
     "rmdir",
     "cp",
