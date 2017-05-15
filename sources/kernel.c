@@ -510,6 +510,7 @@ int _gettimeofday(state *s) {
     if (check_address(t, 1, 1, s->processes[s->curr_pid].page_directory) == 0) {
         update_time();
         *t = current_time;
+        res = 0;
     }
     s->ctx->regs.eax = res;
     s->ctx->regs.ebx = errno;
@@ -661,12 +662,13 @@ void picotransition(state *s, event ev) {
     }
     
     if (reorder_req) {
-        if(global_state.curr_pid == global_state.focus) {
-            if(*((u16*) USER_SCREEN_VIRTUAL)) {
-            memcpy((void*) 0xB8000, (void*) USER_SCREEN_VIRTUAL, SCREEN_SIZE);
-            u8 x = *((u8*)USER_SCREEN_VIRTUAL + SCREEN_SIZE);
-            u8 y = *((u8*)USER_SCREEN_VIRTUAL + SCREEN_SIZE + 1);
-            update_cursor(x, y);
+        if(s->curr_pid == s->focus) {
+            if(*((u16*) USER_SCREEN_VIRTUAL) && s->processes[s->curr_pid].state != ZOMBIE
+                && s->processes[s->curr_pid].state != FREE) {
+                memcpy((void*) 0xB8000, (void*) USER_SCREEN_VIRTUAL, SCREEN_SIZE);
+                u8 x = *((u8*)USER_SCREEN_VIRTUAL + SCREEN_SIZE);
+                u8 y = *((u8*)USER_SCREEN_VIRTUAL + SCREEN_SIZE + 1);
+                update_cursor(x, y);
             } else
                 focus_next_process();
         }
@@ -678,7 +680,9 @@ void picotransition(state *s, event ev) {
 void focus_next_process() {
     do
         global_state.focus = (global_state.focus + 1) % NUM_PROCESSES;
-    while(global_state.processes[global_state.focus].state == FREE);
+    while(global_state.processes[global_state.focus].state == FREE
+            || global_state.processes[global_state.focus].state == ZOMBIE
+            || global_state.processes[global_state.focus].state == WAITING);
     if(global_state.processes[global_state.focus].state != RUNNABLE) {
         //kprintf("You are looking at a blocked processus. Thus, it isn't able to display its screen, because it isn't updated !\n");
         //log_state(&global_state); TODO do elsewhere
@@ -689,7 +693,11 @@ void focus_next_process() {
 void picosyscall(context_t *ctx) {
     // Calls the picotransition with current registers pointing regs.
     global_state.ctx = ctx;
+    no_process = 1;
+    asm("sti");
     picotransition(&global_state, SYSCALL);
+    asm("cli");
+    no_process = 0;
 }
 
 u32 did_init = 0;
@@ -723,13 +731,13 @@ void picotimer(context_t *ctx) {
         return;
     
     // Calls the picotransition with current registers pointing regs.
-    global_state.ctx = ctx;
+    s->ctx = ctx;
     if(!did_init) {
         did_init = 1;
         picoinit();
         return;
     }
-    if(global_state.curr_pid == global_state.focus) {
+    if(s->curr_pid == s->focus) {
         if(*((u16*) USER_SCREEN_VIRTUAL)) {
             memcpy((void*) 0xB8000, (void*) USER_SCREEN_VIRTUAL, SCREEN_SIZE);
             u8 x = *((u8*)USER_SCREEN_VIRTUAL + SCREEN_SIZE);
@@ -737,9 +745,9 @@ void picotimer(context_t *ctx) {
             update_cursor(x, y);
         } else
             focus_next_process();
-    } else if(global_state.processes[global_state.focus].state == FREE 
-            || global_state.processes[global_state.focus].state == ZOMBIE) focus_next_process();
-    picotransition(&global_state, TIMER);
+    } else if(s->focus == -1 || s->processes[s->focus].state == FREE 
+            || s->processes[s->focus].state == ZOMBIE) focus_next_process();
+    picotransition(s, TIMER);
 }
 
 void load_context(context_t ctx) {

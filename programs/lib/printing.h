@@ -30,5 +30,6 @@ void printf(const char* data, ...);
 void fprintf(sid_t sid, const char* data, ...);
 void fprintf_esc_seq(u8 esc_value, sid_t sid);
 void esc_seq(u8 esc_value);
+void print_time(rtc_time_t *t);
 #endif
 

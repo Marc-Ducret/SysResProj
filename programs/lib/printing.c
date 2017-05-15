@@ -141,3 +141,8 @@ void fprintf(sid_t sid, const char *data, ...) {
     vkprintf(sid, data, args);
     va_end(args);
 }
+
+void print_time(rtc_time_t *t) {
+    printf("%d:%d:%d, %d/%d/%d", t->hours, t->minutes, t->seconds,
+            t->day, t->month, (t->year % 100) + 2000);
+}

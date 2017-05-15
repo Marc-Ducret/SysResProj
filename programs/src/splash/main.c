@@ -63,6 +63,11 @@ u8 tick() {
 int main(char *args) {
     memset(opacity, 0, SIZE*SIZE);
     u8 run = 1;
+    int res = -1;
+    errno = ENOFOCUS;
+    while (res == -1 && errno == ENOFOCUS) {
+        res = get_key_event();
+    }
     while(run) {
         run = tick();
         draw();

@@ -21,7 +21,8 @@ char *shell_commands[NB_SHELL_CMD] =  {
     "color",
     "clear",
     "cacatoes",
-    "fwrite"
+    "fwrite",
+    "time"
 };
 
 #define SHELL_CMD_PATH "/"

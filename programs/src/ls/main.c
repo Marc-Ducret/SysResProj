@@ -42,6 +42,8 @@ int main(char *a) {
             fprintf(STDERR, "ls: Cannot open directory %s: %s\n", file, strerror(errno));
             continue;
         }
+        if (args.nb_args > 1)
+            printf("%fg%s%pfg:\n", RED, file);
         int res = readdir(fd, &dirent);
         while (res == 0) {
             if (dirent.type == FILE) {

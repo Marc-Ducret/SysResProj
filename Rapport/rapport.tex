@@ -145,12 +145,9 @@ Nous ne passons pas réellement en user mode, car nous n'avons pas eu le temps d
 changement de segments et de droits. Toutefois, lors des appels systèmes, les pointeurs passés en arguments sont vérifiés,
 et rejetés s'ils pointent vers des zones de privilège 0 (kernel).
 
-Durant tous les passages en mode kernel, les interruptions sont désactivées. Cela a l'avantage d'être sûr de ne pas être
-interrompu par un autre événement timer durant un appel système, mais cela signifie que les ticks du timer qui ont lieu pendant
-un appel système sont oubliés. En pratique, un processus qui fait un appel système en boucle passe donc la très grande
-partie de son temps en mode kernel, ce qui empêche le timer d'arriver. Nous avons donc rajouté une pénalité des appels
-systèmes sur le compteur des processus pour éviter une telle famine. En revanche, il faudrait, avec plus de temps,
-rétablir les interruptions en mode kernel, afin de pouvoir réveiller des programmes endormis dans ce cas là.
+Durant tous les passages en mode kernel, les interruptions sont désactivées, sauf lors des appels systèmes.
+On met alors une variable globale \code{no\_process}, qui indique que nous sommes déjà en mode kernel, pour que les interruptions timer ne 
+s'empilent pas, mais mettent juste à jour le temps et les processus endormis.
 
 \section{Gestion des Processus}
 \subsection{Fonctionnement global (\code{kernel.c})}
@@ -252,11 +249,15 @@ Une console se suicide lorsqu'elle se retrouve seule sur un ses \code{channels} 
 \subsection{Shell}
 Nous avons codé un shell minimal, avec les fonctions de base, à ce jour les suivantes : \code{ls},
 \code{mkdir}, \code{rmdir}, \code{cp}, \code{rm}, \code{mv}, \code{ps}, \code{pwd}, \code{cat},
-\code{touch}, \code{kill}, \code{color}, \code{clear}, \code{fwrite} et enfin \code{splash} et \code{cacatoes}.
+\code{touch}, \code{kill}, \code{color}, \code{clear}, \code{fwrite}, 
+\code{time}, et enfin \code{splash} et \code{cacatoes}.
 
 Nous avons implémenté un simple historique des commandes, et la possibilité d'utiliser des pipe : ``\code{|}'',
 des redirections ``\code{>}'', ``\code{>>}'' et ``\code{<}'', ainsi que l'exécution en arrière 
 plan ``\code{\&}''.
+
+Les flèches verticales permettent de naviguer dans l'historique, et celles horizontales permettent
+de faire défiler le texte, vers le heut ou le bas.
 
 \section{Limitations, Difficultés et Améliorations}
 \begin{itemize}
@@ -266,7 +267,6 @@ plan ``\code{\&}''.
  \item Chargement des programmes : nous compilons vers des simples binaires, et nous allouons une 
  taille constante pour le code et le segment de données. Une amélioration simple serait
  d'utiliser, comme les autres groupes des fichiers \code{.elf}, que l'on parserait
- \item Rétablir les interruptions pendant le mode kernel, pour ne pas ratet des ticks du timer
  \item Utiliser plus d'allocation dynamique pour s'affranchir des allocations statiques bornées, par exemple pour les channels. Le fichier
  \code{kernel.c} a été écrit au début, sans malloc, et n'utilise donc que des fonctions d'allocation dédiées dans des tableaux statiques
  \item Si un processus est en état \code{ZOMBIE} et que son père meurt, si \code{scavanger} est 
