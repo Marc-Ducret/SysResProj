@@ -5,3 +5,6 @@ bochslog.txt
 programs/bin/**
 -e
 resources/disk.img
+rapport/rapport.aux
+rapport/rapport.log
+rapport/rapport.tex.backup

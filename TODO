@@ -18,8 +18,7 @@ Shell:
 	- Multiple arguments ?
 	- Options ?
 	- Cacatoes (+print dans un fichier, le stocker, et ne faire que le charger)
-	- Cursor not disappearing when scroll
-	- Scroll
+
 
 Global:
 	- No global variable uninitialised !
