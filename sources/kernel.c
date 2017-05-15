@@ -820,8 +820,8 @@ state *picoinit() {
     for (i = 0; i <= MAX_PRIORITY; i++) {
         s->runqueues[i] = NULL;
     }
-    start_process(0, "/scavanger.bin", "", -1, -1);
-    start_process(0, "/splash.bin", "", -1, -1);
+    start_process(0, "/bin/scavanger.bin", "", -1, -1);
+    start_process(0, "/bin/splash.bin", "", -1, -1);
     reorder(s);
     kprintf("Init kernel\n");
     return s;

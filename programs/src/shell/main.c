@@ -22,12 +22,13 @@ char *shell_commands[NB_SHELL_CMD] =  {
     "clear",
     "cacatoes",
     "fwrite",
-    "time"
+    "time",
+    "shell"
 };
 
-#define SHELL_CMD_PATH "/"
+#define SHELL_CMD_PATH "/bin/"
 #define SHELL_CMD_EXT ".bin"
-#define SHELL_PATH "/shell.bin"
+#define SHELL_PATH "/bin/shell.bin"
 
 u8 recv_buff[512];
 

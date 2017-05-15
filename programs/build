@@ -19,4 +19,4 @@ cd bin/$1/
 gcc $flagc $flagl *.o -o $1.bin
 gcc $flagc $flagelf *.o -o $1.elf
 cd ../../
-cp bin/$1/$1.bin ../build/isodir/$1.bin
+cp bin/$1/$1.bin ../build/isodir/bin/$1.bin

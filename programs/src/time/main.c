@@ -35,7 +35,7 @@ int main(char *a) {
         fprintf(STDERR, "time: Couldn't get current time: %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
-    pid_t pid = exec("/shell.bin", a, STDIN, STDOUT);
+    pid_t pid = exec("/bin/shell.bin", a, STDIN, STDOUT);
     if (pid == -1) {
         fprintf(STDERR, "time: Couldn't exec a shell: %s\n", strerror(errno));
         exit(EXIT_FAILURE);

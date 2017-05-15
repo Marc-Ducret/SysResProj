@@ -73,6 +73,6 @@ int main(char *args) {
         draw();
         sleep(30);
     }
-    exec("./console.bin", "./shell.bin", -1, -1);
+    exec("/bin/console.bin", "/bin/shell.bin", -1, -1);
     exit(0);
 }
