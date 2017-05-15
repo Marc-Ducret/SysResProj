@@ -54,6 +54,7 @@ build/%.o: build/src/%.s build
 
 clean:
 	rm -rf build
+	rm -rf programs/bin
 iso: os.iso
 
 build build/isodir build/isodir/boot build/isodir/boot/grub:
