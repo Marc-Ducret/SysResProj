@@ -100,7 +100,7 @@ Nous n'avons pas eu le temps d'implémenter une table de fichiers propre à chaq
 channels, décrits ci-après), ainsi, un processus peut ouvrir plusieurs fois le même fichier, et accéder, s'il connaît le numéro 
 du file descriptor, à n'importe quel autre fichier ouvert. Il suffirait de mémoriser les fichiers ouverts par chaque processus,
 ce qui permettrait de plus de les fermer si un processus oublie de le faire avant de mourir. Puisque cela
-n'est actuellement pas réaliser, si un processus oublie de fermer un fichier ouvert, celui-ci n'est jamais fermé.
+n'est actuellement pas réalisé, si un processus oublie de fermer un fichier ouvert, celui-ci n'est jamais fermé.
 Cela peut donc conduire à l'atteinte du nombre maximal de fichiers supporté par notre OS (fixé arbitrairement à 256).
 
 Dans le système de fichiers FAT32, il existe pour chaque fichier un nom court et éventuellement un nom ong. Pour simplifier, le nom court est généré à l'aide
@@ -227,7 +227,7 @@ Contrairement à la table de fichiers, le noyau stocke pour chaque processus la 
 ce qui permet de savoir quand un processus est seul sur un \chan, et d'éviter que les uns accèdent aux données des 
 autres.
 
-Nous ne sommes pas attardés sur la sortie d'erreur, même si le code des programmes écrits utilise cette
+Nous ne sommes pas attardés sur la sortie d'erreur, même si le code des programmes écrits utilisent cette
 sortie. Ainsi, nous avons fixé pour l'instant \code{STDERR} = \code{STDOUT}. Une amélioration possible et peu coûteuse
 serait de distinguer potentiellement ces sorties, en rajoutant un paramètre à \code{exec}.
 
