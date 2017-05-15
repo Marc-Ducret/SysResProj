@@ -71,6 +71,7 @@ build/os.iso: build/isodir/boot/os.bin build/isodir/boot/grub/grub.cfg
 run:
 	qemu-system-i386 -boot c -drive format=raw,file=build/disk.img -m 512 -s
 
+quick-run: load_dev mount cp_iso_to_img umount unload_dev run
 
 ####### DISK IMAGE #########
 

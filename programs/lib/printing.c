@@ -143,6 +143,20 @@ void fprintf(sid_t sid, const char *data, ...) {
 }
 
 void print_time(rtc_time_t *t) {
-    printf("%d:%d:%d, %d/%d/%d", t->hours, t->minutes, t->seconds,
-            t->day, t->month, (t->year % 100) + 2000);
+    if (t->hours < 10)
+        printf("0");
+    printf("%d:", t->hours);
+    if (t->minutes < 10)
+        printf("0");
+    printf("%d:", t->minutes);
+    if (t->seconds < 10)
+        printf("0");
+    printf("%d, ", t->seconds);
+    if (t->day < 10)
+        printf("0");
+    printf("%d/", t->day);
+    if (t->month < 10)
+        printf("0");
+    printf("%d/", t->month);
+    printf("%d", (t->year % 100) + 2000);
 }

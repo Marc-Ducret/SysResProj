@@ -13,16 +13,16 @@ u8 old_fg_color;
 int scroll_off;
 int scroll;
 int max_scroll;
-
+int clock_mode = 1;
 u16 scroll_buffer[VGA_WIDTH * SCROLL_HEIGHT];
 
 void c_put_char(u8 c);
 
 void init() {
-    clear_screen(WHITE);
+    clear_screen(BLACK);
     cursor_x = cursor_y = scroll_off = scroll = max_scroll = 0;
-    fg_color = old_fg_color = GREEN;
-    bg_color = old_bg_color = WHITE;
+    fg_color = old_fg_color = WHITE;
+    bg_color = old_bg_color = BLACK;
     for(int i = 0; i < VGA_WIDTH * SCROLL_HEIGHT; i ++)
         scroll_buffer[i] = (bg_color << 0xC) + (fg_color << 0x8);
 }
@@ -105,6 +105,34 @@ void erase() {
     for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++) {
         screen[i] = (bg_color << 0xC) + (fg_color << 0x8) + ' ';
     }
+}
+
+void update_clock() {
+    rtc_time_t t;
+    if (gettimeofday(&t))
+        return;
+    int x = 60;
+    set_char('0' + t.hours / 10, x++, 0);
+    set_char('0' + t.hours % 10, x++, 0);
+    set_char(':', x++, 0);
+    set_char('0' + t.minutes / 10, x++, 0);
+    set_char('0' + t.minutes % 10, x++, 0);
+    set_char(':', x++, 0);
+    set_char('0' + t.seconds / 10, x++, 0);
+    set_char('0' + t.seconds % 10, x++, 0);
+    set_char(',', x++, 0);
+    set_char(' ', x++, 0);
+    set_char('0' + t.day / 10, x++, 0);
+    set_char('0' + t.day % 10, x++, 0);
+    set_char('/', x++, 0);
+    set_char('0' + t.month / 10, x++, 0);
+    set_char('0' + t.month % 10, x++, 0);
+    set_char('/', x++, 0);
+    set_char('2', x++, 0);
+    set_char('0', x++, 0);
+    t.year = (t.year % 100);
+    set_char('0' + t.year / 10, x++, 0);
+    set_char('0' + t.year % 10, x++, 0);
 }
 
 int c_parse_char(u8 c) {
@@ -206,76 +234,11 @@ int c_parse_char(u8 c) {
     else if (c == 166) {
         erase();
     }
+    else if (c == 167) {
+        clock_mode = !clock_mode;
+    }
     update_cursor();
     return 1;
-}
-
-void test_create() {
-    int chanid = new_channel();
-    print_string("New channel : ");
-    c_put_char('0' + chanid);
-    c_put_char('\n');
-}
-
-void test_send(void) {
-    rtc_time_t time;
-    rtc_time_t *t = &time;
-    gettimeofday(t);
-    fprintf(0, "%d:%d:%d, %d/%d/%d", t->hours, t->minutes, t->seconds,
-            t->day, t->month, (t->year % 100) + 2000);
-    int res = flush(0);
-    print_string("Oui, reussi a envoyer : ");
-    if (res >= 100) {
-        c_put_char('0' + res / 100);
-        res = res % 100;
-    }
-    if (res >= 10) {
-        c_put_char('0' + res / 10);
-        res = res % 10;
-    }
-    if (res >= 0) {
-        c_put_char('0' + res);
-    }
-    print_string(" !\n");
-}
-
-void test_receive(void) {
-    pid_t pid = wait_channel(0, 0);
-    print_string("Pid : ");
-    c_put_char('0' + pid);
-    print_string("\n");
-    if (pid < 0)
-        return;
-    char buffer[154];
-    memset(buffer, 0, 154);
-    int res = receive(0, (u8*)buffer, 154);
-    print_string(strerror(errno));
-    if (res < 0) {
-        print_string("Rate, pas de recu !\n");
-        return;
-    }
-    print_string("voila le message :");
-    print_string(buffer);
-}
-
-int test_ls() {
-    dirent_t dirent;
-    fd_t fd = opendir(".");
-    printf("HI");
-    if (fd < 0) {
-        printf("Error in ls : %s\n", strerror(errno));
-        return 1;
-    }
-    int res = readdir(fd, &dirent);
-    while (res == 0) {
-        printf("%s  ", dirent.name);
-        res = readdir(fd, &dirent);
-    }
-    if (errno != ENOENT) {
-        printf("Error in ls : %s\n", strerror(errno));
-    }
-    closedir(fd);
-    return 0;
 }
 
 u8 recv_buff[512];
@@ -338,6 +301,8 @@ int main(char *args) {
                 break;
             sleep(1);
         }
+        if (clock_mode)
+            update_clock();
     }
     // Exits.
     print_string("CONSOLE EXITED.");

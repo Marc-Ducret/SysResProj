@@ -24,6 +24,7 @@ int main(char *a) {
             exit(EXIT_FAILURE);
         }
         print_time(&time);
+        printf("\n");
         exit(EXIT_SUCCESS);
     }
     

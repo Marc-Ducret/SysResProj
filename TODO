@@ -3,21 +3,17 @@ File system :
 	- Directories Improvement : open them as streams ?
 	- Add some malloc and free instead of 'buffer', but this will make unsafe a lot of currently safe functions !
 
-Screen : 
-	- Only certains process ?
+Screen :
 	- Refresh when sleeping ? (not good)
 
 User :
 	- User rights ?
 
 Shell:
-	- Colors for directories in ls + alignement
 	- tree
-	- Code cat properly to not display error message ? (special end character ?)
 	- Code commands to accept input from stdin ! (not all)
 	- Multiple arguments ?
 	- Options ?
-	- Cacatoes (+print dans un fichier, le stocker, et ne faire que le charger)
 
 
 Global:
