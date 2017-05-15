@@ -25,6 +25,7 @@
 #define ESC_SCROLL_UP 164
 #define ESC_SCROLL_DOWN 165
 #define ESC_ERASE 166
+#define ESC_CLOCK 167
 
 void printf(const char* data, ...);
 void fprintf(sid_t sid, const char* data, ...);

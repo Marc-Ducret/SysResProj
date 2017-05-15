@@ -34,7 +34,8 @@ char *builtin_commands[NB_BUILTIN] = {
     "exit",
     "help",
     "pwd",
-    "clear"
+    "clear",
+    "clock"
 };
 
 #define SHELL_CMD_PATH "/bin/"
@@ -130,6 +131,9 @@ int exec_builtin(char *fun, char *args) {
         if (!*args)
             args = default_user;
         strCopy(args, user_name);
+    }
+    else if (strEqual(fun, "clock")) {
+        esc_seq(ESC_CLOCK);
     }
     else {
         // Not a known builtin.
