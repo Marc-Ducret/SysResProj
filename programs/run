@@ -3,4 +3,4 @@ do
     ./build $p
 done
 cd ..
-make run-qemu-disk
+make quick-run
