@@ -677,6 +677,8 @@ void picotransition(state *s, event ev) {
             if(*((u16*) USER_SCREEN_VIRTUAL) && s->processes[s->curr_pid].state != ZOMBIE
                 && s->processes[s->curr_pid].state != FREE) {
                 memcpy((void*) 0xB8000, (void*) USER_SCREEN_VIRTUAL, SCREEN_SIZE);
+                if (*((u8*)USER_SCREEN_VIRTUAL + SCREEN_SIZE + 2))
+                    memcpy((void*) 0xB8000 + 60*2, (void*) USER_SCREEN_VIRTUAL + SCREEN_SIZE + 3, 40);
                 u8 x = *((u8*)USER_SCREEN_VIRTUAL + SCREEN_SIZE);
                 u8 y = *((u8*)USER_SCREEN_VIRTUAL + SCREEN_SIZE + 1);
                 update_cursor(x, y);

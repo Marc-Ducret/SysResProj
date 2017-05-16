@@ -24,10 +24,18 @@
 #define VGA_HEIGHT 25
 
 #define NULL (void *) 0
+#define SCREEN 0x88000000
+#define SCREEN_SIZE (VGA_WIDTH * VGA_HEIGHT * 2)
+#define CURSOR_X (SCREEN + SCREEN_SIZE)
+#define CURSOR_Y (SCREEN + SCREEN_SIZE + 1)
+#define CLOCK (SCREEN + SCREEN_SIZE + 2)
 
 u16 *get_screen();
 void set_char_at(u8 c, u8 fg, u8 bg, u8 x, u8 y);
 void clear_screen(u8 color);
+void switch_clock();
+void update_clock(u8 fg, u8 bg);
+void set_cursor(u8 x, u8 y);
 u32 rand();
 void *memcpy(void *dst, void *src, u32 n);
 void memset(void *dst, u8 src, u32 len);

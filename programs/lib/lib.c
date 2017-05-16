@@ -15,6 +15,68 @@ void clear_screen(u8 color) {
             set_char_at(' ', color, color, x , y);
 }
 
+void switch_clock() {
+    u8 *clock = (u8*)CLOCK;
+    *clock = !*clock;
+}
+
+void update_clock(u8 fg, u8 bg) {
+    u8 *clock = (u8*)CLOCK;
+    rtc_time_t t;
+    if (gettimeofday(&t))
+        return;
+    
+    for (u8 i = 0; i < 20; i++) {
+        clock[2*i+2] = (bg << 4) + fg;
+    }
+    int x = 1;
+    clock[x++] = '0' + t.hours / 10;
+    x++;
+    clock[x++] = '0' + t.hours % 10;
+    x++;
+    clock[x++] = ':';
+    x++;
+    clock[x++] = '0' + t.minutes / 10;
+    x++;
+    clock[x++] = '0' + t.minutes % 10;
+    x++;
+    clock[x++] = ':';
+    x++;
+    clock[x++] = '0' + t.seconds / 10;
+    x++;
+    clock[x++] = '0' + t.seconds % 10;
+    x++;
+    clock[x++] = ',';
+    x++;
+    clock[x++] = ' ';
+    x++;
+    clock[x++] = '0' + t.day / 10;
+    x++;
+    clock[x++] = '0' + t.day % 10;
+    x++;
+    clock[x++] = '/';
+    x++;
+    clock[x++] = '0' + t.month / 10;
+    x++;
+    clock[x++] = '0' + t.month % 10;
+    x++;
+    clock[x++] = '/';
+    x++;
+    clock[x++] = '2';
+    x++;
+    clock[x++] = '0';
+    t.year = (t.year % 100);
+    x++;
+    clock[x++] = '0' + t.year / 10;
+    x++;
+    clock[x++] = '0' + t.year % 10;
+}
+
+void set_cursor(u8 x, u8 y) {
+    *((u8*)CURSOR_X) = x;
+    *((u8*)CURSOR_Y) = y;  
+}
+
 u32 last_rand;
 
 u32 rand() {

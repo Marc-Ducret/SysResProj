@@ -2,7 +2,6 @@
 #include "parsing.h"
 
 #define SCROLL_HEIGHT 0x200
-#define SCREEN_SIZE (VGA_WIDTH * VGA_HEIGHT * 2)
 
 u8 cursor_x;
 u8 cursor_y;
@@ -28,9 +27,7 @@ void init() {
 }
 
 void update_cursor(void) {
-    u8 *screen = (u8*) get_screen();
-    *(screen + SCREEN_SIZE) = scroll ? -1 : cursor_x;
-    *(screen + SCREEN_SIZE + 1) = scroll ? -1 : cursor_y;    
+    set_cursor(scroll ? -1 : cursor_x, scroll ? -1 : cursor_y);    
 }
 
 int index(u8 x, u8 y) {
@@ -105,34 +102,6 @@ void erase() {
     for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++) {
         screen[i] = (bg_color << 0xC) + (fg_color << 0x8) + ' ';
     }
-}
-
-void update_clock() {
-    rtc_time_t t;
-    if (gettimeofday(&t))
-        return;
-    int x = 60;
-    set_char('0' + t.hours / 10, x++, 0);
-    set_char('0' + t.hours % 10, x++, 0);
-    set_char(':', x++, 0);
-    set_char('0' + t.minutes / 10, x++, 0);
-    set_char('0' + t.minutes % 10, x++, 0);
-    set_char(':', x++, 0);
-    set_char('0' + t.seconds / 10, x++, 0);
-    set_char('0' + t.seconds % 10, x++, 0);
-    set_char(',', x++, 0);
-    set_char(' ', x++, 0);
-    set_char('0' + t.day / 10, x++, 0);
-    set_char('0' + t.day % 10, x++, 0);
-    set_char('/', x++, 0);
-    set_char('0' + t.month / 10, x++, 0);
-    set_char('0' + t.month % 10, x++, 0);
-    set_char('/', x++, 0);
-    set_char('2', x++, 0);
-    set_char('0', x++, 0);
-    t.year = (t.year % 100);
-    set_char('0' + t.year / 10, x++, 0);
-    set_char('0' + t.year % 10, x++, 0);
 }
 
 int c_parse_char(u8 c) {
@@ -235,7 +204,7 @@ int c_parse_char(u8 c) {
         erase();
     }
     else if (c == 167) {
-        clock_mode = !clock_mode;
+        switch_clock();
     }
     update_cursor();
     return 1;
@@ -258,6 +227,7 @@ int main(char *args) {
     c_put_char('\n');
     pid_t pid = exec(file, args, out, in);
     int run = (pid != -1);
+    switch_clock();
     while (run) {
         sleep(50);
         key_buffer[index_new] = get_key_event();
@@ -302,7 +272,7 @@ int main(char *args) {
             sleep(1);
         }
         if (clock_mode)
-            update_clock();
+            update_clock(fg_color, bg_color);
     }
     // Exits.
     print_string("CONSOLE EXITED.");

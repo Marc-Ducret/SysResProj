@@ -4,7 +4,7 @@
 #define CMD_SIZE 0x200
 #define HISTORY_LENGTH 512
 
-#define NB_SHELL_CMD 22
+#define NB_SHELL_CMD 23
 #define NB_BUILTIN 7
 
 char *shell_commands[NB_SHELL_CMD] =  {
@@ -17,7 +17,6 @@ char *shell_commands[NB_SHELL_CMD] =  {
     "mv",
     "ps",
     "sl",
-    "pwd",
     "cat",
     "touch",
     "kill",
@@ -29,7 +28,9 @@ char *shell_commands[NB_SHELL_CMD] =  {
     "shell",
     "console",
     "sl",
-    "splash"
+    "splash",
+    "more",
+    "reboot"
 };
 
 char *builtin_commands[NB_BUILTIN] = {
@@ -405,6 +406,9 @@ void clear_cmd() {
     new_cmd();
 }
 
+void complete(char *path);
+void complete_cmd(char *start);
+
 void key_typed(u8 c) {
     if(c == '\n' || pos == CMD_SIZE-1) {
         stream_putchar(c, STDOUT);
@@ -458,10 +462,249 @@ void key_typed(u8 c) {
     }else if (c == CHAR_LEFT || c == CHAR_RIGHT) {
         // Nothing to do yet.
     }
+    else if (c == '\t') {
+        if (pos == 0)
+            return;
+        
+        int last_pos = pos - 1;
+        int is_path = 0;
+        while (last_pos > 0 && cmd[last_pos] != ' ') {
+            if (cmd[last_pos] == '/' || cmd[last_pos] == '.')
+                is_path = 1;
+            last_pos--;
+        }
+        if (cmd[last_pos] == '/' || cmd[last_pos] == '.')
+            is_path = 1;
+        
+        if (cmd[last_pos] == ' ')
+            last_pos++;
+        char path[MAX_FILE_NAME];
+        strCopy(&cmd[last_pos], path);
+        if (!is_path && last_pos == 0)
+            complete_cmd(path);
+        else
+            complete(path);
+    }
     else {
         cmd[pos++] = c;
         stream_putchar(c, STDOUT);
     }
+}
+
+char *cut_filename(char *path, char **dirname) {
+    char *start = path;
+    while (*path)
+        path++;
+    while (*path != '/' && path > start)
+        path--;
+    if (*path == '/') {
+        *path = 0;
+        if (!*start)
+            *dirname = "/";
+        else
+            *dirname = start;
+        return (path + 1);
+    }
+    *dirname = ".";
+    return start;
+}
+
+int is_prefix(char *a, char *b) {
+    // tests if a is a prefix of b.
+    while (*a) {
+        if (*a++ != *b++)
+            return 0;
+    }
+    return 1;
+}
+
+void complete_cmd(char *start) {
+    char best_prefix[50];
+    char *solutions[100];
+    int nb_solutions = 0;
+    
+    for (int i = 0; i < NB_SHELL_CMD; i++) {
+        int res = is_prefix(start, shell_commands[i]);
+        //printf("test <%s> : %d\n", dirent.name, res);
+        if (res) {
+            if (!nb_solutions) {
+                strCopy(shell_commands[i], best_prefix);
+            }
+            else {
+                char *new = shell_commands[i];
+                char *old = best_prefix;
+                while (*new && *old && (*new == *old)) {
+                    new++;
+                    old++;
+                }
+                *old = 0;
+                //printf("new best prefix : %s\n", best_prefix);
+            }
+            if (nb_solutions < 100) {
+                int len = strlen(shell_commands[i]);
+                char *sol = malloc(len+1);
+                strCopy(shell_commands[i], sol);
+                solutions[nb_solutions] = sol;
+                nb_solutions++;
+            }
+        }
+    }
+    for (int i = 0; i < NB_BUILTIN; i++) {
+        int res = is_prefix(start, builtin_commands[i]);
+        //printf("test <%s> : %d\n", dirent.name, res);
+        if (res) {
+            if (!nb_solutions) {
+                strCopy(builtin_commands[i], best_prefix);
+            }
+            else {
+                char *new = builtin_commands[i];
+                char *old = best_prefix;
+                while (*new && *old && (*new == *old)) {
+                    new++;
+                    old++;
+                }
+                *old = 0;
+                //printf("new best prefix : %s\n", best_prefix);
+            }
+            if (nb_solutions < 100) {
+                int len = strlen(builtin_commands[i]);
+                char *sol = malloc(len+1);
+                strCopy(builtin_commands[i], sol);
+                solutions[nb_solutions] = sol;
+                nb_solutions++;
+            }
+        }
+    }    
+    char *res = best_prefix;
+    if (!nb_solutions)
+        return;
+    while (*start) {
+        start++;
+        res++;
+    }
+    if (nb_solutions > 1 && !*res) {
+        // We want to display the options
+        stream_putchar('\n', STDOUT);
+        char *sol;
+        for (int i =0; i < nb_solutions; i++) {
+            sol = solutions[i];
+            printf("%s   ", sol);
+            free(sol);
+        }
+        printf("\n");
+        if (nb_solutions == 100)
+            printf("There may be more possibilities.\n");
+        new_cmd();
+        printf("%s", cmd);
+        flush(STDOUT);
+        return;
+    }
+    char c;
+    while (*res) {
+        c = *res++;
+        cmd[pos++] = c;
+        stream_putchar(c, STDOUT);
+    }
+    if (nb_solutions == 1) {
+        cmd[pos++] = ' ';
+        stream_putchar(' ', STDOUT);
+    }
+    return;
+}
+
+void complete(char *path) {
+    char *dirname;
+    char *start_name = cut_filename(path, &dirname);
+    //printf("Completion search for dirname %s, filename %s\n", dirname, start_name);
+    fd_t dir = opendir(dirname);
+    if (dir < 0)
+        return;
+    char best_prefix[MAX_FILE_NAME];
+    dirent_t dirent;
+    int complete_dir = 0;
+    char *solutions[100];
+    int nb_solutions = 0;
+    while (readdir(dir, &dirent) == 0) {
+        int res = is_prefix(start_name, dirent.name);
+        //printf("test <%s> : %d\n", dirent.name, res);
+        if (res) {
+            if (!nb_solutions) {
+                strCopy(dirent.name, best_prefix);
+                if (dirent.type == DIR)
+                    complete_dir = 1;
+            }
+            else {
+                complete_dir = 0;
+                char *new = dirent.name;
+                char *old = best_prefix;
+                while (*new && *old && (*new == *old)) {
+                    new++;
+                    old++;
+                }
+                *old = 0;
+                //printf("new best prefix : %s\n", best_prefix);
+            }
+            if (nb_solutions < 100) {
+                int len = strlen(dirent.name);
+                char *sol = malloc(len+2);
+                strCopy(dirent.name, sol);
+                if (dirent.type == DIR && !strEqual(dirent.name, "/") && dirent.name[0] != '.') {
+                    sol[len] = '/';
+                    sol[len+1] = 0;
+                }
+                solutions[nb_solutions] = sol;
+
+                nb_solutions++;
+            }
+        }
+    }
+    //printf("Final decision : %s\n", best_prefix);
+    closedir(dir);
+    char *res = best_prefix;
+    if (!nb_solutions)
+        return;
+    while (*start_name) {
+        start_name++;
+        res++;
+    }
+    if (nb_solutions > 1 && !*res) {
+        // We want to display the options
+        stream_putchar('\n', STDOUT);
+        char *sol;
+        for (int i =0; i < nb_solutions; i++) {
+            sol = solutions[i];
+            char *end =sol;
+            while (*end != '/' && *end)
+                end++;
+            if (*end)
+                printf("%bg%s%pbg   ", BLUE, sol);
+            else
+                printf("%s   ", sol);
+            free(sol);
+        }
+        printf("\n");
+        if (nb_solutions == 100)
+            printf("There may be more possibilities.\n");
+        new_cmd();
+        printf("%s", cmd);
+        flush(STDOUT);
+        return;
+    }
+    char c;
+    while (*res) {
+        c = *res++;
+        cmd[pos++] = c;
+        stream_putchar(c, STDOUT);
+    }
+    if (complete_dir) {
+        cmd[pos++] = '/';
+        stream_putchar('/', STDOUT);
+    }
+    else if (nb_solutions == 1) {
+        cmd[pos++] = ' ';
+        stream_putchar(' ', STDOUT);
+    }
+    return;
 }
 
 int main(char *init_cmd) {
