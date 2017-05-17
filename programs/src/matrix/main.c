@@ -5,8 +5,8 @@ u8 map[VGA_WIDTH][VGA_HEIGHT];
 int neighbors[4];
 int possibles;
 #define NB_COLORS 4
-int colors2[NB_COLORS] = {BLUE, GREEN, RED, LIGHT_BROWN};
-int colors1[NB_COLORS] = {MAGENTA, WHITE, CYAN, LIGHT_GREY};
+int colors2[NB_COLORS+1] = {BLUE, GREEN, RED, LIGHT_BROWN, WHITE};
+int colors1[NB_COLORS+1] = {MAGENTA, WHITE, CYAN, LIGHT_GREY, GREEN};
 
 void draw(int c1, int c2, int prev_x, int prev_y, int x, int y, int next_x, int next_y) {
     char c;
@@ -76,15 +76,64 @@ void init_map(int walls) {
     }
 }
 
+void pause() {
+    int key = 0;
+    while (key != KEY_SPACE) {
+        sleep(100);
+        key = get_key_event();
+        if (key == KEY_ESCAPE)
+            exit(EXIT_SUCCESS);
+    }
+}
+
+void check_key(int *direction) {
+    int key;
+    while (1) {
+        errno = ECLEAN;
+        key = get_key_event();
+        while (key != -1) {
+            if (key == KEY_UP) {
+                direction[0] = 0;
+                direction[1] = -1;
+            }
+            if (key == KEY_DOWN) {
+                direction[0] = 0;
+                direction[1] = 1;
+            }
+            if (key == KEY_LEFT) {
+                direction[0] = -1;
+                direction[1] = 0;
+            }
+            if (key == KEY_RIGHT) {
+                direction[0] = 1;
+                direction[1] = 0;
+            }
+            if (key == KEY_ESCAPE)
+                exit(EXIT_SUCCESS);
+            if (key == KEY_SPACE)
+                break;
+            errno = ECLEAN;
+            key = get_key_event();
+        }
+        if (errno != ENOFOCUS && key != KEY_SPACE)
+            return;
+        pause();
+    }
+}
+
 int main(char *args) {
     memset(map, 0, VGA_HEIGHT * VGA_WIDTH * 4);
-    int x[NB_COLORS], y[NB_COLORS], prev_x[NB_COLORS], prev_y[NB_COLORS], next_x[NB_COLORS], next_y[NB_COLORS], c1, c2, nb_run;
-    int run[NB_COLORS] = {0};
+    int x[NB_COLORS+1], y[NB_COLORS+1], prev_x[NB_COLORS+1], prev_y[NB_COLORS+1];
+    int next_x[NB_COLORS+1], next_y[NB_COLORS+1], c1, c2, nb_run;
+    int p = NB_COLORS;
+    int run[NB_COLORS + 1] = {0};
+    int nb = NB_COLORS + 1;
+    int direction[2]; // Player direction
     clear_screen(BLACK);
     while (1) {
         memset(map, 0, VGA_HEIGHT * VGA_WIDTH * 4);
         init_map(1);
-        for (int i = 0; i < NB_COLORS; i++) {
+        for (int i = 0; i < nb; i++) {
             run[i] = 1;
             x[i] = rand() % VGA_WIDTH;
             y[i] = rand() % VGA_HEIGHT;
@@ -92,11 +141,18 @@ int main(char *args) {
                 x[i] = rand() % VGA_WIDTH;
                 y[i] = rand() % VGA_HEIGHT;
             }
+            set_char_at('\t', colors2[i], BLACK, x[i], y[i]);
+            prev_x[i] = x[i];
+            prev_y[i] = y[i];
             map[x[i]][y[i]] = 1;
+            direction[0] = 1;
+            direction[1] = 0;
         }
-        nb_run = NB_COLORS;
+        nb_run = NB_COLORS+1;
+        pause();
         while (nb_run) {
-            sleep(150);
+            sleep(100);
+            check_key(direction);
             for (int k = 0; k < NB_COLORS; k++) {
                 if (!run[k])
                     continue;
@@ -138,9 +194,29 @@ int main(char *args) {
                 map[x[k]][y[k]] = 1;
                 
             }
-            
+            if (run[p]) {
+                check_key(direction);
+                // For the player
+                next_x[p] = x[p] + direction[0];
+                next_y[p] = y[p] + direction[1];
+                if (map[next_x[p]][next_y[p]]) {
+                    run[p] = 0;
+                    nb_run--;
+                    set_char_at('\t', RED, BLACK, x[p], y[p]);
+                    break;
+                }
+                draw(colors1[p], colors2[p], prev_x[p], prev_y[p], x[p], y[p], next_x[p], next_y[p]);
+                prev_x[p] = x[p];
+                prev_y[p] = y[p];
+                x[p] = next_x[p];
+                y[p] = next_y[p];
+                
+                
+                
+                map[x[p]][y[p]] = 1;
+            }
         }
         // Died.
-        sleep(500);
+        pause();
     }
 }

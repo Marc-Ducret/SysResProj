@@ -507,6 +507,7 @@ int _closedir(state *s) {
 int _get_key_event(state *s) {
     if(s->curr_pid == s->focus) {
         s->ctx->regs.eax = nextKeyEvent();
+        s->ctx->regs.ebx = ECLEAN;
     }
     else {
         s->ctx->regs.eax = -1;
