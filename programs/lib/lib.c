@@ -81,8 +81,8 @@ u32 last_rand;
 
 u32 rand() {
     
-    last_rand = (last_rand * 16807) % (((u32) 1 << 31) -1);
-    return last_rand;
+    //last_rand = (last_rand * 16807) % (((u32) 1 << 31) -1);
+    return genrand(42);
 }
 
 void lib_init() {
@@ -96,6 +96,8 @@ void lib_init() {
     last_rand = ((u32) 16807 * 16807 * 16807 * ((u32) t.century - (u32) t.year + (u32) t.month) +
             16807 * 16807 * ((u32)t.day - (u32)t.hours) + 
             16807 * ((u32)t.minutes + (u32)t.seconds) +  49 * (u32)t.mseconds) % (((u32) 1 << 31) - 1);
+    init_twister();
+    sgenrand(42, last_rand);
 }
 
 void *memcpy(void *dst, void *src, u32 n) {

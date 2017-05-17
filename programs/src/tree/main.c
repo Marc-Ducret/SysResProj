@@ -1,8 +1,9 @@
 #include "lib.h"
 #include "int.h"
 #include "parsing.h"
-
+#define MAX_DEPTH 50
 char *sizes[4] = {"", "K", "M", "G"};
+int states[MAX_DEPTH];
 
 void print_size(size_t size) {
     int level = 0;
@@ -48,8 +49,11 @@ void print_folder(char *file, int mode, int size, int offset) {
         
         if(dirent.name[0] != '.') {
             if (dirent.type == FILE) {
-                for(int i = 0; i < offset; i ++) printf("\xB3 ");
-                printf("%c%s", res ? 0xC0 : 0xC3, dirent.name);
+                for(int i = 0; i < offset; i ++) {
+                    if (states[i]) printf("\xB3   ");
+                    else printf("    ");
+                }
+                printf("%c\xC4\xC4 %s", res ? 0xC0 : 0xC3, dirent.name);
                 if (mode || size) printf(" (");
                 if (size) print_size(dirent.size);
                 if (mode && size) printf(", ");
@@ -60,14 +64,18 @@ void print_folder(char *file, int mode, int size, int offset) {
                 if (mode || size) printf(")");
                 printf("\n");
             } else {
-                for(int i = 0; i < offset; i ++) printf("\xB3 ");
-                printf("%c\xC4\xC2%fg%s%pfg", res ? 0xC0 : 0xC3, BLUE, dirent.name);
+                for(int i = 0; i < offset; i ++) {
+                    if (states[i]) printf("\xB3   ");
+                    else printf("    ");
+                }
+                printf("%c\xC4\xC4 %fg%s%pfg", res ? 0xC0 : 0xC3, BLUE, dirent.name);
                 if (mode)
                     printf(" (%s, %s)", dirent.mode & SYSTEM ? "S":"U", 
                                       dirent.mode & RDONLY ? "RO":"RW");
                 printf("\n");
                 if(dirent.name[0] != '.') {
                     char *subdir = concat(file, dirent.name);
+                    states[offset] = !res;
                     print_folder(subdir, mode, size, offset+1);
                     free(subdir);
                 }
@@ -85,14 +93,16 @@ void print_folder(char *file, int mode, int size, int offset) {
 int main(char *a) {
     args_t args;
     int res = parse(a, &args);
-    if (res == -1)
+    if (res == -1 || args.nb_args > 1)
         too_many_args("tree");
-
+    char *path = ".";
+    if (args.nb_args == 1)
+        path = args.args[0];
     int mode = eat_option(&args, "m");
     int size = eat_option(&args, "s");
     remain_option(&args, "tree");
     
-    print_folder(".", mode, size, 0);
+    print_folder(path, mode, size, 0);
     
     flush(STDOUT);
     exit(EXIT_SUCCESS);

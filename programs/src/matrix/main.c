@@ -1,28 +1,66 @@
 #include "lib.h"
 
-#define NB_POSSIBLES 26
-char possibles[NB_POSSIBLES];
+
+u8 map[VGA_HEIGHT][VGA_WIDTH];
+int neighbors[4];
+int possibles;
+
+void draw(int prev_x, int prev_y, int x, int y, int next_x, int next_y) {
+    set_char_at('\t', BLUE, BLACK, x, y);
+}
 
 int main(char *args) {
-    for (int i =0; i < 26; i++) {
-        possibles[i] = 'a' + i;
-    }
-    int activated[VGA_WIDTH];
-    u8 colors[VGA_WIDTH];
-    memset(colors, 0, VGA_WIDTH);
-    int period = 25;
+    memset(map, 0, VGA_HEIGHT * VGA_WIDTH * 4);
+    int x, y, prev_x, prev_y, next_x, next_y, run;
+    clear_screen(BLACK);
     while (1) {
-        sleep(100);
-        for (int i = 0; i < VGA_WIDTH; i++) {
-            if (!(rand() % period)) {
-                activated[i] = rand()%2;
-                colors[i] = rand()%16;
+        memset(map, 0, VGA_HEIGHT * VGA_WIDTH * 4);
+        clear_screen(BLACK);
+        x = rand() % VGA_WIDTH;
+        y = rand() % VGA_HEIGHT;
+        map[x][y] = 1;
+        run = 1;
+        while (run) {
+            sleep(100);
+            possibles = 0;
+            for (int i = -1; i <= 1; i += 2) {
+                neighbors[(i+1) / 2] = !map[(x+i+VGA_WIDTH)%VGA_WIDTH][y];
+                if (neighbors[(i+1) / 2]) possibles++;
+                
             }
-            if (activated[i]) {
-                printf("%fg%c%pfg", colors[i], 30 + (rand() % 220));//, colors[i], possibles[rand() % NB_POSSIBLES]);
+            for (int j = -1; j <= 1; j+=2) {
+                neighbors[(j + 1) /2 + 2] = !map[x][(y+j+VGA_HEIGHT)%VGA_HEIGHT];
+                if (neighbors[(j + 1) /2 + 2]) possibles++;
             }
-            else
-                printf(" ");//, BLACK);
+            
+            if (!possibles) {
+                run = 0;
+                break;
+            }
+            int choice = ((rand() % possibles) + possibles) % possibles;
+            int neigh = 0;
+            while (choice > 0 || !neighbors[neigh]) {
+                if (neighbors[neigh])
+                    choice--;
+                neigh++;
+            }
+            int delta = (neigh % 2) ? 1 : -1;
+            int is_x = neigh < 2;
+            next_x = (x + (is_x ? delta : 0) + VGA_WIDTH) % VGA_WIDTH;
+            next_y = (y + (!is_x ? delta : 0) + VGA_HEIGHT) % VGA_HEIGHT;
+            
+            draw(prev_x, prev_y, x, y, next_x, next_y);
+            printf("%d, %d --> %d, %d --> %d, %d\n", prev_x, prev_y, x, y, next_x, next_y);
+            prev_x = x;
+            prev_y = y;
+            x = next_x;
+            y = next_y;
+            map[x][y] = 1;
         }
+        set_char_at('\t', RED, BLACK, x, y);
+        // Died.
+        sleep(2000);
+        clear_screen(BLUE);
+        sleep(500);
     }
 }

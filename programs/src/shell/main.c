@@ -4,7 +4,7 @@
 #define CMD_SIZE 0x200
 #define HISTORY_LENGTH 512
 
-#define NB_SHELL_CMD 23
+#define NB_SHELL_CMD 22
 #define NB_BUILTIN 7
 
 char *shell_commands[NB_SHELL_CMD] =  {
@@ -30,7 +30,6 @@ char *shell_commands[NB_SHELL_CMD] =  {
     "sl",
     "splash",
     "more",
-    "reboot"
 };
 
 char *builtin_commands[NB_BUILTIN] = {

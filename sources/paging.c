@@ -295,19 +295,26 @@ u8 page_fault(context_t* context) {
     int id = err_code & 0x10;          // Caused by an instruction fetch?
     
     // Output an error message.
-    kprintf("Page fault! ( ");
+    fprintf(stderr, "Page fault! ( ");
     if (present) 
-        kprintf("present ");
+        fprintf(stderr, "present ");
     if (!rw)
-        kprintf("read ");
+        fprintf(stderr, "read ");
     else
-        kprintf("write ");
+        fprintf(stderr, "write ");
     if (us)
-        kprintf("user-mode ");
+        fprintf(stderr, "user-mode ");
     if (reserved) 
-        kprintf("reserved ");
-    kprintf(") id=%d at %x (eip = %x pid = %d)\n", id, faulting_address, 
+        fprintf(stderr, "reserved ");
+    fprintf(stderr, ") id=%d at %x (eip = %x pid = %d)\n", id, faulting_address, 
                             context->stack.eip, get_global_state()->curr_pid);
+    
+    if (!present && USER_CODE_VIRTUAL <= faulting_address && faulting_address < USER_CODE_VIRTUAL + 0x100000) {
+        // We consider this as data segment.
+        page_t *page = get_page(faulting_address, 1, global_state.processes[global_state.curr_pid].page_directory);
+        map_page(page, 0, 0, 1);
+        return 0;
+    }
     //asm("hlt");
     return 1;
 }
@@ -321,7 +328,7 @@ int check_address(void *address, int user, int write, page_directory_t *pd) {
     }
     if ((!page->user && user) || (!page->rw && write)) {
         errno = EFAULT;
-        kprintf("Voila : address %x, page_user %d, page_write %d, user %d, write %d, eip %x\n",
+        fprintf(stderr, "Voila : address %x, page_user %d, page_write %d, user %d, write %d, eip %x\n",
                 address, page->user, page->rw, user, write, get_global_state()->processes[get_global_state()->curr_pid].saved_context.stack.eip);
         asm("hlt");
         return -1;

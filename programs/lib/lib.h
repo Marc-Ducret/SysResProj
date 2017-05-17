@@ -2,6 +2,7 @@
 #define LIB_H
 #include "int.h"
 #include "keycode.h"
+#include "random.h"
 
 #define BLACK 0
 #define BLUE 1

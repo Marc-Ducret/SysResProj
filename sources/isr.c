@@ -30,7 +30,8 @@ void isr_handler(u32 id, context_t *context) {
     state *s = get_global_state();
     
     if (id == 14) {
-        page_fault(context);
+        if (!page_fault(context))
+            return;
         fprintf(stderr, "Process %d was killed because of this Page Fault\n");
     }
     else {
