@@ -76,6 +76,25 @@ void init_map(int walls) {
     }
 }
 
+int value(int x, int y) {
+    if(x < 0 || y < 0 || x >= VGA_WIDTH || y >= VGA_HEIGHT) return 1;
+    return map[x][y];
+}
+
+int sq(int x) {
+    return x*x;
+}
+
+int density(int x, int y, int s) {
+    int ct = 0;
+    for(int i = x - s; i <= x + s; i++) {
+        for(int j = y - s; j <= y + s; j++) {
+            ct += value(i, j) * (2*sq(s) - sq(x-i) - sq(y-j));
+        }
+    }
+    return ct * 10;
+}
+
 int main(char *args) {
     memset(map, 0, VGA_HEIGHT * VGA_WIDTH * 4);
     int x[NB_COLORS], y[NB_COLORS], prev_x[NB_COLORS], prev_y[NB_COLORS], next_x[NB_COLORS], next_y[NB_COLORS], c1, c2, nb_run;
@@ -102,22 +121,21 @@ int main(char *args) {
                     continue;
                 c1 = colors1[k];
                 c2 = colors2[k];
-            
-                neighbors[0] = !map[x[k]+1][y[k]];
-                neighbors[1] = !map[x[k]-1][y[k]];
-                neighbors[2] = !map[x[k]][y[k]+1];
-                neighbors[3] = !map[x[k]][y[k]-1];
                 
-                if (!neighbors[0] && !neighbors[1] && !neighbors[2] && !neighbors[3]) {
-                    set_char_at('\t', RED, BLACK, x[k], y[k]);
-                    run[k] = 0;
-                    nb_run--;
-                    break;
-                }
+                int s = 2;
                 
-                int choice = rand() % 4;
-                while (!neighbors[choice]) {
-                    choice = (choice + 1) % 4;
+                neighbors[0] = density(x[k]+1, y[k]  , s);
+                neighbors[1] = density(x[k]-1, y[k]  , s);
+                neighbors[2] = density(x[k]  , y[k]+1, s);
+                neighbors[3] = density(x[k]  , y[k]-1, s);
+                
+                printf("%d %d %d %d", neighbors[0], neighbors[1], neighbors[2], neighbors[3]);
+                
+                int min = neighbors[0];
+                int choice = 0;
+                for(int i = 0; i < 4; i ++) if(neighbors[i] < min || (neighbors[i] == min && rand()%2)) {
+                    min = neighbors[i];
+                    choice = i;
                 }
 
                 next_x[k] = x[k];
@@ -130,6 +148,12 @@ int main(char *args) {
                     next_y[k] = y[k] + 1;
                 if (choice == 3)
                     next_y[k] = y[k] - 1;
+                if(map[next_x[k]][next_y[k]]) {
+                    set_char_at('\t', RED, BLACK, x[k], y[k]);
+                    run[k] = 0;
+                    nb_run--;
+                    break;
+                }
                 draw(c1, c2, prev_x[k], prev_y[k], x[k], y[k], next_x[k], next_y[k]);
                 prev_x[k] = x[k];
                 prev_y[k] = y[k];
