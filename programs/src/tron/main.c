@@ -1,4 +1,5 @@
 #include "lib.h"
+#include "parsing.h"
 
 
 u8 map[VGA_WIDTH][VGA_HEIGHT];
@@ -121,7 +122,34 @@ void check_key(int *direction) {
     }
 }
 
+int value(int x, int y) {
+    if(x < 0 || y < 0 || x >= VGA_WIDTH || y >= VGA_HEIGHT) return 1;
+    return map[x][y];
+}
+
+int sq(int x) {
+    return x*x;
+}
+
+int density(int x, int y, int s) {
+    int ct = 0;
+    for(int i = x - s; i <= x + s; i++) {
+        for(int j = y - s; j <= y + s; j++) {
+            ct += value(i, j) * (2*sq(s) - sq(x-i) - sq(y-j));
+        }
+    }
+    return ct * 10;
+}
+
 int main(char *args) {
+    args_t params;
+    int err = parse(args, &params);
+    if (err == -1 || params.nb_args)
+        too_many_args("tron");
+    
+    int level = !(eat_option(&params, "r"));
+    int is_player = !(eat_option(&params, "nop"));
+    remain_option(&params, "tron");
     memset(map, 0, VGA_HEIGHT * VGA_WIDTH * 4);
     int x[NB_COLORS+1], y[NB_COLORS+1], prev_x[NB_COLORS+1], prev_y[NB_COLORS+1];
     int next_x[NB_COLORS+1], next_y[NB_COLORS+1], c1, c2, nb_run;
@@ -130,6 +158,10 @@ int main(char *args) {
     int nb = NB_COLORS + 1;
     int direction[2]; // Player direction
     clear_screen(BLACK);
+    update_clock(WHITE, BLACK);
+    while (get_key_event() == -1 && errno == ENOFOCUS) {
+        sleep(10);
+    }
     while (1) {
         memset(map, 0, VGA_HEIGHT * VGA_WIDTH * 4);
         init_map(1);
@@ -148,34 +180,56 @@ int main(char *args) {
             direction[0] = 1;
             direction[1] = 0;
         }
-        nb_run = NB_COLORS+1;
-        pause();
+        nb_run = NB_COLORS + is_player;
+        if (is_player)
+            pause();
+        else {
+            set_char_at(' ', BLACK, BLACK, x[p], y[p]);
+            map[x[p]][y[p]] = 0;
+        }
         while (nb_run) {
-            sleep(100);
+            if (is_player)
+                sleep(100);
+            else 
+                sleep(150);
             check_key(direction);
             for (int k = 0; k < NB_COLORS; k++) {
                 if (!run[k])
                     continue;
                 c1 = colors1[k];
                 c2 = colors2[k];
-            
-                neighbors[0] = !map[x[k]+1][y[k]];
-                neighbors[1] = !map[x[k]-1][y[k]];
-                neighbors[2] = !map[x[k]][y[k]+1];
-                neighbors[3] = !map[x[k]][y[k]-1];
                 
-                if (!neighbors[0] && !neighbors[1] && !neighbors[2] && !neighbors[3]) {
-                    set_char_at('\t', RED, BLACK, x[k], y[k]);
-                    run[k] = 0;
-                    nb_run--;
-                    break;
-                }
-                
-                int choice = rand() % 4;
-                while (!neighbors[choice]) {
-                    choice = (choice + 1) % 4;
-                }
+                int choice;
+                if (level) {
+                    int s = 2;
 
+                    neighbors[0] = density(x[k]+1, y[k]  , s);
+                    neighbors[1] = density(x[k]-1, y[k]  , s);
+                    neighbors[2] = density(x[k]  , y[k]+1, s);
+                    neighbors[3] = density(x[k]  , y[k]-1, s);
+
+                    int min = neighbors[0];
+                    choice = 0;
+                    for(int i = 0; i < 4; i ++) if(neighbors[i] < min || (neighbors[i] == min && rand()%2)) {
+                        min = neighbors[i];
+                        choice = i;
+                    }
+                }
+                else {
+                    neighbors[0] = !map[x[k]+1][y[k]];
+                    neighbors[1] = !map[x[k]-1][y[k]];
+                    neighbors[2] = !map[x[k]][y[k]+1];
+                    neighbors[3] = !map[x[k]][y[k]-1];
+                    if (!neighbors[0] && !neighbors[1] && !neighbors[2] && !neighbors[3]) {
+                        choice = 0;
+                    }
+                    else {
+                        choice = rand() % 4;
+                        while (!neighbors[choice]) {
+                            choice = (choice + 1) % 4;
+                        }
+                    }
+                }
                 next_x[k] = x[k];
                 next_y[k] = y[k];
                 if (choice == 0)
@@ -186,6 +240,12 @@ int main(char *args) {
                     next_y[k] = y[k] + 1;
                 if (choice == 3)
                     next_y[k] = y[k] - 1;
+                if(map[next_x[k]][next_y[k]]) {
+                    set_char_at('\t', RED, BLACK, x[k], y[k]);
+                    run[k] = 0;
+                    nb_run--;
+                    continue;
+                }
                 draw(c1, c2, prev_x[k], prev_y[k], x[k], y[k], next_x[k], next_y[k]);
                 prev_x[k] = x[k];
                 prev_y[k] = y[k];
@@ -194,7 +254,7 @@ int main(char *args) {
                 map[x[k]][y[k]] = 1;
                 
             }
-            if (run[p]) {
+            if (run[p] && is_player) {
                 check_key(direction);
                 // For the player
                 next_x[p] = x[p] + direction[0];
@@ -217,6 +277,9 @@ int main(char *args) {
             }
         }
         // Died.
-        pause();
+        if (is_player)
+            pause();
+        else
+            sleep(700);
     }
 }

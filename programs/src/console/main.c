@@ -2,6 +2,7 @@
 #include "parsing.h"
 
 #define SCROLL_HEIGHT 0x200
+#define SLEEP_DELAY (5 * 60 * 1000) 
 
 u8 cursor_x;
 u8 cursor_y;
@@ -206,6 +207,14 @@ int c_parse_char(u8 c) {
     else if (c == 167) {
         switch_clock();
     }
+    else if (c == 168) {
+        // Just writes at 0 location to toggle focus switch.
+        u16* screen = get_screen();
+        u16 save = *screen;
+        *screen = 0;
+        sleep(1);
+        *screen = save;
+    }
     update_cursor();
     return 1;
 }
@@ -214,6 +223,8 @@ u8 recv_buff[512];
 u8 shift, alt, ctrl;
 int key_buffer[10];
 int index_new = 0;
+int sleep_time = SLEEP_DELAY;
+int count = 10000;
 
 int main(char *args) {
     char *file;
@@ -230,11 +241,14 @@ int main(char *args) {
     switch_clock();
     while (run) {
         sleep(50);
+        count -= 50;
         key_buffer[index_new] = get_key_event();
         while (key_buffer[index_new] != -1) {
             index_new++;
             key_buffer[index_new] = get_key_event();
         }
+        if (errno == ENOFOCUS)
+            count = sleep_time;
         for (int index = 0; index < index_new; index++) {
             int event = key_buffer[index];
             if      ((event & 0x7F) == KEY_SHIFT ) shift = !(event & 0x80);
@@ -255,6 +269,7 @@ int main(char *args) {
             }
         }
         if (index_new) {
+            count = sleep_time;
             int res = flush(out);
             if (res == -1)
                 run = 0;
@@ -262,6 +277,7 @@ int main(char *args) {
         index_new = 0;
         int ct;
         while ((ct = receive(in, recv_buff, 512)) > 0) {
+            count = sleep_time;
             for(int i = 0; i < ct; i ++) {
                 run = c_parse_char(recv_buff[i]);
                 if(!run)
@@ -273,6 +289,19 @@ int main(char *args) {
         }
         if (clock_mode)
             update_clock(fg_color, bg_color);
+        
+        if (count <= 0) {
+            pid_t tron = exec("/bin/shell.bin", "tron -r -nop", -1, -1);
+            if (tron != -1) {
+                u16* screen = get_screen();
+                u16 save = *screen;
+                *screen = 0;
+                sleep(1);
+                wait(NULL);
+                *screen = save;
+            }
+            count = sleep_time;
+        }
     }
     // Exits.
     print_string("CONSOLE EXITED.");
