@@ -56,7 +56,7 @@ int last_cmd;
 int cur_cmd;
 int first_cmd;
 char user_name[512];
-char *default_user = "Ez";
+char *default_user = "ez";
 int pos = 0;
 int run;
 int ephemeral = 0;

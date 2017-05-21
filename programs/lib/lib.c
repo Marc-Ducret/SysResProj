@@ -30,6 +30,7 @@ void update_clock(u8 fg, u8 bg) {
         clock[2*i+2] = (bg << 4) + fg;
     }
     int x = 1;
+    t.hours += 2;
     clock[x++] = '0' + t.hours / 10;
     x++;
     clock[x++] = '0' + t.hours % 10;

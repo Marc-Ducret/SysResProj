@@ -2,7 +2,7 @@
 #include "parsing.h"
 
 #define SCROLL_HEIGHT 0x200
-#define SLEEP_DELAY (5 * 60 * 1000) 
+#define SLEEP_DELAY (3 * 60 * 1000) 
 
 u8 cursor_x;
 u8 cursor_y;
